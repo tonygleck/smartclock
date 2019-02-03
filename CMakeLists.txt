@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.11)
 
-#Use solution folders. 
+#Use solution folders.
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 project(smartclock)
 
@@ -9,6 +9,7 @@ set(PROJECT_INC_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/inc)
 #set(TEST_INC_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/test/inc)
 
 option(use_opengl "set the smartclock to run on opengl (default is OFF)" OFF)
+option(include_ut "Include unittest in build" OFF)
 
 enable_testing()
 
@@ -38,7 +39,7 @@ if(MSVC)
 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /wd4201")
 
-    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4") 
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W4")
     add_definitions(/WX)
 
@@ -54,6 +55,13 @@ endif()
 
 include_directories(. inc ./deps)
 
+# Setup dependencies
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/umock-c)
+include_directories(${UMOCK_C_INC_FOLDER})
+
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/lib-util-c)
+include_directories(${CMAKE_CURRENT_LIST_DIR}/deps/lib-util-c/inc)
+
 ###### Temporary
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/c-utility)
 include_directories(${SHARED_UTIL_INC_FOLDER})
@@ -61,6 +69,7 @@ include_directories(${SHARED_UTIL_INC_FOLDER})
 
 set(smartclock_src_files
     src/main.c
+    src/ntp_client.c
 )
 
 set(smartclock_h_files
@@ -69,3 +78,19 @@ set(smartclock_h_files
 
 add_executable(smartclock ${smartclock_src_files} ${smartclock_h_files})
 target_link_libraries(smartclock aziotsharedutil)
+target_link_libraries(smartclock lib-util-c)
+
+# Add testing
+if (${include_ut})
+    include("${CMAKE_CURRENT_LIST_DIR}/deps/lib-util-c/cmake_configs/proj_test.cmake")
+
+    if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/testrunnerswitcher/CMakeLists.txt")
+        execute_process(COMMAND git clone https://github.com/Azure/azure-c-testrunnerswitcher.git -q --no-tags ${CMAKE_CURRENT_SOURCE_DIR}/deps/testrunnerswitcher)
+    endif()
+    if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/ctest/CMakeLists.txt")
+        execute_process(COMMAND git clone https://github.com/Azure/azure-ctest.git -q --no-tags ${CMAKE_CURRENT_SOURCE_DIR}/deps/ctest)
+    endif()
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/testrunnerswitcher)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/ctest)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)
+endif()

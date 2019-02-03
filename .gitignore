@@ -87,3 +87,5 @@ UpgradeLog*.htm
 **/.vscode/**
 # C/C++ extension for VS Code
 browse.VC.db
+
+deps/
