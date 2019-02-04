@@ -5,12 +5,22 @@
 #include <time.h>
 #include <sys/timeb.h>
 
+#ifdef WIN32
+    #include <winsock.h>
+#else
+    #include <arpa/inet.h>
+#endif
+
 #include "ntp_client.h"
 #include "azure_c_shared_utility/socketio.h"
+#include "azure_c_shared_utility/shared_util_options.h"
 #include "lib-util-c/alarm_timer.h"
 
 #define NTP_PORT_NUM            123
-const uint32_t JAN_1ST_1900 = 2415021;
+#define MAX_CLOSE_RETRIES       2
+
+static const unsigned long long NTP_TIMESTAMP_DELTA = 2208988800ull;
+static const uint32_t JAN_1ST_1900 = 2415021;
 
 typedef enum NTP_CLIENT_STATE_TAG
 {
@@ -20,19 +30,6 @@ typedef enum NTP_CLIENT_STATE_TAG
     NTP_CLIENT_STATE_RECV,
     NTP_CLIENT_STATE_ERROR
 } NTP_CLIENT_STATE;
-
-typedef struct NTP_CLIENT_INFO_TAG
-{
-    NTP_TIME_CALLBACK ntp_callback;
-    void* user_ctx;
-    XIO_HANDLE socketio;
-    size_t timeout_sec;
-    bool server_connected;
-    bool error_encountered;
-
-    NTP_CLIENT_STATE ntp_state;
-    ALARM_TIMER_HANDLE timer_handle;
-} NTP_CLIENT_INFO;
 
 // Representation of the NTP timestamp
 typedef struct NTP_TIME_PACKET_TAG
@@ -44,13 +41,15 @@ typedef struct NTP_TIME_PACKET_TAG
 // NTP basic packet information
 typedef struct NTP_BASIC_INFO_TAG
 {
-    unsigned char li_vn_mode;
-    unsigned char stratum;
-    char poll;
-    char precision;
+    uint8_t li_vn_mode;
+    uint8_t stratum;
+    uint8_t poll;
+    uint8_t precision;
+
     uint32_t root_delay;
     uint32_t root_dispersion;
     uint32_t reference_id;
+
     NTP_TIME_PACKET ntp_ref_timestamp;
     NTP_TIME_PACKET ntp_orig_timestamp;
     NTP_TIME_PACKET ntp_recv_timestamp;
@@ -69,47 +68,19 @@ typedef struct NTP_RESP_PACKET_TAG
     NTP_AUTH_INFO ntp_auth_info;
 } NTP_RESP_PACKET;
 
-/*static uint64_t get_julian_date(const struct tm* gmt)
+typedef struct NTP_CLIENT_INFO_TAG
 {
-    uint64_t result;
-    uint32_t month = 0;
-    uint32_t year = 0;
-    if (gmt->tm_mon > 2)
-    {
-        month = gmt->tm_mon - 3;
-    }
-    else
-    {
-        month = gmt->tm_mon + 9;
-        year = gmt->tm_year - 1;
-    }
-    uint32_t intermediate = year / 100;
-    uint32_t temp_val = year - 100 * intermediate;
-    result = (146097L * intermediate) / 4 + (1461L * temp_val) / 4 + (153L * month + 2) / 5 + gmt->tm_mday + 1721119L;
-    return result;
-}
+    NTP_TIME_CALLBACK ntp_callback;
+    void* user_ctx;
+    CONCRETE_IO_HANDLE socketio;
+    size_t timeout_sec;
+    bool server_connected;
 
-static int generate_utc_timevalue(NTP_TIME_PACKET* ntp_time)
-{
-    // Get the UTC Time
-    time_t tm_value = time(NULL);
-    struct tm time_info;
-#ifdef WIN32
-        gmtime_s(&time_info, &tm_value);
-#else
-        struct tm* ptm = gmtime(&tm_value);
-        memcpy(&time_info, ptm, sizeof(tm));
-#endif
-
-    // Convert the UTC to a NTP object
-    uint64_t date_value = get_julian_date(&time_info);
-    date_value -= JAN_1ST_1900;
-
-    date_value = (date_value * 24) + time_info.tm_hour;
-    date_value = (date_value * 60) + time_info.tm_min;
-    date_value = (date_value * 60) + time_info.tm_sec;
-    date_value = (date_value << 32) + MS_TO_NTP[time_info.];
-}*/
+    NTP_TIME_PACKET recv_packet;
+    NTP_CLIENT_STATE ntp_state;
+    NTP_OPERATION_RESULT ntp_op_result;
+    ALARM_TIMER_HANDLE timer_handle;
+} NTP_CLIENT_INFO;
 
 static uint32_t clock_get_time(void)
 {
@@ -139,7 +110,8 @@ static void on_io_open_complete(void* context, IO_OPEN_RESULT open_result)
         }
         else
         {
-            ntp_client->error_encountered = true;
+            ntp_client->ntp_state = NTP_CLIENT_STATE_ERROR;
+            ntp_client->ntp_op_result = NTP_OP_RESULT_COMM_ERR;
             printf("open failed");
         }
     }
@@ -155,6 +127,21 @@ static void on_io_bytes_received(void* context, const unsigned char* buffer, siz
     else
     {
         NTP_RESP_PACKET resp_packet;
+        if (size != sizeof(NTP_BASIC_INFO))
+        {
+            // TODO: Store the bits
+        }
+        else
+        {
+            NTP_BASIC_INFO* ntp_info = (NTP_BASIC_INFO*)buffer;
+
+            // These two fields contain the time-stamp seconds as the packet left the NTP server.
+            // The number of seconds correspond to the seconds passed since 1900.
+            // ntohl() converts the bit/byte order from the network's to host's "endianness".
+            ntp_client->recv_packet.integer = ntohl(ntp_info->ntp_transmit_timestamp.integer);
+            ntp_client->recv_packet.fractional = ntohl(ntp_info->ntp_transmit_timestamp.fractional);
+            ntp_client->ntp_state = NTP_CLIENT_STATE_RECV;
+        }
     }
 }
 
@@ -167,7 +154,20 @@ static void on_io_error(void* context)
     }
     else
     {
-        ntp_client->error_encountered = true;
+        ntp_client->ntp_state = NTP_CLIENT_STATE_ERROR;
+        ntp_client->ntp_op_result = NTP_OP_RESULT_COMM_ERR;
+    }
+}
+
+static void on_connection_closed(void* context)
+{
+    NTP_CLIENT_INFO* ntp_client = (NTP_CLIENT_INFO*)context;
+    if (ntp_client == NULL)
+    {
+        printf("Invalid context specified");
+    }
+    else
+    {
     }
 }
 
@@ -184,7 +184,7 @@ static int send_initial_ntp_packet(NTP_CLIENT_INFO* ntp_client)
     ntp_info.ntp_transmit_timestamp.integer = ntp_info.ntp_orig_timestamp.integer;
     ntp_info.ntp_transmit_timestamp.fractional = ntp_info.ntp_orig_timestamp.fractional;
 
-    if (xio_send(ntp_client->socketio, &ntp_info, ntp_len, NULL, NULL) != 0)
+    if (socketio_send(ntp_client->socketio, &ntp_info, ntp_len, NULL, NULL) != 0)
     {
         printf("Failure sending NTP packet to server");
         result = __FAILURE__;
@@ -196,46 +196,66 @@ static int send_initial_ntp_packet(NTP_CLIENT_INFO* ntp_client)
     return result;
 }
 
-static bool is_timed_out(NTP_CLIENT_INFO* ntp_client)
-{
-    bool result = false;
-    if (ntp_client->timeout_sec > 0)
-    {
-        result = alarm_timer_is_expired(ntp_client->timer_handle);
-    }
-    return result;
-}
-
 static int init_connect_to_server(NTP_CLIENT_INFO* ntp_client, const char* time_server)
 {
     int result;
-    const IO_INTERFACE_DESCRIPTION* socketio_interface = socketio_get_interface_description();
-    if (socketio_interface == NULL)
+    SOCKETIO_CONFIG socketio_config;
+
+    socketio_config.hostname = time_server;
+    socketio_config.port = NTP_PORT_NUM;
+    if ((ntp_client->socketio = socketio_create(&socketio_config)) == NULL)
     {
-        (void)printf("Error getting socketio interface description.");
+        (void)printf("Error connecting to NTP server %s:%d", time_server, NTP_PORT_NUM);
         result = __FAILURE__;
     }
     else
     {
-        SOCKETIO_CONFIG socketio_config;
-        XIO_HANDLE socketio;
-
-        socketio_config.hostname = time_server;
-        socketio_config.port = NTP_PORT_NUM;
-        if ((socketio = xio_create(socketio_interface, &socketio_config)) == NULL)
-        {
-            (void)printf("Error connecting to NTP server %s:%d", time_server, NTP_PORT_NUM);
-            result = __FAILURE__;
-        }
-        else if (xio_open(socketio, on_io_open_complete, ntp_client, on_io_bytes_received, ntp_client, on_io_error, ntp_client) != 0)
+        if (socketio_setoption(ntp_client->socketio, OPTION_ADDRESS_TYPE, OPTION_ADDRESS_TYPE_UDP_SOCKET) != 0)
         {
             (void)printf("Error opening socket IO.");
+            socketio_destroy(ntp_client->socketio);
+            ntp_client->socketio = NULL;
+            result = __FAILURE__;
+        }
+        else if (socketio_open(ntp_client->socketio, on_io_open_complete, ntp_client, on_io_bytes_received, ntp_client, on_io_error, ntp_client) != 0)
+        {
+            (void)printf("Error opening socket IO.");
+            socketio_destroy(ntp_client->socketio);
+            ntp_client->socketio = NULL;
             result = __FAILURE__;
         }
         else
         {
             result = 0;
         }
+    }
+    return result;
+}
+
+static void close_ntp_connection(NTP_CLIENT_INFO* ntp_client)
+{
+    if (socketio_close(ntp_client->socketio, on_connection_closed, ntp_client) == 0)
+    {
+        size_t counter = 0;
+        do
+        {
+            socketio_dowork(ntp_client->socketio);
+            counter++;
+            //ThreadAPI_Sleep(2);
+        } while (ntp_client->server_connected && counter < MAX_CLOSE_RETRIES);
+        ntp_client->server_connected = false;
+    }
+    // Close client
+    socketio_destroy(ntp_client->socketio);
+    ntp_client->socketio = NULL;
+}
+
+static bool is_timed_out(NTP_CLIENT_INFO* ntp_client)
+{
+    bool result = false;
+    if (ntp_client->timeout_sec > 0)
+    {
+        result = alarm_timer_is_expired(ntp_client->timer_handle);
     }
     return result;
 }
@@ -267,6 +287,11 @@ void ntp_client_destroy(NTP_CLIENT_HANDLE handle)
 {
     if (handle != NULL)
     {
+        if (handle->server_connected)
+        {
+            close_ntp_connection(handle);
+        }
+        alarm_timer_destroy(handle->timer_handle);
         free(handle);
     }
 }
@@ -276,21 +301,24 @@ int ntp_client_get_time(NTP_CLIENT_HANDLE handle, const char* time_server, size_
     int result;
     if (handle == NULL || time_server == NULL || ntp_callback == NULL)
     {
-        (void)printf("Invalid parameter specified handle: %p, time_server: %p, ntp_callback: %p.", handle, time_server, ntp_callback);
+        (void)printf("Invalid parameter specified handle: %p, time_server: %p, ntp_callback: %p.\r\n", handle, time_server, ntp_callback);
         result = __LINE__;
     }
     else if (init_connect_to_server(handle, time_server) != 0)
     {
-        (void)printf("Failure initializing connection to ntp server.");
+        (void)printf("Failure initializing connection to ntp server.\r\n");
         result = __LINE__;
     }
     else if (alarm_timer_start(handle->timer_handle, timeout_sec) != 0)
     {
-        (void)printf("Failure starting timer alarm.");
+        (void)printf("Failure starting timer alarm.\r\n");
         result = __LINE__;
     }
     else
     {
+        handle->timeout_sec = timeout_sec;
+        handle->ntp_callback = ntp_callback;
+        handle->user_ctx = user_ctx;
         result = 0;
     }
     return result;
@@ -300,7 +328,7 @@ void ntp_client_process(NTP_CLIENT_HANDLE handle)
 {
     if (handle != NULL)
     {
-        xio_dowork(handle->socketio);
+        socketio_dowork(handle->socketio);
 
         // Check timeout here
         if (handle->server_connected)
@@ -313,11 +341,22 @@ void ntp_client_process(NTP_CLIENT_HANDLE handle)
                     {
                         handle->ntp_state = NTP_CLIENT_STATE_ERROR;
                     }
+                    else
+                    {
+                        handle->ntp_state = NTP_CLIENT_STATE_SENT;
+                        alarm_timer_reset(handle->timer_handle);
+                    }
                     break;
-                case NTP_CLIENT_STATE_SENT:
                 case NTP_CLIENT_STATE_RECV:
                 case NTP_CLIENT_STATE_ERROR:
+                {
+                    time_t recv_time = (time_t)(handle->recv_packet.integer - NTP_TIMESTAMP_DELTA);
+                    handle->ntp_callback(handle->user_ctx, handle->ntp_op_result, recv_time);
+                    close_ntp_connection(handle);
+                    handle->ntp_state = NTP_CLIENT_STATE_IDLE;
                     break;
+                }
+                case NTP_CLIENT_STATE_SENT:
                 case NTP_CLIENT_STATE_IDLE:
                 default:
                     break;
@@ -325,9 +364,12 @@ void ntp_client_process(NTP_CLIENT_HANDLE handle)
         }
         else
         {
-            if (is_timed_out(handle) )
+            // test if the connection has timed out
+            if (handle->ntp_state == NTP_CLIENT_STATE_IDLE && is_timed_out(handle) )
             {
                 handle->ntp_state = NTP_CLIENT_STATE_ERROR;
+                handle->ntp_op_result = NTP_OP_RESULT_TIMEOUT;
+                handle->ntp_callback(handle->user_ctx, handle->ntp_op_result, (time_t)0);
             }
         }
     }

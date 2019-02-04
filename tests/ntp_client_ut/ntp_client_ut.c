@@ -41,15 +41,53 @@ void my_gballoc_free(void* ptr)
 #include "lib-util-c/alarm_timer.h"
 //#include "azure_c_shared_utility/gballoc.h"
 #include "azure_c_shared_utility/socketio.h"
+
 #undef ENABLE_MOCKS
 
 #include "ntp_client.h"
+
+#define ENABLE_MOCKS
+MOCKABLE_FUNCTION(, void, ntp_time_callback, void*, user_ctx, NTP_OPERATION_RESULT, ntp_result, time_t, current_time);
+#undef ENABLE_MOCKS
 
 static const ALARM_TIMER_HANDLE TEST_TIMER_HANDLE = (ALARM_TIMER_HANDLE)0x1234;
 static const char* TEST_NTP_SERVER_ADDRESS = "test_server.org";
 
 #define TEST_SOCKETIO_INTERFACE_DESCRIPTION     (const IO_INTERFACE_DESCRIPTION*)0x4242
 #define TEST_IO_HANDLE                          (XIO_HANDLE)0x4243
+
+#define NTP_TEST_PACKET_SIZE                    48
+
+typedef struct TEST_NTP_PACKET_TAG
+{
+  uint8_t li_vn_mode;      // Eight bits. li, vn, and mode.
+                           // li.   Two bits.   Leap indicator.
+                           // vn.   Three bits. Version number of the protocol.
+                           // mode. Three bits. Client will pick mode 3 for client.
+
+  uint8_t stratum;         // Eight bits. Stratum level of the local clock.
+  uint8_t poll;            // Eight bits. Maximum interval between successive messages.
+  uint8_t precision;       // Eight bits. Precision of the local clock.
+
+  uint32_t rootDelay;      // 32 bits. Total round trip delay time.
+  uint32_t rootDispersion; // 32 bits. Max error aloud from primary clock source.
+  uint32_t refId;          // 32 bits. Reference clock identifier.
+
+  uint32_t refTm_s;        // 32 bits. Reference time-stamp seconds.
+  uint32_t refTm_f;        // 32 bits. Reference time-stamp fraction of a second.
+
+  uint32_t origTm_s;       // 32 bits. Originate time-stamp seconds.
+  uint32_t origTm_f;       // 32 bits. Originate time-stamp fraction of a second.
+
+  uint32_t rxTm_s;         // 32 bits. Received time-stamp seconds.
+  uint32_t rxTm_f;         // 32 bits. Received time-stamp fraction of a second.
+
+  uint32_t txTm_s;         // 32 bits and the most important field the client cares about. Transmit time-stamp seconds.
+  uint32_t txTm_f;         // 32 bits. Transmit time-stamp fraction of a second.
+
+} TEST_NTP_PACKET;              // Total: 384 bits or 48 bytes.
+
+static TEST_NTP_PACKET g_test_recv_packet = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 DEFINE_ENUM_STRINGS(UMOCK_C_ERROR_CODE, UMOCK_C_ERROR_CODE_VALUES)
 static void on_umock_c_error(UMOCK_C_ERROR_CODE error_code)
@@ -102,9 +140,18 @@ static void sleep_for_now(unsigned int milliseconds)
 #endif
 }
 
-static void ntp_result_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result)
+static void my_ntp_time_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result, time_t current_time)
 {
 
+}
+
+static void setup_ntp_client_get_time_mocks(NTP_CLIENT_HANDLE handle, size_t ntp_timeout)
+{
+    STRICT_EXPECTED_CALL(socketio_get_interface_description());
+    STRICT_EXPECTED_CALL(xio_create(TEST_SOCKETIO_INTERFACE_DESCRIPTION, IGNORED_PTR_ARG));
+    STRICT_EXPECTED_CALL(socketio_setoption(TEST_IO_HANDLE, "ADDRESS_TYPE", IGNORED_PTR_ARG));
+    STRICT_EXPECTED_CALL(xio_open(TEST_IO_HANDLE, IGNORED_PTR_ARG, handle, IGNORED_PTR_ARG, handle, IGNORED_PTR_ARG, handle));
+    STRICT_EXPECTED_CALL(alarm_timer_start(TEST_TIMER_HANDLE, ntp_timeout));
 }
 
 BEGIN_TEST_SUITE(ntp_client_ut)
@@ -121,12 +168,15 @@ BEGIN_TEST_SUITE(ntp_client_ut)
 
         //REGISTER_TYPE(IO_OPEN_RESULT, IO_OPEN_RESULT);
         //REGISTER_TYPE(IO_SEND_RESULT, IO_SEND_RESULT);
+        REGISTER_UMOCK_ALIAS_TYPE(time_t, int);
         REGISTER_UMOCK_ALIAS_TYPE(XIO_HANDLE, void*);
+        REGISTER_UMOCK_ALIAS_TYPE(CONCRETE_IO_HANDLE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_IO_OPEN_COMPLETE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_BYTES_RECEIVED, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_IO_ERROR, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_IO_CLOSE_COMPLETE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_SEND_COMPLETE, void*);
+        REGISTER_UMOCK_ALIAS_TYPE(NTP_OPERATION_RESULT, int);
         //REGISTER_TYPE(const SOCKETIO_CONFIG*, const_SOCKETIO_CONFIG_ptr);
         //REGISTER_UMOCK_ALIAS_TYPE(SOCKETIO_CONFIG*, const SOCKETIO_CONFIG*);
 
@@ -135,6 +185,7 @@ BEGIN_TEST_SUITE(ntp_client_ut)
 
         REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_start, 0);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(alarm_timer_start, __LINE__);
+        REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_is_expired, false);
 
         REGISTER_GLOBAL_MOCK_RETURN(socketio_get_interface_description, TEST_SOCKETIO_INTERFACE_DESCRIPTION);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(socketio_get_interface_description, NULL);
@@ -145,11 +196,19 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         REGISTER_GLOBAL_MOCK_HOOK(xio_close, my_xio_close);
         REGISTER_GLOBAL_MOCK_RETURN(xio_send, 0);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(xio_send, __LINE__);
+        REGISTER_GLOBAL_MOCK_RETURN(socketio_setoption, 0);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(socketio_setoption, __LINE__);
+
+        REGISTER_GLOBAL_MOCK_HOOK(ntp_time_callback, my_ntp_time_callback);
 
         result = umocktypes_charptr_register_types();
         ASSERT_ARE_EQUAL(int, 0, result);
 
         REGISTER_UMOCK_ALIAS_TYPE(ALARM_TIMER_HANDLE, void*);
+
+        memset(&g_test_recv_packet, 0, sizeof(TEST_NTP_PACKET) );
+        g_test_recv_packet.li_vn_mode = 0x1b;
+        g_test_recv_packet.txTm_s = 133102800; // Thursday, March 21, 1974 1:00:00 PM
     }
 
     TEST_SUITE_CLEANUP(suite_cleanup)
@@ -225,7 +284,7 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         umock_c_reset_all_calls();
 
         // act
-        int result = ntp_client_get_time(NULL, TEST_NTP_SERVER_ADDRESS, ntp_timeout, ntp_result_callback, NULL);
+        int result = ntp_client_get_time(NULL, TEST_NTP_SERVER_ADDRESS, ntp_timeout, my_ntp_time_callback, NULL);
 
         // assert
         ASSERT_ARE_NOT_EQUAL(int, 0, result);
@@ -242,7 +301,7 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         umock_c_reset_all_calls();
 
         // act
-        int result = ntp_client_get_time(handle, NULL, ntp_timeout, ntp_result_callback, NULL);
+        int result = ntp_client_get_time(handle, NULL, ntp_timeout, my_ntp_time_callback, NULL);
 
         // assert
         ASSERT_ARE_NOT_EQUAL(int, 0, result);
@@ -262,10 +321,7 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         NTP_CLIENT_HANDLE handle = ntp_client_create();
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(socketio_get_interface_description());
-        STRICT_EXPECTED_CALL(xio_create(TEST_SOCKETIO_INTERFACE_DESCRIPTION, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(xio_open(TEST_IO_HANDLE, IGNORED_PTR_ARG, handle, IGNORED_PTR_ARG, handle, IGNORED_PTR_ARG, handle));
-        STRICT_EXPECTED_CALL(alarm_timer_start(TEST_TIMER_HANDLE, ntp_timeout));
+        setup_ntp_client_get_time_mocks(handle, ntp_timeout);
 
         umock_c_negative_tests_snapshot();
 
@@ -276,7 +332,7 @@ BEGIN_TEST_SUITE(ntp_client_ut)
             umock_c_negative_tests_reset();
             umock_c_negative_tests_fail_call(index);
 
-            int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, ntp_result_callback, NULL);
+            int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, my_ntp_time_callback, NULL);
 
             // assert
             ASSERT_ARE_NOT_EQUAL(int, 0, result, "ntp_client_get_time_fail test %lu/%lu", (unsigned long)index, (unsigned long)count);
@@ -293,16 +349,105 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         NTP_CLIENT_HANDLE handle = ntp_client_create();
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(socketio_get_interface_description());
-        STRICT_EXPECTED_CALL(xio_create(TEST_SOCKETIO_INTERFACE_DESCRIPTION, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(xio_open(TEST_IO_HANDLE, IGNORED_PTR_ARG, handle, IGNORED_PTR_ARG, handle, IGNORED_PTR_ARG, handle));
-        STRICT_EXPECTED_CALL(alarm_timer_start(TEST_TIMER_HANDLE, ntp_timeout));
+        setup_ntp_client_get_time_mocks(handle, ntp_timeout);
 
         // act
-        int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, ntp_result_callback, NULL);
+        int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, my_ntp_time_callback, NULL);
 
         // assert
         ASSERT_ARE_EQUAL(int, 0, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        ntp_client_destroy(handle);
+    }
+
+    TEST_FUNCTION(ntp_client_process_no_timeout_succeed)
+    {
+        size_t ntp_timeout = 20;
+        // arrange
+        NTP_CLIENT_HANDLE handle = ntp_client_create();
+        int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, my_ntp_time_callback, NULL);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(xio_dowork(TEST_IO_HANDLE));
+        STRICT_EXPECTED_CALL(alarm_timer_is_expired(TEST_TIMER_HANDLE));
+
+        // act
+        ntp_client_process(handle);
+
+        // assert
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        ntp_client_destroy(handle);
+    }
+
+    TEST_FUNCTION(ntp_client_process_connected_succeed)
+    {
+        size_t ntp_timeout = 20;
+        // arrange
+        NTP_CLIENT_HANDLE handle = ntp_client_create();
+        int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, my_ntp_time_callback, NULL);
+        g_on_io_open_complete(g_on_io_open_complete_context, IO_OPEN_OK);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(xio_dowork(TEST_IO_HANDLE));
+        STRICT_EXPECTED_CALL(xio_send(TEST_IO_HANDLE, IGNORED_PTR_ARG, 48, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(alarm_timer_reset(TEST_TIMER_HANDLE));
+
+        // act
+        ntp_client_process(handle);
+
+        // assert
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        ntp_client_destroy(handle);
+    }
+
+    TEST_FUNCTION(ntp_client_process_recv_response_succeed)
+    {
+        size_t ntp_timeout = 20;
+        // arrange
+        NTP_CLIENT_HANDLE handle = ntp_client_create();
+        int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, ntp_time_callback, NULL);
+        g_on_io_open_complete(g_on_io_open_complete_context, IO_OPEN_OK);
+        ntp_client_process(handle);
+        g_on_bytes_received(g_on_bytes_received_context, (const unsigned char*)&g_test_recv_packet, NTP_TEST_PACKET_SIZE);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(xio_dowork(TEST_IO_HANDLE));
+        STRICT_EXPECTED_CALL(ntp_time_callback(IGNORED_PTR_ARG, NTP_OP_RESULT_SUCCESS, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(xio_close(TEST_IO_HANDLE, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_dowork(TEST_IO_HANDLE));
+        STRICT_EXPECTED_CALL(xio_dowork(TEST_IO_HANDLE));
+        STRICT_EXPECTED_CALL(xio_destroy(TEST_IO_HANDLE));
+
+        // act
+        ntp_client_process(handle);
+
+        // assert
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        ntp_client_destroy(handle);
+    }
+
+    TEST_FUNCTION(ntp_on_io_bytes_received_recv_context_NULL_succeed)
+    {
+        size_t ntp_timeout = 20;
+        // arrange
+        NTP_CLIENT_HANDLE handle = ntp_client_create();
+        int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, ntp_time_callback, NULL);
+        g_on_io_open_complete(g_on_io_open_complete_context, IO_OPEN_OK);
+        ntp_client_process(handle);
+        umock_c_reset_all_calls();
+
+        // act
+        g_on_bytes_received(NULL, (const unsigned char*)&g_test_recv_packet, NTP_TEST_PACKET_SIZE);
+
+        // assert
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
