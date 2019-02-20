@@ -11,11 +11,6 @@ void* my_gballoc_malloc(size_t size)
     return malloc(size);
 }
 
-void* my_gballoc_realloc(void* ptr, size_t size)
-{
-    return realloc(ptr, size);
-}
-
 void my_gballoc_free(void* ptr)
 {
     free(ptr);
@@ -34,21 +29,23 @@ void my_gballoc_free(void* ptr)
  */
 #include "testrunnerswitcher.h"
 #include "umock_c.h"
+#include "umock_c_prod.h"
+
 #include "umocktypes_charptr.h"
 #include "umock_c_negative_tests.h"
+#include "macro_utils.h"
 
 #define ENABLE_MOCKS
+
 #include "lib-util-c/alarm_timer.h"
 //#include "azure_c_shared_utility/gballoc.h"
 #include "azure_c_shared_utility/socketio.h"
 
+MOCKABLE_FUNCTION(, void, ntp_time_callback, void*, user_ctx, NTP_OPERATION_RESULT, ntp_result, time_t, current_time);
+
 #undef ENABLE_MOCKS
 
 #include "ntp_client.h"
-
-#define ENABLE_MOCKS
-MOCKABLE_FUNCTION(, void, ntp_time_callback, void*, user_ctx, NTP_OPERATION_RESULT, ntp_result, time_t, current_time);
-#undef ENABLE_MOCKS
 
 static const ALARM_TIMER_HANDLE TEST_TIMER_HANDLE = (ALARM_TIMER_HANDLE)0x1234;
 static const char* TEST_NTP_SERVER_ADDRESS = "test_server.org";

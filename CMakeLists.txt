@@ -70,19 +70,21 @@ include_directories(${SHARED_UTIL_INC_FOLDER})
 set(smartclock_src_files
     src/main.c
     src/ntp_client.c
+    src/scheduler.c
 )
 
 set(smartclock_h_files
     inc/ntp_client.h
+    inc/scheduler.h
 )
 
-add_executable(smartclock ${smartclock_src_files} ${smartclock_h_files})
-target_link_libraries(smartclock aziotsharedutil)
-target_link_libraries(smartclock lib-util-c)
+add_executable(smartclock_exe ${smartclock_src_files} ${smartclock_h_files})
+target_link_libraries(smartclock_exe aziotsharedutil)
+target_link_libraries(smartclock_exe lib-util-c)
 
 # Add testing
 if (${include_ut})
-    include("${CMAKE_CURRENT_LIST_DIR}/deps/lib-util-c/cmake_configs/proj_test.cmake")
+    include("${CMAKE_CURRENT_LIST_DIR}/cmake_configs/proj_testing.cmake")
 
     if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/testrunnerswitcher/CMakeLists.txt")
         execute_process(COMMAND git clone https://github.com/Azure/azure-c-testrunnerswitcher.git -q --no-tags ${CMAKE_CURRENT_SOURCE_DIR}/deps/testrunnerswitcher)

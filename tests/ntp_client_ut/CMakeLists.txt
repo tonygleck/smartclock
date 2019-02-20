@@ -15,4 +15,9 @@ set(${theseTestsName}_c_files
 set(${theseTestsName}_h_files
 )
 
+#SET(CMAKE_EXE_LINKER_FLAGS  "${CMAKE_EXE_LINKER_FLAGS} -E")
+#SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -E")
+
 build_test_project(${theseTestsName} "tests/smartclock_tests")
+
+#build_code_coverage(${theseTestsName})

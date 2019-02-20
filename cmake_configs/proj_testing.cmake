@@ -1,23 +1,12 @@
-function(build_catch_test_project whatIsBuilding folder)
-    include_directories(${PROJECT_INC_DIRECTORY} ${TEST_INC_DIRECTORY})
 
-    if (WIN32)
-        add_definitions(-DUNICODE)
-        add_definitions(-D_UNICODE)
-        #windows needs this define
-        add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+#function(build_code_coverage  whatIsBuilding)
+#    if (CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+#        link_libraries(gcov)
 
-        add_executable(${whatIsBuilding} 
-            ${${whatIsBuilding}_cpp_files}
-            ${${whatIsBuilding}_h_files}
-            #../../testtools/inc/catch.hpp
-        )
-        set_target_properties(${whatIsBuilding} PROPERTIES LINKER_LANGUAGE CXX)
-        set_target_properties(${whatIsBuilding} PROPERTIES FOLDER ${folder})
-    endif()
-
-
-endfunction()
+#        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage -fprofile-arcs -ftest-coverage")
+#        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage -fprofile-arcs -ftest-coverage")
+#    endif()
+#endfunction()
 
 function(add_unittest_directory whatIsBuilding)
     add_subdirectory(${whatIsBuilding})
@@ -30,37 +19,38 @@ function(add_unittest_directory whatIsBuilding)
 endfunction(add_unittest_directory)
 
 function(build_test_project whatIsBuilding folder)
-    include_directories(${PROJECT_INC_DIRECTORY} ${TEST_INC_DIRECTORY})
-    include_directories(${BANDIT_UNITTEST_DIR})
+    set(include_dir ${MICROMOCK_INC_FOLDER} ${TESTRUNNERSWITCHER_INC_FOLDER} ${CTEST_INC_FOLDER} ${UMOCK_C_INC_FOLDER})
+    include_directories(${include_dir})
 
     if (WIN32)
         add_definitions(-DUNICODE)
         add_definitions(-D_UNICODE)
         #windows needs this define
         add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-    
-        #link_directories(${whatIsBuilding} $ENV{VCInstallDir}UnitTest/lib)
-        #target_include_directories(${whatIsBuilding} $ENV{VCInstallDir}UnitTest/include)
-        #include_directories($ENV{VCInstallDir}UnitTest/include)
 
-        add_executable(${whatIsBuilding} 
-            ${${whatIsBuilding}_cpp_files}
-            ${${whatIsBuilding}_h_files}
-            ${${whatIsBuilding}_c_files}
-        )
-
-        #add_library(${whatIsBuilding} SHARED
+        #add_executable(${whatIsBuilding}
         #    ${${whatIsBuilding}_cpp_files}
         #    ${${whatIsBuilding}_h_files}
-        #    ${${whatIsBuilding}_c_files}
         #)
+        set_target_properties(${whatIsBuilding} PROPERTIES LINKER_LANGUAGE CXX)
         set_target_properties(${whatIsBuilding} PROPERTIES FOLDER ${folder})
-    else()
-        add_executable(${whatIsBuilding}
-            ${${whatIsBuilding}_cpp_files}
-            ${${whatIsBuilding}_h_files}
-            ${${whatIsBuilding}_c_files}
-        )
     endif()
-    set_property(TARGET ${whatIsBuilding} PROPERTY CXX_STANDARD 14)
+
+    add_executable(${whatIsBuilding}_exe
+        ${${whatIsBuilding}_test_files}
+        ${${whatIsBuilding}_cpp_files}
+        ${${whatIsBuilding}_h_files}
+        ${${whatIsBuilding}_c_files}
+        ${CMAKE_CURRENT_LIST_DIR}/main.c
+        ${logging_files}
+    )
+    set_target_properties(${whatIsBuilding}_exe
+            PROPERTIES
+            FOLDER ${folder})
+
+    target_compile_definitions(${whatIsBuilding}_exe PUBLIC -DUSE_CTEST)
+    target_include_directories(${whatIsBuilding}_exe PUBLIC ${include_dir})
+
+    target_link_libraries(${whatIsBuilding}_exe umock_c ctest m)
+    add_test(NAME ${whatIsBuilding} COMMAND $<TARGET_FILE:${whatIsBuilding}_exe>)
 endfunction()
