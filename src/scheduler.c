@@ -76,6 +76,7 @@ static uint8_t get_current_day(const struct tm* curr_time)
             result = NoDay;
             break;
     }
+    return result;
 }
 
 static bool is_alarm_triggered(const ALARM_INFO* alarm_info, const struct tm* curr_time)
