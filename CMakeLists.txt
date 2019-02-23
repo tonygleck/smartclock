@@ -8,25 +8,22 @@ SET(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(PROJECT_INC_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/inc)
 #set(TEST_INC_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/test/inc)
 
-option(use_opengl "set the smartclock to run on opengl (default is OFF)" OFF)
 option(include_ut "Include unittest in build" OFF)
-
-enable_testing()
 
 include("cmake_configs/proj_config.cmake")
 
-if (MSVC)
-    detect_architecture("_M_AMD64" x86_64)
-    detect_architecture("_M_IX86" x86)
-    detect_architecture("_M_ARM" ARM)
-else()
-    detect_architecture("__x86_64__" x86_64)
-    detect_architecture("__i386__" x86)
-    detect_architecture("__arm__" ARM)
-endif()
-if (NOT DEFINED ARCHITECTURE OR ARCHITECTURE STREQUAL "")
-    set(ARCHITECTURE "GENERIC")
-endif()
+#if (MSVC)
+#    detect_architecture("_M_AMD64" x86_64)
+#    detect_architecture("_M_IX86" x86)
+#    detect_architecture("_M_ARM" ARM)
+#else()
+#    detect_architecture("__x86_64__" x86_64)
+#    detect_architecture("__i386__" x86)
+#    detect_architecture("__arm__" ARM)
+#endif()
+#if (NOT DEFINED ARCHITECTURE OR ARCHITECTURE STREQUAL "")
+#    set(ARCHITECTURE "GENERIC")
+#endif()
 #message(STATUS "Current architecture: ${ARCHITECTURE}")
 
 if(MSVC)
@@ -53,17 +50,26 @@ elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
 endif()
 
+set(run_unittests OFF)
+set(run_int_tests OFF)
+
 include_directories(. inc ./deps)
 
 # Setup dependencies
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/umock-c)
+if (NOT TARGET umock-c)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/umock-c)
+endif()
 include_directories(${UMOCK_C_INC_FOLDER})
 
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/lib-util-c)
+if (NOT TARGET lib-util-c)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/lib-util-c)
+endif()
 include_directories(${CMAKE_CURRENT_LIST_DIR}/deps/lib-util-c/inc)
 
 ###### Temporary
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/c-utility)
+if (NOT TARGET aziotsharedutil)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/c-utility)
+endif()
 include_directories(${SHARED_UTIL_INC_FOLDER})
 ######
 
@@ -84,6 +90,8 @@ target_link_libraries(smartclock_exe lib-util-c)
 
 # Add testing
 if (${include_ut})
+    enable_testing()
+
     include("${CMAKE_CURRENT_LIST_DIR}/cmake_configs/proj_testing.cmake")
 
     if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/testrunnerswitcher/CMakeLists.txt")
