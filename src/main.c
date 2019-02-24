@@ -36,6 +36,7 @@ static int check_ntp_time()
             } while (operation_complete == 0);
         }
     }
+    return 0;
 }
 
 int main(int argc, char* argv[])

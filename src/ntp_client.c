@@ -89,10 +89,75 @@ typedef struct NTP_CLIENT_INFO_TAG
     size_t collection_size;
 } NTP_CLIENT_INFO;
 
+#ifdef WIN32
+LARGE_INTEGER getFILETIMEoffset()
+{
+    SYSTEMTIME s;
+    FILETIME f;
+    LARGE_INTEGER t;
+
+    s.wYear = 1970;
+    s.wMonth = 1;
+    s.wDay = 1;
+    s.wHour = 0;
+    s.wMinute = 0;
+    s.wSecond = 0;
+    s.wMilliseconds = 0;
+    SystemTimeToFileTime(&s, &f);
+    t.QuadPart = f.dwHighDateTime;
+    t.QuadPart <<= 32;
+    t.QuadPart |= f.dwLowDateTime;
+    return (t);
+}
+#endif
+
 static uint32_t clock_get_time(void)
 {
     uint32_t result;
 #ifdef WIN32
+    struct timeval ts;
+    LARGE_INTEGER t;
+    FILETIME f;
+    double microseconds;
+    static LARGE_INTEGER offset;
+    static double frequencyToMicroseconds;
+    static int initialized = 0;
+    static BOOL usePerformanceCounter = 0;
+
+    if (!initialized)
+    {
+        LARGE_INTEGER performanceFrequency;
+        initialized = 1;
+        usePerformanceCounter = QueryPerformanceFrequency(&performanceFrequency);
+        if (usePerformanceCounter)
+        {
+            QueryPerformanceCounter(&offset);
+            frequencyToMicroseconds = (double)performanceFrequency.QuadPart / 1000000.;
+        }
+        else
+        {
+            offset = getFILETIMEoffset();
+            frequencyToMicroseconds = 10.;
+        }
+    }
+    if (usePerformanceCounter)
+    {
+        QueryPerformanceCounter(&t);
+    }
+    else
+    {
+        GetSystemTimeAsFileTime(&f);
+        t.QuadPart = f.dwHighDateTime;
+        t.QuadPart <<= 32;
+        t.QuadPart |= f.dwLowDateTime;
+    }
+
+    t.QuadPart -= offset.QuadPart;
+    microseconds = (double)t.QuadPart / frequencyToMicroseconds;
+    t.QuadPart = (LONGLONG)microseconds;
+    ts.tv_sec = (long)(t.QuadPart / 1000000);
+    ts.tv_usec = (long)(t.QuadPart % 1000000);
+    result = (uint32_t)ts.tv_sec * 1000000LL + (uint32_t)ts.tv_usec / 1000LL;
 #else
   struct timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
@@ -194,7 +259,7 @@ static int send_initial_ntp_packet(NTP_CLIENT_INFO* ntp_client)
     memset(&ntp_info, 0, ntp_len);
 
     ntp_info.li_vn_mode = 0x1B; // Last min is 59, version 4, mode reserved
-    ntp_info.ntp_orig_timestamp.integer = time(NULL);
+    ntp_info.ntp_orig_timestamp.integer = (uint32_t)time(NULL);
     ntp_info.ntp_orig_timestamp.fractional = clock_get_time();
     ntp_info.ntp_transmit_timestamp.integer = ntp_info.ntp_orig_timestamp.integer;
     ntp_info.ntp_transmit_timestamp.fractional = ntp_info.ntp_orig_timestamp.fractional;
