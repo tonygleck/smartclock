@@ -56,6 +56,13 @@ x64/
 *.log
 *.scc
 
+# Node.js
+**/.settings/
+**/node_modules/
+**/.idea/
+**/coverage/
+**/.nyc_output/
+
 # Visual C++ cache files
 ipch/
 *.aps

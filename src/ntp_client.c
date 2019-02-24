@@ -1,3 +1,5 @@
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -15,9 +17,11 @@
 #include "azure_c_shared_utility/socketio.h"
 #include "azure_c_shared_utility/shared_util_options.h"
 #include "lib-util-c/alarm_timer.h"
+#include "lib-util-c/app_logging.h"
 
 #define NTP_PORT_NUM            123
 #define MAX_CLOSE_RETRIES       2
+#define NTP_PACKET_SIZE         48
 
 static const unsigned long long NTP_TIMESTAMP_DELTA = 2208988800ull;
 static const uint32_t JAN_1ST_1900 = 2415021;
@@ -80,6 +84,9 @@ typedef struct NTP_CLIENT_INFO_TAG
     NTP_CLIENT_STATE ntp_state;
     NTP_OPERATION_RESULT ntp_op_result;
     ALARM_TIMER_HANDLE timer_handle;
+
+    unsigned char collection_buff[48];
+    size_t collection_size;
 } NTP_CLIENT_INFO;
 
 static uint32_t clock_get_time(void)
@@ -99,7 +106,7 @@ static void on_io_open_complete(void* context, IO_OPEN_RESULT open_result)
     NTP_CLIENT_INFO* ntp_client = (NTP_CLIENT_INFO*)context;
     if (ntp_client == NULL)
     {
-        printf("Invalid context specified");
+        log_error("Invalid context specified");
     }
     else
     {
@@ -112,7 +119,7 @@ static void on_io_open_complete(void* context, IO_OPEN_RESULT open_result)
         {
             ntp_client->ntp_state = NTP_CLIENT_STATE_ERROR;
             ntp_client->ntp_op_result = NTP_OP_RESULT_COMM_ERR;
-            printf("open failed");
+            log_error("open failed");
         }
     }
 }
@@ -122,16 +129,24 @@ static void on_io_bytes_received(void* context, const unsigned char* buffer, siz
     NTP_CLIENT_INFO* ntp_client = (NTP_CLIENT_INFO*)context;
     if (ntp_client == NULL)
     {
-        printf("Invalid context specified");
+        log_error("Invalid context specified");
     }
     else
     {
         NTP_RESP_PACKET resp_packet;
-        if (size != sizeof(NTP_BASIC_INFO))
+        if (ntp_client->collection_size+size > NTP_PACKET_SIZE)
         {
-            // TODO: Store the bits
+            log_error("Recieving packet size too large");
+            ntp_client->ntp_state = NTP_CLIENT_STATE_ERROR;
+            ntp_client->collection_size = 0;
         }
         else
+        {
+            memcpy(ntp_client->collection_buff, buffer, size);
+            ntp_client->collection_size += size;
+        }
+
+        if (ntp_client->collection_size == sizeof(NTP_BASIC_INFO) )
         {
             NTP_BASIC_INFO* ntp_info = (NTP_BASIC_INFO*)buffer;
 
@@ -150,7 +165,7 @@ static void on_io_error(void* context)
     NTP_CLIENT_INFO* ntp_client = (NTP_CLIENT_INFO*)context;
     if (ntp_client == NULL)
     {
-        printf("Invalid context specified");
+        log_error("Invalid context specified");
     }
     else
     {
@@ -164,7 +179,7 @@ static void on_connection_closed(void* context)
     NTP_CLIENT_INFO* ntp_client = (NTP_CLIENT_INFO*)context;
     if (ntp_client == NULL)
     {
-        printf("Invalid context specified");
+        log_error("Invalid context specified");
     }
     else
     {
@@ -186,7 +201,7 @@ static int send_initial_ntp_packet(NTP_CLIENT_INFO* ntp_client)
 
     if (socketio_send(ntp_client->socketio, &ntp_info, ntp_len, NULL, NULL) != 0)
     {
-        printf("Failure sending NTP packet to server");
+        log_error("Failure sending NTP packet to server");
         result = __FAILURE__;
     }
     else
@@ -205,21 +220,21 @@ static int init_connect_to_server(NTP_CLIENT_INFO* ntp_client, const char* time_
     socketio_config.port = NTP_PORT_NUM;
     if ((ntp_client->socketio = socketio_create(&socketio_config)) == NULL)
     {
-        (void)printf("Error connecting to NTP server %s:%d", time_server, NTP_PORT_NUM);
+        log_error("Error connecting to NTP server %s:%d", time_server, NTP_PORT_NUM);
         result = __FAILURE__;
     }
     else
     {
         if (socketio_setoption(ntp_client->socketio, OPTION_ADDRESS_TYPE, OPTION_ADDRESS_TYPE_UDP_SOCKET) != 0)
         {
-            (void)printf("Error opening socket IO.");
+            log_error("Error opening socket IO.");
             socketio_destroy(ntp_client->socketio);
             ntp_client->socketio = NULL;
             result = __FAILURE__;
         }
         else if (socketio_open(ntp_client->socketio, on_io_open_complete, ntp_client, on_io_bytes_received, ntp_client, on_io_error, ntp_client) != 0)
         {
-            (void)printf("Error opening socket IO.");
+            log_error("Error opening socket IO.");
             socketio_destroy(ntp_client->socketio);
             ntp_client->socketio = NULL;
             result = __FAILURE__;
@@ -265,7 +280,7 @@ NTP_CLIENT_HANDLE ntp_client_create(void)
     NTP_CLIENT_INFO* result;
     if ((result = (NTP_CLIENT_INFO*)malloc(sizeof(NTP_CLIENT_INFO))) == NULL)
     {
-        (void)printf("Failure allocating NTP Client Info.");
+        log_error("Failure allocating NTP Client Info.");
     }
     else
     {
@@ -301,17 +316,17 @@ int ntp_client_get_time(NTP_CLIENT_HANDLE handle, const char* time_server, size_
     int result;
     if (handle == NULL || time_server == NULL || ntp_callback == NULL)
     {
-        (void)printf("Invalid parameter specified handle: %p, time_server: %p, ntp_callback: %p.\r\n", handle, time_server, ntp_callback);
+        log_error("Invalid parameter specified handle: %p, time_server: %p, ntp_callback: %p.", handle, time_server, ntp_callback);
         result = __LINE__;
     }
     else if (init_connect_to_server(handle, time_server) != 0)
     {
-        (void)printf("Failure initializing connection to ntp server.\r\n");
+        log_error("Failure initializing connection to ntp server.");
         result = __LINE__;
     }
     else if (alarm_timer_start(handle->timer_handle, timeout_sec) != 0)
     {
-        (void)printf("Failure starting timer alarm.\r\n");
+        log_error("Failure starting timer alarm.");
         result = __LINE__;
     }
     else

@@ -1,0 +1,29 @@
+body {
+    font-size:.9em;
+    font-family:Helvetica,Arial;
+    background-color: #3d3f42;
+}
+
+table {
+    width: 100%
+}
+
+table, th, td {
+    border: 1px solid black;
+}
+
+html {
+    overflow:hidden
+}
+
+div.digital_clock {
+    color: white;
+    font-size:100%;
+    line-height:.9em;
+    vertical-align:top
+}
+
+canvas.analog_clock {
+    display: none;
+    visibility: hidden;
+}
