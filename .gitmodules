@@ -7,3 +7,6 @@
 [submodule "deps/umock-c"]
 	path = deps/umock-c
 	url = https://github.com/Azure/umock-c.git
+[submodule "deps/uhttp"]
+	path = deps/uhttp
+	url = https://github.com/Azure/azure-uhttp-c.git

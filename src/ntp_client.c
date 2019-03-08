@@ -5,12 +5,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <time.h>
-#include <sys/timeb.h>
 
 #ifdef WIN32
     #include <winsock.h>
 #else
     #include <arpa/inet.h>
+    #include <sys/timeb.h>
 #endif
 
 #include "ntp_client.h"
@@ -215,12 +215,16 @@ static void on_io_bytes_received(void* context, const unsigned char* buffer, siz
         {
             NTP_BASIC_INFO* ntp_info = (NTP_BASIC_INFO*)buffer;
 
+            log_debug("Leap Indicator: %d", ntp_info->li_vn_mode&0x11000000);
+
             // These two fields contain the time-stamp seconds as the packet left the NTP server.
             // The number of seconds correspond to the seconds passed since 1900.
             // ntohl() converts the bit/byte order from the network's to host's "endianness".
             ntp_client->recv_packet.integer = ntohl(ntp_info->ntp_transmit_timestamp.integer);
             ntp_client->recv_packet.fractional = ntohl(ntp_info->ntp_transmit_timestamp.fractional);
             ntp_client->ntp_state = NTP_CLIENT_STATE_RECV;
+
+            log_debug("NTP values: integer value: %u, fraction value: %u", ntp_client->recv_packet.integer, ntp_client->recv_packet.fractional);
         }
     }
 }
@@ -261,8 +265,8 @@ static int send_initial_ntp_packet(NTP_CLIENT_INFO* ntp_client)
     ntp_info.li_vn_mode = 0x1B; // Last min is 59, version 4, mode reserved
     ntp_info.ntp_orig_timestamp.integer = (uint32_t)time(NULL);
     ntp_info.ntp_orig_timestamp.fractional = clock_get_time();
-    ntp_info.ntp_transmit_timestamp.integer = ntp_info.ntp_orig_timestamp.integer;
-    ntp_info.ntp_transmit_timestamp.fractional = ntp_info.ntp_orig_timestamp.fractional;
+    //ntp_info.ntp_transmit_timestamp.integer = ntp_info.ntp_orig_timestamp.integer;
+    //ntp_info.ntp_transmit_timestamp.fractional = ntp_info.ntp_orig_timestamp.fractional;
 
     if (socketio_send(ntp_client->socketio, &ntp_info, ntp_len, NULL, NULL) != 0)
     {

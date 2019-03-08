@@ -11,7 +11,7 @@
 
 function(add_unittest_directory whatIsBuilding)
     if (${include_ut})
-        add_subdirectory(${test_directory})
+        add_subdirectory(${whatIsBuilding})
         if (WIN32)
         else()
             add_test(NAME ${whatIsBuilding}_valgrind COMMAND valgrind --num-callers=10 --error-exitcode=1 --leak-check=full --track-origins=yes $TARGET_FILE:${whatIsBuilding})

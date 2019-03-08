@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "ntp_client.h"
+#include "weather_client.h"
 
 static const char* NTP_SERVER_ADDRESS = "0.north-america.pool.ntp.org";
 
@@ -37,6 +38,16 @@ static int check_ntp_time()
         }
     }
     return 0;
+}
+
+static void check_weather_value()
+{
+    WEATHER_CLIENT_HANDLE handle = weather_client_create("");
+    if (handle == NULL)
+    {
+        weather_client_destroy(handle);
+    }
+
 }
 
 int main(int argc, char* argv[])

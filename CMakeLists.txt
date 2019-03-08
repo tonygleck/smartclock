@@ -82,12 +82,18 @@ if (NOT TARGET lib-util-c)
 endif()
 include_directories(${CMAKE_CURRENT_LIST_DIR}/deps/lib-util-c/inc)
 
+if (NOT TARGET uhttp)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/uhttp)
+endif()
+include_directories(${UHTTP_C_INC_FOLDER})
+
 set(include_ut ${original_include_ut})
 
 set(smartclock_src_files
     src/main.c
     src/ntp_client.c
     src/scheduler.c
+    src/weather_client.c
 )
 
 set(smartclock_h_files
