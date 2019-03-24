@@ -61,7 +61,7 @@ set(original_include_ut ${include_ut})
 set(run_e2e_tests OFF)
 set(run_unittests OFF)
 set(skip_samples ON)
-set(use_http OFF)
+set(use_http ON)
 set(include_ut OFF)
 
 include_directories(. inc ./deps)
@@ -103,6 +103,7 @@ set(smartclock_h_files
 )
 
 add_executable(smartclock_exe ${smartclock_src_files} ${smartclock_h_files})
+target_link_libraries(smartclock_exe uhttp)
 target_link_libraries(smartclock_exe aziotsharedutil)
 target_link_libraries(smartclock_exe lib-util-c)
 

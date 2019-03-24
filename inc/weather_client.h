@@ -49,7 +49,7 @@ typedef void(*WEATHER_CONDITIONS_CALLBACK)(void* user_ctx, WEATHER_OPERATION_RES
 extern WEATHER_CLIENT_HANDLE weather_client_create(const char* api_key);
 extern void weather_client_destroy(WEATHER_CLIENT_HANDLE handle);
 
-extern int weather_client_get_conditions(WEATHER_CLIENT_HANDLE handle, const WEATHER_LOCATION* location, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
+extern int weather_client_get_conditions(WEATHER_CLIENT_HANDLE handle, const WEATHER_LOCATION* location, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
 extern void weather_client_process(WEATHER_CLIENT_HANDLE handle);
 
 #ifdef __cplusplus

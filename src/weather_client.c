@@ -19,10 +19,21 @@ const char* WEATHER_API_PATH_FMT = "/data/2.5/weather?lat=%f&lon=%f&APPID=%s";
 #define HTTP_PORT_VALUE     80
 #define MAX_CLOSE_ATTEMPTS  10
 
+typedef enum WEATHER_CLIENT_STATE_TAG
+{
+    WEATHER_CLIENT_STATE_IDLE,
+    WEATHER_CLIENT_STATE_CONNECTED,
+    WEATHER_CLIENT_STATE_SENT,
+    WEATHER_CLIENT_STATE_RECV,
+    WEATHER_CLIENT_STATE_ERROR
+} WEATHER_CLIENT_STATE;
+
 typedef struct WEATHER_CLIENT_INFO_TAG
 {
     HTTP_CLIENT_HANDLE http_handle;
     ALARM_TIMER_HANDLE timer_handle;
+
+    WEATHER_CLIENT_STATE state;
 
     double latitude;
     double longitude;
@@ -198,6 +209,7 @@ WEATHER_CLIENT_HANDLE weather_client_create(const char* api_key)
         else
         {
             strcpy(result->api_key, api_key);
+            result->state = WEATHER_CLIENT_STATE_IDLE;
         }
     }
     return result;
@@ -246,16 +258,24 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
 {
     if (handle != NULL)
     {
-        if (alarm_timer_start(handle->timer_handle, handle->timeout_sec) != 0)
+        if (handle->state == WEATHER_CLIENT_STATE_IDLE)
         {
 
         }
-        /*if (send_weather_data(handle, handle->latitude, handle->longitude) != 0)
+        else
         {
-            log_error("Failure sending data to weather service");
-            result = __LINE__;
+            uhttp_client_dowork(handle->http_handle);
+
+            if (alarm_timer_start(handle->timer_handle, handle->timeout_sec) != 0)
+            {
+
+            }
+            /*if (send_weather_data(handle, handle->latitude, handle->longitude) != 0)
+            {
+                log_error("Failure sending data to weather service");
+                result = __LINE__;
+            }
+    */
         }
-*/
-        uhttp_client_dowork(handle->http_handle);
     }
 }
