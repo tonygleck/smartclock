@@ -1,38 +1,44 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8">
-    <title>SmartClock</title>
-    <link rel="stylesheet" type="text/css" href="css/clock.css">
-    <script language="JavaScript" src="./js/clock_view.js"></script>
-  </head>
-  <body>
-    <script type="text/javascript">
-        setInterval(construct_clock, 500);
-    </script>
+    <head>
+        <meta charset="UTF-8">
+        <title>SmartClock</title>
+        <link rel="stylesheet" type="text/css" href="css/clock.css">
+        <script language="JavaScript" src="./js/clock_view.js"></script>
+    </head>
+    <body>
+        <script type="text/javascript">
+            const ipc = require('electron').ipcRenderer;
 
-      <table >
-          <tbody>
-            <tr>
-                <td id="day_1_weather">Today</td>
-                <td id="clock_row" rowspan="4">
-                    <div class="digital_clock" id="clock_face" style="display:inline"></div><div id="time_period">PM</div>
-                    <canvas class="analog_clock" id="analog_face"></canvas>
-                </td>
-            </tr>
-            <tr>
-                <td id="day_2_weather">Tomorrow</td>
-            </tr>
-            <tr>
-                <td id="day_3_weather">Day After</td>
-            </tr>
-            <tr>
-                <td id="day_4_weather">Next Day</td>
-            </tr>
-            <tr>
-                <td colspan="2">Stock Ticker</td>
-            </tr>
-          </tbody>
-      </table>
-  </body>
+            ipc.on('message', (event, message) => {
+                console.log(message); // logs out "Hello second window!"
+            })
+
+            setInterval(construct_clock, 500);
+        </script>
+
+        <table >
+            <tbody>
+                <tr>
+                   <td id="day_1_weather">Today</td>
+                    <td id="clock_row" rowspan="4">
+                        <div class="digital_clock" id="clock_face" style="display:inline"></div><div id="time_period">PM</div>
+                        <canvas class="analog_clock" id="analog_face"></canvas>
+                    </td>
+                </tr>
+                <tr>
+                    <td id="day_2_weather">Tomorrow</td>
+                </tr>
+                <tr>
+                    <td id="day_3_weather">Day After</td>
+                </tr>
+                <tr>
+                    <td id="day_4_weather">Next Day</td>
+                </tr>
+                <tr>
+                    <td colspan="2">Stock Ticker</td>
+                </tr>
+            </tbody>
+        </table>
+    </body>
 </html>
