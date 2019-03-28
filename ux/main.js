@@ -5,18 +5,22 @@ const electron = require('electron');
 const { app, BrowserWindow } = electron;//require('electron')
 
 function createWindow () {
+    // Set the envirionment of prod or development
+    if (!(process.env.NODE_ENV)) {
+        if (process.execPath.indexOf('electron-prebuilt') === -1) {
+            process.env.NODE_ENV = 'production';
+        }
+    }
+
     // Create the browser window.
     //let win = new BrowserWindow({ width: 600, height: 800, x: 0, y: 0, resizable: false, titleBarStyle: "hidden" })
-    let win = new BrowserWindow({ width: 600, height: 800, x: 0, y: 0, resizable: false })
+    let win = new BrowserWindow({ width: 1024, height: 768, x: 0, y: 0, resizable: false })
 
     // and load the index.html of the app.
     //win.loadFile('index.html');
     win.loadURL('file://' + __dirname + '/index.html');
 
     //win.setMenuBarVisibility(false);
-
-    // Open the DevTools.
-    //win.webContents.openDevTools();
 
     win.once('ready-to-show', () => {
         win.show()
@@ -31,6 +35,10 @@ function createWindow () {
     });
 
     // When UI has finish loading
+    if (process.env.NODE_ENV && process.env.NODE_ENV === 'development') {
+        // Open the DevTools.
+        win.webContents.openDevTools({ detach: true });
+    }
     /*win.webContents.on('did-finish-load', () => {
         // Send the timer value
         win.webContents.send('timer-change', timerTime);

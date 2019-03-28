@@ -89,23 +89,29 @@ include_directories(${UHTTP_C_INC_FOLDER})
 
 set(include_ut ${original_include_ut})
 
-set(smartclock_src_files
+set(smartclock_test_files
     src/main.c
+)
+
+set(clockutil_src_files
     src/ntp_client.c
     src/scheduler.c
     src/weather_client.c
 )
 
-set(smartclock_h_files
+set(clockutil_h_files
     inc/ntp_client.h
     inc/scheduler.h
     inc/weather_client.h
 )
 
-add_executable(smartclock_exe ${smartclock_src_files} ${smartclock_h_files})
-target_link_libraries(smartclock_exe uhttp)
-target_link_libraries(smartclock_exe aziotsharedutil)
-target_link_libraries(smartclock_exe lib-util-c)
+add_library(clock_util ${clockutil_src_files} ${clockutil_h_files})
+target_link_libraries(clock_util uhttp)
+target_link_libraries(clock_util aziotsharedutil)
+target_link_libraries(clock_util lib-util-c)
+
+add_executable(smartclock_exe ${smartclock_test_files})
+target_link_libraries(smartclock_exe clock_util)
 
 # Add testing
 if (${include_ut})
