@@ -260,12 +260,13 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
     {
         if (handle->state == WEATHER_CLIENT_STATE_IDLE)
         {
-
+            // Not open yet?
         }
         else
         {
             uhttp_client_dowork(handle->http_handle);
 
+            //if (WEATHER_CLIENT_STATE_CONNECTED  )
             if (alarm_timer_start(handle->timer_handle, handle->timeout_sec) != 0)
             {
 

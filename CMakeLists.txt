@@ -95,13 +95,13 @@ set(smartclock_test_files
 
 set(clockutil_src_files
     src/ntp_client.c
-    src/scheduler.c
+    src/alarm_scheduler.c
     src/weather_client.c
 )
 
 set(clockutil_h_files
     inc/ntp_client.h
-    inc/scheduler.h
+    inc/alarm_scheduler.h
     inc/weather_client.h
 )
 

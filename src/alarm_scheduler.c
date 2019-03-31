@@ -7,7 +7,7 @@
 
 #include "lib-util-c/app_logging.h"
 #include "lib-util-c/item_list.h"
-#include "scheduler.h"
+#include "alarm_scheduler.h"
 
 typedef struct ALARM_SCHEDULER_TAG
 {
