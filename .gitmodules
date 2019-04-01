@@ -4,9 +4,9 @@
 [submodule "deps/lib-util-c"]
 	path = deps/lib-util-c
 	url = https://github.com/tonygleck/lib-util-c.git
-[submodule "deps/umock-c"]
-	path = deps/umock-c
-	url = https://github.com/Azure/umock-c.git
 [submodule "deps/uhttp"]
 	path = deps/uhttp
 	url = https://github.com/Azure/azure-uhttp-c.git
+[submodule "deps/macro-utils"]
+	path = deps/macro-utils
+	url = https://github.com/Azure/azure-macro-utils-c.git
