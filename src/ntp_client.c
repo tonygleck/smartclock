@@ -271,7 +271,7 @@ static int send_initial_ntp_packet(NTP_CLIENT_INFO* ntp_client)
     if (socketio_send(ntp_client->socketio, &ntp_info, ntp_len, NULL, NULL) != 0)
     {
         log_error("Failure sending NTP packet to server");
-        result = __FAILURE__;
+        result = MU_FAILURE;
     }
     else
     {
@@ -290,7 +290,7 @@ static int init_connect_to_server(NTP_CLIENT_INFO* ntp_client, const char* time_
     if ((ntp_client->socketio = socketio_create(&socketio_config)) == NULL)
     {
         log_error("Error connecting to NTP server %s:%d", time_server, NTP_PORT_NUM);
-        result = __FAILURE__;
+        result = MU_FAILURE;
     }
     else
     {
@@ -299,14 +299,14 @@ static int init_connect_to_server(NTP_CLIENT_INFO* ntp_client, const char* time_
             log_error("Error opening socket IO.");
             socketio_destroy(ntp_client->socketio);
             ntp_client->socketio = NULL;
-            result = __FAILURE__;
+            result = MU_FAILURE;
         }
         else if (socketio_open(ntp_client->socketio, on_io_open_complete, ntp_client, on_io_bytes_received, ntp_client, on_io_error, ntp_client) != 0)
         {
             log_error("Error opening socket IO.");
             socketio_destroy(ntp_client->socketio);
             ntp_client->socketio = NULL;
-            result = __FAILURE__;
+            result = MU_FAILURE;
         }
         else
         {
@@ -420,6 +420,7 @@ void ntp_client_process(NTP_CLIENT_HANDLE handle)
             switch (handle->ntp_state)
             {
                 case NTP_CLIENT_STATE_CONNECTED:
+                    log_debug("NTP Client state connected");
                     // Send the NTP packet
                     if (send_initial_ntp_packet(handle) != 0)
                     {
@@ -427,6 +428,7 @@ void ntp_client_process(NTP_CLIENT_HANDLE handle)
                     }
                     else
                     {
+                        log_debug("NTP Client: Packet sent");
                         handle->ntp_state = NTP_CLIENT_STATE_SENT;
                         alarm_timer_reset(handle->timer_handle);
                     }
@@ -457,4 +459,56 @@ void ntp_client_process(NTP_CLIENT_HANDLE handle)
             }
         }
     }
+}
+
+#define OPERATION_SUCCESSFUL    1
+#define OPERATION_FAILURE       2
+
+typedef struct SET_TIME_INFO_TAG
+{
+    int operation_complete;
+    time_t curr_time;
+} SET_TIME_INFO;
+
+static void ntp_result_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result, time_t current_time)
+{
+    SET_TIME_INFO* set_time_info = (SET_TIME_INFO*)user_ctx;
+    if (ntp_result == NTP_OP_RESULT_SUCCESS)
+    {
+        set_time_info->curr_time = current_time;
+        set_time_info->operation_complete = OPERATION_SUCCESSFUL;
+
+        printf("Time: %s\r\n", ctime((const time_t*)&current_time) );
+    }
+    else
+    {
+        set_time_info->operation_complete = OPERATION_FAILURE;
+        printf("Failure retrieving NTP time %d\r\n", ntp_result);
+    }
+}
+
+bool ntp_client_set_time(const char* time_server, size_t timeout_sec)
+{
+    NTP_CLIENT_HANDLE ntp_client = ntp_client_create();
+    if (ntp_client != NULL)
+    {
+        SET_TIME_INFO set_time_info = { 0 };
+        printf("Calling ntp client get time\r\n");
+        if (ntp_client_get_time(ntp_client, time_server, timeout_sec, ntp_result_callback, &set_time_info) == 0)
+        {
+            do
+            {
+                ntp_client_process(ntp_client);
+                // Sleep here
+            } while (set_time_info.operation_complete == 0);
+        }
+        if (set_time_info.operation_complete == OPERATION_SUCCESSFUL)
+        {
+            // Set the system time
+            //stime(set_time_info.curr_time);
+        }
+        ntp_client_destroy(ntp_client);
+    }
+    return 0;
+
 }

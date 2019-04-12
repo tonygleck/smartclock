@@ -22,12 +22,13 @@ static void ntp_result_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result,
     *operation_complete = 1;
 }
 
-static int check_ntp_time()
+static int check_ntp_time(void)
 {
     NTP_CLIENT_HANDLE ntp_client = ntp_client_create();
     if (ntp_client != NULL)
     {
         int operation_complete = 0;
+        printf("Calling ntp client get time\r\n");
         if (ntp_client_get_time(ntp_client, NTP_SERVER_ADDRESS, NTP_TIMEOUT, ntp_result_callback, &operation_complete) == 0)
         {
             do
@@ -54,8 +55,6 @@ int main(int argc, char* argv[])
 {
     (void)argc;
     (void)argv;
-
-    check_ntp_time();
 
     return 0;
 }

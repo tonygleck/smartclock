@@ -10,3 +10,6 @@
 [submodule "deps/macro-utils"]
 	path = deps/macro-utils
 	url = https://github.com/Azure/azure-macro-utils-c.git
+[submodule "deps/parson"]
+	path = deps/parson
+	url = https://github.com/kgabis/parson.git

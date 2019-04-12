@@ -10,6 +10,7 @@ extern "C" {
 #include <cstdint>
 #else
 #include <stdint.h>
+#include <stdbool.h>
 #endif /* __cplusplus */
 
 typedef struct NTP_CLIENT_INFO_TAG* NTP_CLIENT_HANDLE;
@@ -29,6 +30,8 @@ extern void ntp_client_destroy(NTP_CLIENT_HANDLE handle);
 
 extern int ntp_client_get_time(NTP_CLIENT_HANDLE handle, const char* time_server, size_t timeout_sec, NTP_TIME_CALLBACK ntp_callback, void* user_ctx);
 extern void ntp_client_process(NTP_CLIENT_HANDLE handle);
+
+extern bool ntp_client_set_time(const char* time_server, size_t timeout_sec);
 
 #ifdef __cplusplus
 }

@@ -24,9 +24,9 @@ typedef enum WEATHER_OPERATION_RESULT_TAG
 
 typedef enum _tag_TEMPERATURE_UNITS
 {
-    TEMP_UNIT_KELVIN,
-    TEMP_UNIT_CELSIUS,
-    TEMP_UNIT_FAHRENHEIGHT
+    UNIT_KELVIN,
+    UNIT_CELSIUS,
+    UNIT_FAHRENHEIGHT
 } TEMPERATURE_UNITS;
 
 typedef struct WEATHER_CONDITIONS_TAG
@@ -49,8 +49,13 @@ typedef void(*WEATHER_CONDITIONS_CALLBACK)(void* user_ctx, WEATHER_OPERATION_RES
 extern WEATHER_CLIENT_HANDLE weather_client_create(const char* api_key);
 extern void weather_client_destroy(WEATHER_CLIENT_HANDLE handle);
 
-extern int weather_client_get_conditions(WEATHER_CLIENT_HANDLE handle, const WEATHER_LOCATION* location, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
+extern int weather_client_get_by_coordinate(WEATHER_CLIENT_HANDLE handle, const WEATHER_LOCATION* location, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
+extern int weather_client_get_by_zipcode(WEATHER_CLIENT_HANDLE handle, const uint8_t zipcode, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
+extern int weather_client_get_by_city(WEATHER_CLIENT_HANDLE handle, const char* city_name, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
+
 extern void weather_client_process(WEATHER_CLIENT_HANDLE handle);
+
+extern void weather_client_set_units(WEATHER_CLIENT_HANDLE handle, TEMPERATURE_UNITS units);
 
 #ifdef __cplusplus
 }

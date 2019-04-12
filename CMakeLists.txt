@@ -11,10 +11,7 @@ set(PROJECT_INC_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/inc)
 #option(use_opengl "set the smartclock to run on opengl (default is OFF)" OFF)
 option(include_ut "Include unittest in build" OFF)
 
-enable_testing()
-
 include("${CMAKE_CURRENT_LIST_DIR}/cmake_configs/proj_config.cmake")
-include("${CMAKE_CURRENT_LIST_DIR}/cmake_configs/proj_testing.cmake")
 
 if(MSVC)
     # Force to always compile with W4
@@ -50,13 +47,18 @@ set(skip_samples ON)
 set(use_http ON)
 set(include_ut OFF)
 
-include_directories(. inc ./deps)
-
 # Setup dependencies
 if (NOT TARGET azure_macro_utils_c)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/macro-utils)
 endif()
 include_directories(${MACRO_UTILS_INC_FOLDER})
+
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/umock-c/CMakeLists.txt")
+    execute_process(COMMAND git clone https://github.com/Azure/umock-c.git -q --no-tags ${CMAKE_CURRENT_SOURCE_DIR}/deps/umock-c)
+endif()
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/umock-c)
+include_directories(${UMOCK_C_INC_FOLDER})
+
 if (NOT TARGET aziotsharedutil)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/c-utility)
 endif()
@@ -73,6 +75,7 @@ endif()
 include_directories(${UHTTP_C_INC_FOLDER})
 
 set(include_ut ${original_include_ut})
+include_directories(. inc ./deps)
 
 set(smartclock_test_files
     src/main.c
@@ -90,16 +93,18 @@ set(clockutil_h_files
     inc/weather_client.h
 )
 
-add_library(clock_util ${clockutil_src_files} ${clockutil_h_files})
+add_library(clock_util SHARED ${clockutil_src_files} ${clockutil_h_files})
+
 target_link_libraries(clock_util uhttp)
 target_link_libraries(clock_util aziotsharedutil)
 target_link_libraries(clock_util lib-util-c)
 
 add_executable(smartclock_exe ${smartclock_test_files})
-target_link_libraries(smartclock_exe clock_util)
+target_link_libraries(smartclock_exe clock_util asound)
 
 # Add testing
 if (${include_ut})
+    include("${CMAKE_CURRENT_LIST_DIR}/cmake_configs/proj_testing.cmake")
     set(logging_files ${CMAKE_CURRENT_LIST_DIR}/deps/lib-util-c/src/app_logging.c)
     enable_testing()
 
@@ -109,13 +114,9 @@ if (${include_ut})
     if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/ctest/CMakeLists.txt")
         execute_process(COMMAND git clone https://github.com/Azure/azure-ctest.git -q --no-tags ${CMAKE_CURRENT_SOURCE_DIR}/deps/ctest)
     endif()
-    if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/umock-c/CMakeLists.txt")
-        execute_process(COMMAND git clone https://github.com/Azure/umock-c.git -q --no-tags ${CMAKE_CURRENT_SOURCE_DIR}/deps/umock-c)
-    endif()
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/umock-c)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/testrunnerswitcher)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/ctest)
-    include_directories(${UMOCK_C_INC_FOLDER})
+
 
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)
 endif()

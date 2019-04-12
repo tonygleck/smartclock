@@ -29,7 +29,7 @@ void my_gballoc_free(void* ptr)
  */
 #include "testrunnerswitcher.h"
 #include "umock_c.h"
-#include "umock_c_prod.h"
+//#include "umock_c_prod.h"
 
 #include "umocktypes_charptr.h"
 #include "umock_c_negative_tests.h"
@@ -88,10 +88,10 @@ typedef struct TEST_NTP_PACKET_TAG
 // Actual time: 2000-08-31_18:52:30.735861
 static TEST_NTP_PACKET g_test_recv_packet = { 0xd9, 0, 10, 0, 0, 10100, 0, 0, 0, 0, 0, 0xbd5927ee, 0xbc616000, 0xbd5927ee, 0xbc616000 };
 
-DEFINE_ENUM_STRINGS(UMOCK_C_ERROR_CODE, UMOCK_C_ERROR_CODE_VALUES)
+MU_DEFINE_ENUM_STRINGS(UMOCK_C_ERROR_CODE, UMOCK_C_ERROR_CODE_VALUES)
 static void on_umock_c_error(UMOCK_C_ERROR_CODE error_code)
 {
-    ASSERT_FAIL("umock_c reported error :%s", ENUM_TO_STRING(UMOCK_C_ERROR_CODE, error_code));
+    ASSERT_FAIL("umock_c reported error :%s", MU_ENUM_TO_STRING(UMOCK_C_ERROR_CODE, error_code));
 }
 
 static TEST_MUTEX_HANDLE g_testByTest;

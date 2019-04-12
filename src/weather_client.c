@@ -11,10 +11,18 @@
 #include "azure_uhttp_c/uhttp.h"
 #include "azure_c_shared_utility/platform.h"
 #include "azure_c_shared_utility/socketio.h"
+//#include "parson.h"
 
 /* http://openweathermap.org/ */
-const char* WEATHER_API_HOSTNAME = "api.openweathermap.org";
-const char* WEATHER_API_PATH_FMT = "/data/2.5/weather?lat=%f&lon=%f&APPID=%s";
+static const char* WEATHER_API_HOSTNAME = "api.openweathermap.org";
+static const char* API_COORD_PATH_FMT = "/data/2.5/weather?lat=%f&lon=%f&%s&appid=%s";
+static const char* API_NAME_PATH_FMT = "/data/2.5/weather?q=%s&%s&appid=%s";
+static const char* API_ZIPCODE_FMT = "/data/2.5/weather?id=%d&%s&appid=%s";
+
+static const char* TEMP_UNIT_FAHRENHEIT_VALUE = "units=imperial";
+static const char* TEMP_UNIT_CELSIUS_VALUE = "units=metric";
+static const char* TEMP_UNIT_KELVIN_VALUE = "";
+
 
 #define HTTP_PORT_VALUE     80
 #define MAX_CLOSE_ATTEMPTS  10
@@ -23,24 +31,42 @@ typedef enum WEATHER_CLIENT_STATE_TAG
 {
     WEATHER_CLIENT_STATE_IDLE,
     WEATHER_CLIENT_STATE_CONNECTED,
+    WEATHER_CLIENT_STATE_SEND,
     WEATHER_CLIENT_STATE_SENT,
     WEATHER_CLIENT_STATE_RECV,
     WEATHER_CLIENT_STATE_ERROR
 } WEATHER_CLIENT_STATE;
 
+typedef enum WEATHER_QUERY_TYPE_TAG
+{
+    QUERY_TYPE_ZIP_CODE,
+    QUERY_TYPE_COORDINATES,
+    QUERY_TYPE_NAME
+} WEATHER_QUERY_TYPE;
+
 typedef struct WEATHER_CLIENT_INFO_TAG
 {
     HTTP_CLIENT_HANDLE http_handle;
     ALARM_TIMER_HANDLE timer_handle;
-
-    WEATHER_CLIENT_STATE state;
-
-    double latitude;
-    double longitude;
     char* api_key;
     size_t timeout_sec;
 
     bool is_open;
+
+    WEATHER_CONDITIONS_CALLBACK conditions_callback;
+    void* condition_ctx;
+
+    const char* temp_units;
+    WEATHER_CLIENT_STATE state;
+    WEATHER_QUERY_TYPE query_type;
+    union
+    {
+        /* data */
+        WEATHER_LOCATION coord_info;
+        uint8_t zip_code;
+        char* name;
+    } weather_query;
+    char* weather_data;
 } WEATHER_CLIENT_INFO;
 
 static bool is_timed_out(WEATHER_CLIENT_INFO* client_info)
@@ -93,9 +119,32 @@ static void on_http_reply_recv(void* user_ctx, HTTP_CALLBACK_REASON request_resu
     {
         log_error("Unexpected user context NULL");
     }
+    else if (request_result == HTTP_CALLBACK_REASON_OK)
+    {
+        log_error("Invalid recv result returned %d", (int)request_result);
+        client_info->state = WEATHER_CLIENT_STATE_ERROR;
+    }
     else
     {
-
+        if (client_info->state == WEATHER_CLIENT_STATE_SENT)
+        {
+            // Check status_code
+            // Parse reply
+            if (client_info->weather_data == NULL)
+            {
+                if ((client_info->weather_data = malloc(content_len+1)) == NULL)
+                {
+                    log_error("Failure allocating weather content of length %d", content_len);
+                    client_info->state = WEATHER_CLIENT_STATE_ERROR;
+                }
+                else
+                {
+                    memset(client_info->weather_data, 0, content_len+1);
+                    memcpy(client_info->weather_data, content, content_len);
+                    client_info->state = WEATHER_CLIENT_STATE_RECV;
+                }
+            }
+        }
     }
 }
 
@@ -112,11 +161,22 @@ static void on_http_close(void* user_ctx)
     }
 }
 
-static int send_weather_data(WEATHER_CLIENT_INFO* client_info, double latitude, double longitude)
+static int send_weather_data(WEATHER_CLIENT_INFO* client_info)
 {
     int result;
     char weather_api_path[128];
-    sprintf(weather_api_path, WEATHER_API_PATH_FMT, latitude, longitude, client_info->api_key);
+    switch (client_info->query_type)
+    {
+        case QUERY_TYPE_ZIP_CODE:
+            sprintf(weather_api_path, API_ZIPCODE_FMT, client_info->weather_query.zip_code, client_info->temp_units, client_info->api_key);
+            break;
+        case QUERY_TYPE_COORDINATES:
+            sprintf(weather_api_path, API_COORD_PATH_FMT, client_info->weather_query.coord_info.latitude, client_info->weather_query.coord_info.longitude, client_info->temp_units, client_info->api_key);
+            break;
+        case QUERY_TYPE_NAME:
+            sprintf(weather_api_path, API_NAME_PATH_FMT, client_info->weather_query.name, client_info->temp_units, client_info->api_key);
+            break;
+    }
 
     if (uhttp_client_execute_request(client_info->http_handle, HTTP_CLIENT_REQUEST_GET, weather_api_path, NULL, NULL, 0, on_http_reply_recv, client_info) != HTTP_CLIENT_OK)
     {
@@ -173,6 +233,7 @@ static void close_http_connection(WEATHER_CLIENT_INFO* client_info)
         } while (client_info->is_open && attempt < MAX_CLOSE_ATTEMPTS);
 
         uhttp_client_destroy(client_info->http_handle);
+        client_info->http_handle = NULL;
     }
 }
 
@@ -210,6 +271,7 @@ WEATHER_CLIENT_HANDLE weather_client_create(const char* api_key)
         {
             strcpy(result->api_key, api_key);
             result->state = WEATHER_CLIENT_STATE_IDLE;
+            result->temp_units = TEMP_UNIT_FAHRENHEIT_VALUE;
         }
     }
     return result;
@@ -227,12 +289,17 @@ void weather_client_destroy(WEATHER_CLIENT_HANDLE handle)
     }
 }
 
-int weather_client_get_conditions(WEATHER_CLIENT_HANDLE handle, const WEATHER_LOCATION* location, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx)
+int weather_client_get_by_coordinate(WEATHER_CLIENT_HANDLE handle, const WEATHER_LOCATION* location, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx)
 {
     int result;
     if (handle == NULL || location == NULL || conditions_callback == NULL)
     {
         log_error("Invalid parameter specified: handle: %p, location: %p, conditions_callback: %p", handle, location, conditions_callback);
+        result = __LINE__;
+    }
+    else if (handle->state != WEATHER_CLIENT_STATE_IDLE && handle->state != WEATHER_CLIENT_STATE_CONNECTED)
+    {
+        log_error("Invalid State specified, operation must be complete to add another call");
         result = __LINE__;
     }
     else
@@ -246,37 +313,155 @@ int weather_client_get_conditions(WEATHER_CLIENT_HANDLE handle, const WEATHER_LO
         else
         {
             // Store data
-            handle->latitude = location->latitude;
-            handle->longitude = location->longitude;
+            handle->query_type = QUERY_TYPE_COORDINATES;
+            handle->weather_query.coord_info.latitude = location->latitude;
+            handle->weather_query.coord_info.longitude = location->longitude;
+            handle->conditions_callback = conditions_callback;
+            handle->condition_ctx = user_ctx;
             result = 0;
         }
     }
     return result;
 }
 
+int weather_client_get_by_zipcode(WEATHER_CLIENT_HANDLE handle, const uint8_t zipcode, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx)
+{
+    int result;
+    if (handle == NULL || zipcode == 0 || conditions_callback == NULL)
+    {
+        log_error("Invalid parameter specified: handle: %p, zipcode: %d, conditions_callback: %p", handle, zipcode, conditions_callback);
+        result = __LINE__;
+    }
+    else if (handle->state != WEATHER_CLIENT_STATE_IDLE && handle->state != WEATHER_CLIENT_STATE_CONNECTED)
+    {
+        log_error("Invalid State specified, operation must be complete to add another call");
+        result = __LINE__;
+    }
+    else
+    {
+        handle->timeout_sec = timeout;
+        if (!handle->is_open && open_connection(handle) != 0)
+        {
+            log_error("Failure opening connection");
+            result = __LINE__;
+        }
+        else
+        {
+            // Store data
+            handle->query_type = QUERY_TYPE_ZIP_CODE;
+            handle->weather_query.zip_code = zipcode;
+            result = 0;
+        }
+    }
+    return result;
+}
+
+int weather_client_get_by_city(WEATHER_CLIENT_HANDLE handle, const char* city_name, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx)
+{
+    int result;
+    if (handle == NULL || city_name == NULL || conditions_callback == NULL)
+    {
+        log_error("Invalid parameter specified: handle: %p, city_name: %p, conditions_callback: %p", handle, city_name, conditions_callback);
+        result = __LINE__;
+    }
+    else if (handle->state != WEATHER_CLIENT_STATE_IDLE && handle->state != WEATHER_CLIENT_STATE_CONNECTED)
+    {
+        log_error("Invalid State specified, operation must be complete to add another call");
+        result = __LINE__;
+    }
+    else
+    {
+        size_t length = strlen(city_name);
+        if ((handle->weather_query.name = (char*)malloc(length+1)) == NULL)
+        {
+            log_error("Failure allocating city name");
+            result = __LINE__;
+        }
+        else if (strcpy(handle->weather_query.name, city_name) == NULL)
+        {
+            log_error("Failure copying city name");
+            free(handle->weather_query.name);
+            result = __LINE__;
+        }
+        else if (!handle->is_open && open_connection(handle) != 0)
+        {
+            log_error("Failure opening connection");
+            free(handle->weather_query.name);
+            result = __LINE__;
+        }
+        else
+        {
+            handle->timeout_sec = timeout;
+            handle->query_type = QUERY_TYPE_NAME;
+            result = 0;
+        }
+    }
+    return result;
+}
+
+void weather_client_set_units(WEATHER_CLIENT_HANDLE handle, TEMPERATURE_UNITS units)
+{
+    if (handle == NULL)
+    {
+        log_error("Invalid parameter specified: handle: NULL");
+    }
+    else
+    {
+        switch (units)
+        {
+            case UNIT_KELVIN:
+                handle->temp_units = TEMP_UNIT_KELVIN_VALUE;
+                break;
+            case UNIT_CELSIUS:
+                handle->temp_units = TEMP_UNIT_CELSIUS_VALUE;
+                break;
+            case UNIT_FAHRENHEIGHT:
+                handle->temp_units = TEMP_UNIT_FAHRENHEIT_VALUE;
+                break;
+
+        }
+    }
+}
+
 void weather_client_process(WEATHER_CLIENT_HANDLE handle)
 {
     if (handle != NULL)
     {
-        if (handle->state == WEATHER_CLIENT_STATE_IDLE)
-        {
-            // Not open yet?
-        }
-        else
-        {
-            uhttp_client_dowork(handle->http_handle);
+        uhttp_client_dowork(handle->http_handle);
 
-            //if (WEATHER_CLIENT_STATE_CONNECTED  )
-            if (alarm_timer_start(handle->timer_handle, handle->timeout_sec) != 0)
-            {
-
-            }
-            /*if (send_weather_data(handle, handle->latitude, handle->longitude) != 0)
-            {
-                log_error("Failure sending data to weather service");
-                result = __LINE__;
-            }
-    */
+        switch (handle->state)
+        {
+            case WEATHER_CLIENT_STATE_IDLE:
+                break;
+            case WEATHER_CLIENT_STATE_CONNECTED:
+            case WEATHER_CLIENT_STATE_SEND:
+                if (alarm_timer_start(handle->timer_handle, handle->timeout_sec) != 0)
+                {
+                    handle->state = WEATHER_CLIENT_STATE_ERROR;
+                }
+                else
+                {
+                    if (send_weather_data(handle) != 0)
+                    {
+                        log_error("Failure sending data to weather service");
+                        handle->state = WEATHER_CLIENT_STATE_ERROR;
+                    }
+                    else
+                    {
+                        handle->state = WEATHER_CLIENT_STATE_SENT;
+                    }
+                }
+                break;
+            case WEATHER_CLIENT_STATE_SENT:
+                if (alarm_timer_is_expired(handle->timer_handle))
+                {
+                    handle->conditions_callback(handle->condition_ctx, WEATHER_OP_RESULT_TIMEOUT, NULL);
+                    close_http_connection(handle);
+                    handle->state = WEATHER_CLIENT_STATE_IDLE;
+                }
+            case WEATHER_CLIENT_STATE_RECV:
+            case WEATHER_CLIENT_STATE_ERROR:
+                break;
         }
     }
 }
