@@ -1,8 +1,12 @@
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "ntp_client.h"
 #include "weather_client.h"
+#include "parson.h"
+#include "lib-util-c/app_logging.h"
 
 static const char* NTP_SERVER_ADDRESS = "0.north-america.pool.ntp.org";
 
@@ -41,14 +45,22 @@ static int check_ntp_time(void)
     return 0;
 }
 
+static void weather_cond_callback(void* user_ctx, WEATHER_OPERATION_RESULT result, const WEATHER_CONDITIONS* cond)
+{
+    if (result == WEATHER_OP_RESULT_SUCCESS)
+    {
+        (void)printf("Icon %s\nDesc: %s\nTemp: %f\nHi: %f\nLo: %f\nHumidity: %d\nPressure: %d\n",
+            cond->weather_icon, cond->description, cond->temperature, cond->hi_temp, cond->lo_temp, cond->humidity, cond->pressure);
+    }
+}
+
 static void check_weather_value()
 {
-    WEATHER_CLIENT_HANDLE handle = weather_client_create("");
+    WEATHER_CLIENT_HANDLE handle = weather_client_create("", UNIT_FAHRENHEIGHT);
     if (handle == NULL)
     {
         weather_client_destroy(handle);
     }
-
 }
 
 int main(int argc, char* argv[])

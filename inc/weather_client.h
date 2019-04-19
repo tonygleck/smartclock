@@ -12,6 +12,7 @@ extern "C" {
 #include <stdint.h>
 #endif /* __cplusplus */
 
+#define ICON_MAX_LENGTH         8
 typedef struct WEATHER_CLIENT_INFO_TAG* WEATHER_CLIENT_HANDLE;
 
 typedef enum WEATHER_OPERATION_RESULT_TAG
@@ -34,7 +35,10 @@ typedef struct WEATHER_CONDITIONS_TAG
     double temperature;
     double hi_temp;
     double lo_temp;
+    uint8_t humidity;
+    uint32_t pressure;
     const char* description;
+    char weather_icon[ICON_MAX_LENGTH];
 } WEATHER_CONDITIONS;
 
 typedef struct WEATHER_LOCATION_TAG
@@ -46,7 +50,7 @@ typedef struct WEATHER_LOCATION_TAG
 
 typedef void(*WEATHER_CONDITIONS_CALLBACK)(void* user_ctx, WEATHER_OPERATION_RESULT result, const WEATHER_CONDITIONS* conditions);
 
-extern WEATHER_CLIENT_HANDLE weather_client_create(const char* api_key);
+extern WEATHER_CLIENT_HANDLE weather_client_create(const char* api_key, TEMPERATURE_UNITS units);
 extern void weather_client_destroy(WEATHER_CLIENT_HANDLE handle);
 
 extern int weather_client_get_by_coordinate(WEATHER_CLIENT_HANDLE handle, const WEATHER_LOCATION* location, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
@@ -54,8 +58,6 @@ extern int weather_client_get_by_zipcode(WEATHER_CLIENT_HANDLE handle, const uin
 extern int weather_client_get_by_city(WEATHER_CLIENT_HANDLE handle, const char* city_name, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
 
 extern void weather_client_process(WEATHER_CLIENT_HANDLE handle);
-
-extern void weather_client_set_units(WEATHER_CLIENT_HANDLE handle, TEMPERATURE_UNITS units);
 
 #ifdef __cplusplus
 }

@@ -75,7 +75,7 @@ endif()
 include_directories(${UHTTP_C_INC_FOLDER})
 
 set(include_ut ${original_include_ut})
-include_directories(. inc ./deps)
+include_directories(. inc ./deps/parson)
 
 set(smartclock_test_files
     src/main.c
@@ -85,12 +85,14 @@ set(clockutil_src_files
     src/ntp_client.c
     src/alarm_scheduler.c
     src/weather_client.c
+    deps/parson/parson.c
 )
 
 set(clockutil_h_files
     inc/ntp_client.h
     inc/alarm_scheduler.h
     inc/weather_client.h
+    deps/parson/parson.h
 )
 
 add_library(clock_util SHARED ${clockutil_src_files} ${clockutil_h_files})
