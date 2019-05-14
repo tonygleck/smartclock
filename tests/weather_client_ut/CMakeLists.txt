@@ -10,6 +10,7 @@ set(${theseTestsName}_test_files
 
 set(${theseTestsName}_c_files
     ../../src/weather_client.c
+    ../../deps/parson/parson.c
 )
 
 set(${theseTestsName}_h_files

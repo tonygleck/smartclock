@@ -20,6 +20,7 @@ typedef enum WEATHER_OPERATION_RESULT_TAG
     WEATHER_OP_RESULT_SUCCESS,
     WEATHER_OP_RESULT_COMM_ERR,
     WEATHER_OP_RESULT_INVALID_DATA_ERR,
+    WEATHER_OP_RESULT_ALLOCATION_ERR,
     WEATHER_OP_RESULT_TIMEOUT
 } WEATHER_OPERATION_RESULT;
 
@@ -54,7 +55,7 @@ extern WEATHER_CLIENT_HANDLE weather_client_create(const char* api_key, TEMPERAT
 extern void weather_client_destroy(WEATHER_CLIENT_HANDLE handle);
 
 extern int weather_client_get_by_coordinate(WEATHER_CLIENT_HANDLE handle, const WEATHER_LOCATION* location, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
-extern int weather_client_get_by_zipcode(WEATHER_CLIENT_HANDLE handle, const uint8_t zipcode, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
+extern int weather_client_get_by_zipcode(WEATHER_CLIENT_HANDLE handle, size_t zipcode, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
 extern int weather_client_get_by_city(WEATHER_CLIENT_HANDLE handle, const char* city_name, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
 
 extern void weather_client_process(WEATHER_CLIENT_HANDLE handle);

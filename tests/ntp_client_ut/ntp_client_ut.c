@@ -351,6 +351,7 @@ BEGIN_TEST_SUITE(ntp_client_ut)
 
         // cleanup
         ntp_client_destroy(handle);
+        umock_c_negative_tests_deinit();
     }
 
     TEST_FUNCTION(ntp_client_get_time_succeed)
