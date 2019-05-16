@@ -8,16 +8,24 @@
     </head>
     <body>
         <script type="text/javascript">
-            const ipc = require('electron').ipcRenderer;
+            //const ipc = require('electron').ipcRenderer;
 
-            ipc.on('message', (event, message) => {
-                console.log(message); // logs out "Hello second window!"
-            })
+            //ipc.on('message', (event, message) => {
+            //    console.log(message); // logs out "Hello second window!"
+            //})
 
             setInterval(construct_clock, 500);
         </script>
 
-        <table >
+        <div id="forcast">
+            <div id="day_1_weather"><img src="img/sunny.png">75</div>
+            <div id="day_2_weather"><img src="img/sunny.png">68</div>
+            <div id="day_3_weather"><img src="img/sunny.png">70</div>
+            <div id="day_4_weather"><img src="img/sunny.png">71</div>
+        </div>
+        <div id='clock'></div><div id='period'>p.m.</div>
+
+        <!--table >
             <tbody>
                 <tr>
                    <td id="day_1_weather">Today</td>
@@ -35,10 +43,7 @@
                 <tr>
                     <td id="day_4_weather">Next Day</td>
                 </tr>
-                <!-- tr>
-                    <td colspan="2">Stock Ticker</td>
-                </tr-->
             </tbody>
-        </table>
+        </table-->
     </body>
 </html>

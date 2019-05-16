@@ -4,28 +4,51 @@ body {
     background-color: #3d3f42;
 }
 
-table {
-    width: 100%
+#clock {
+    height: 100px;
+    width: 800px;
+    margin: auto;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    /*padding-top: 70px;*/
+    font-family: 'Lato';
+    text-align: center;
+    color: white;
+    font-size: 100px;
 }
 
-table, th, td {
-    border: 1px solid black;
+#period {
+    height: 100px;
+    width: 820px;
+    position: absolute;
+    top: 0; left: 0; bottom: 0; right: 0;
+    font-family: 'Lato';
+    text-align: center;
+    color: white;
+    font-size: 100px;
 }
 
-html {
-    overflow:hidden
+#forcast {
+    margin: 0;
+    padding: 0;
+    width: 20%;
+    height: 100%;
+    position: fixed;
+    list-style-image: none;
+    list-style-type: none;
+    overflow: auto;
+    position: relative;
+    display: inline-block;
+    clear: both;
 }
 
-div.digital_clock {
-    color: #FFFFFF;
-    font-size:100%;
-    font-family: sans-serif;
-    font-weight: bold;
-    line-height:.9em;
-    vertical-align:top
-}
-
-canvas.analog_clock {
-    display: none;
-    visibility: hidden;
-}
+#forcast div {
+    font-family: 'Lato';
+    font-size: 40px;
+    height: 25%;
+    margin: 0;
+    padding: 10;
+    list-style: none;
+    display: inline-block;
+    float: left;
+  }

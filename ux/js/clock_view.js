@@ -25,13 +25,13 @@ function construct_clock()
 
     //if (clock_face.face_type == this.digital)
     //{
-        var period = " AM";
+        var period = " a.m.";
         if (hour > 12)
         {
             hour = hour-12;
-            period = " PM"
+            period = " p.m."
         }
-        document.getElementById('clock_face').innerHTML = hour + ":" + min + ":" + sec;
-        document.getElementById('time_period').innerHTML = period;
+        var clock = document.getElementById('clock');
+        clock.innerText = hour + ":" + min + ":" + sec;
     //}
 }
