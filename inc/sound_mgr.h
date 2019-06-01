@@ -15,8 +15,8 @@ typedef struct SOUND_MGR_INFO_TAG* SOUND_MGR_HANDLE;
 extern SOUND_MGR_HANDLE sound_mgr_create(void);
 extern void sound_mgr_destroy(SOUND_MGR_HANDLE handle);
 
-//extern int ntp_client_get_time(NTP_CLIENT_HANDLE handle, const char* time_server, size_t timeout_sec, NTP_TIME_CALLBACK ntp_callback, void* user_ctx);
-//extern void ntp_client_process(NTP_CLIENT_HANDLE handle);
+extern int sound_mgr_play(const char* sound_file);
+
 
 #ifdef __cplusplus
 }
