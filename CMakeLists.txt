@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.11)
+cmake_minimum_required(VERSION 3.3.0)
 
 #Use solution folders.
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -10,6 +10,7 @@ set(PROJECT_INC_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/inc)
 
 #option(use_opengl "set the smartclock to run on opengl (default is OFF)" OFF)
 option(include_ut "Include unittest in build" OFF)
+option(set_demo_mode "Set up demo mode" OFF)
 
 include("${CMAKE_CURRENT_LIST_DIR}/cmake_configs/proj_config.cmake")
 
@@ -46,6 +47,10 @@ set(run_unittests OFF)
 set(skip_samples ON)
 set(use_http ON)
 set(include_ut OFF)
+
+if (${set_demo_mode})
+    add_definitions(-DDEMO_MODE)
+endif()
 
 # Setup dependencies
 if (NOT TARGET azure_macro_utils_c)
@@ -103,6 +108,8 @@ target_link_libraries(clock_util lib-util-c)
 
 add_executable(smartclock_exe ${smartclock_test_files})
 target_link_libraries(smartclock_exe clock_util asound)
+
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/samples)
 
 # Add testing
 if (${include_ut})

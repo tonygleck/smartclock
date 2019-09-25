@@ -23,8 +23,17 @@
 #define MAX_CLOSE_RETRIES       2
 #define NTP_PACKET_SIZE         48
 
+#define OPERATION_SUCCESSFUL    1
+#define OPERATION_FAILURE       2
+
 static const unsigned long long NTP_TIMESTAMP_DELTA = 2208988800ull;
 static const uint32_t JAN_1ST_1900 = 2415021;
+
+typedef struct SET_TIME_INFO_TAG
+{
+    int operation_complete;
+    time_t curr_time;
+} SET_TIME_INFO;
 
 typedef enum NTP_CLIENT_STATE_TAG
 {
@@ -32,6 +41,7 @@ typedef enum NTP_CLIENT_STATE_TAG
     NTP_CLIENT_STATE_CONNECTED,
     NTP_CLIENT_STATE_SENT,
     NTP_CLIENT_STATE_RECV,
+    NTP_CLIENT_STATE_COMPLETE,
     NTP_CLIENT_STATE_ERROR
 } NTP_CLIENT_STATE;
 
@@ -318,19 +328,25 @@ static int init_connect_to_server(NTP_CLIENT_INFO* ntp_client, const char* time_
 
 static void close_ntp_connection(NTP_CLIENT_INFO* ntp_client)
 {
-    if (socketio_close(ntp_client->socketio, on_connection_closed, ntp_client) == 0)
+    if (ntp_client->server_connected)
     {
-        size_t counter = 0;
-        do
+        if (socketio_close(ntp_client->socketio, on_connection_closed, ntp_client) == 0)
         {
-            socketio_dowork(ntp_client->socketio);
-            counter++;
-            //ThreadAPI_Sleep(2);
-        } while (ntp_client->server_connected && counter < MAX_CLOSE_RETRIES);
-        ntp_client->server_connected = false;
+            size_t counter = 0;
+            do
+            {
+                socketio_dowork(ntp_client->socketio);
+                counter++;
+                //ThreadAPI_Sleep(2);
+            } while (ntp_client->server_connected && counter < MAX_CLOSE_RETRIES);
+            ntp_client->server_connected = false;
+        }
     }
     // Close client
-    socketio_destroy(ntp_client->socketio);
+    if (ntp_client->socketio)
+    {
+        socketio_destroy(ntp_client->socketio);
+    }
     ntp_client->socketio = NULL;
 }
 
@@ -371,10 +387,7 @@ void ntp_client_destroy(NTP_CLIENT_HANDLE handle)
 {
     if (handle != NULL)
     {
-        if (handle->server_connected)
-        {
-            close_ntp_connection(handle);
-        }
+        close_ntp_connection(handle);
         alarm_timer_destroy(handle->timer_handle);
         free(handle);
     }
@@ -396,6 +409,7 @@ int ntp_client_get_time(NTP_CLIENT_HANDLE handle, const char* time_server, size_
     else if (alarm_timer_start(handle->timer_handle, timeout_sec) != 0)
     {
         log_error("Failure starting timer alarm.");
+        close_ntp_connection(handle);
         result = __LINE__;
     }
     else
@@ -439,11 +453,12 @@ void ntp_client_process(NTP_CLIENT_HANDLE handle)
                     time_t recv_time = (time_t)(handle->recv_packet.integer - NTP_TIMESTAMP_DELTA);
                     handle->ntp_callback(handle->user_ctx, handle->ntp_op_result, recv_time);
                     close_ntp_connection(handle);
-                    handle->ntp_state = NTP_CLIENT_STATE_IDLE;
+                    handle->ntp_state = NTP_CLIENT_STATE_COMPLETE;
                     break;
                 }
                 case NTP_CLIENT_STATE_SENT:
                 case NTP_CLIENT_STATE_IDLE:
+                case NTP_CLIENT_STATE_COMPLETE:
                 default:
                     break;
             }
@@ -461,15 +476,6 @@ void ntp_client_process(NTP_CLIENT_HANDLE handle)
     }
 }
 
-#define OPERATION_SUCCESSFUL    1
-#define OPERATION_FAILURE       2
-
-typedef struct SET_TIME_INFO_TAG
-{
-    int operation_complete;
-    time_t curr_time;
-} SET_TIME_INFO;
-
 static void ntp_result_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result, time_t current_time)
 {
     SET_TIME_INFO* set_time_info = (SET_TIME_INFO*)user_ctx;
@@ -478,12 +484,12 @@ static void ntp_result_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result,
         set_time_info->curr_time = current_time;
         set_time_info->operation_complete = OPERATION_SUCCESSFUL;
 
-        printf("Time: %s\r\n", ctime((const time_t*)&current_time) );
+        log_debug("Time: %s\r\n", ctime((const time_t*)&current_time) );
     }
     else
     {
         set_time_info->operation_complete = OPERATION_FAILURE;
-        printf("Failure retrieving NTP time %d\r\n", ntp_result);
+        log_error("Failure retrieving NTP time %d\r\n", ntp_result);
     }
 }
 
@@ -493,7 +499,6 @@ bool ntp_client_set_time(const char* time_server, size_t timeout_sec)
     if (ntp_client != NULL)
     {
         SET_TIME_INFO set_time_info = { 0 };
-        printf("Calling ntp client get time\r\n");
         if (ntp_client_get_time(ntp_client, time_server, timeout_sec, ntp_result_callback, &set_time_info) == 0)
         {
             do

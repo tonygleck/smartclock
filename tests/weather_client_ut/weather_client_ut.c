@@ -34,7 +34,7 @@ void my_gballoc_free(void* ptr)
 
 #include "umock_c/umocktypes_charptr.h"
 #include "umock_c/umock_c_negative_tests.h"
-#include "macro_utils.h"
+#include "azure_macro_utils/macro_utils.h"
 
 #define ENABLE_MOCKS
 #include "lib-util-c/alarm_timer.h"

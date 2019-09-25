@@ -16,7 +16,7 @@ extern SOUND_MGR_HANDLE sound_mgr_create(void);
 extern void sound_mgr_destroy(SOUND_MGR_HANDLE handle);
 
 extern int sound_mgr_play(const char* sound_file);
-
+extern int sound_mgr_stop(void);
 
 #ifdef __cplusplus
 }

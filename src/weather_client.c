@@ -24,6 +24,12 @@ static const char* API_ZIPCODE_FMT = "/data/2.5/weather?id=%d&%s&appid=%s";
 static const char* TEMP_UNIT_FAHRENHEIT_VALUE = "units=imperial";
 static const char* TEMP_UNIT_CELSIUS_VALUE = "units=metric";
 static const char* TEMP_UNIT_KELVIN_VALUE = "";
+static const char* DEMO_ACTUAL_WEATHER = "{\"coord\": {\"lon\": -0.13,\"lat\": 51.51 \
+},\"weather\": [ {\"id\": 300,\"main\": \"Drizzle\", \"description\": \"light intensity drizzle\", \
+\"icon\": \"09d\"}],\"base\": \"stations\",\"main\": {\"temp\": 280.32,\"pressure\": 1012,\"humidity\": 81, \
+\"temp_min\": 279.15,\"temp_max\": 281.15},\"visibility\": 10000,\"wind\": {\"speed\": 4.1,\"deg\": 80}, \
+\"clouds\": {\"all\": 90},\"dt\": 1485789600,\"sys\": {\"type\": 1,\"id\": 5091,\"message\": 0.0103,\"country\": \
+\"GB\",\"sunrise\": 1485762037,\"sunset\": 1485794875},\"id\": 2643743,\"name\": \"London\",\"cod\": 200}";
 
 
 #define HTTP_PORT_VALUE     80
@@ -330,6 +336,9 @@ static void on_http_close(void* user_ctx)
 static int send_weather_data(WEATHER_CLIENT_INFO* client_info)
 {
     int result;
+#ifdef DEMO_MODE
+    result = 0;
+#else
     char weather_api_path[128];
     switch (client_info->query_type)
     {
@@ -353,11 +362,13 @@ static int send_weather_data(WEATHER_CLIENT_INFO* client_info)
     {
         result = 0;
     }
+#endif
     return result;
 }
 
 static void close_http_connection(WEATHER_CLIENT_INFO* client_info)
 {
+#ifndef DEMO_MODE
     if (client_info->is_open)
     {
         uhttp_client_close(client_info->http_handle, on_http_close, client_info);
@@ -371,11 +382,13 @@ static void close_http_connection(WEATHER_CLIENT_INFO* client_info)
     }
     uhttp_client_destroy(client_info->http_handle);
     client_info->http_handle = NULL;
+#endif // DEMO_MODE
 }
 
 static int open_connection(WEATHER_CLIENT_INFO* client_info)
 {
     int result;
+#ifndef DEMO_MODE
     const IO_INTERFACE_DESCRIPTION* io_desc;
     SOCKETIO_CONFIG config;
     config.accepted_socket = NULL;
@@ -412,6 +425,9 @@ static int open_connection(WEATHER_CLIENT_INFO* client_info)
             result = 0;
         }
     }
+#else
+    result = 0;
+#endif
     return result;
 }
 
@@ -593,6 +609,38 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
 {
     if (handle != NULL)
     {
+#ifdef DEMO_MODE
+        switch (handle->state)
+        {
+            case WEATHER_CLIENT_STATE_IDLE:
+                break;
+            case WEATHER_CLIENT_STATE_CONNECTED:
+            case WEATHER_CLIENT_STATE_CONNECTING:
+            case WEATHER_CLIENT_STATE_SEND:
+            case WEATHER_CLIENT_STATE_SENT:
+                on_http_reply_recv(handle, HTTP_CALLBACK_REASON_OK, DEMO_ACTUAL_WEATHER, strlen(DEMO_ACTUAL_WEATHER), 200, NULL);
+                break;
+            case WEATHER_CLIENT_STATE_RECV:
+            {
+                WEATHER_CONDITIONS weather_cond = {0};
+                if (parse_weather_data(handle, &weather_cond) != 0)
+                {
+                    log_error("Failure parsing weather data");
+                    handle->conditions_callback(handle->condition_ctx, WEATHER_OP_RESULT_INVALID_DATA_ERR, NULL);
+                    handle->state = WEATHER_CLIENT_STATE_ERROR;
+                }
+                else
+                {
+                    handle->conditions_callback(handle->condition_ctx, WEATHER_OP_RESULT_SUCCESS, &weather_cond);
+                    handle->state = WEATHER_CLIENT_STATE_IDLE;
+                }
+                break;
+            }
+            case WEATHER_CLIENT_STATE_ERROR:
+            case WEATHER_CLIENT_STATE_CALLBACK:
+                break;
+        }
+#else
         uhttp_client_dowork(handle->http_handle);
 
         switch (handle->state)
@@ -649,5 +697,6 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
                 handle->state = WEATHER_CLIENT_STATE_IDLE;
                 break;
         }
+#endif
     }
 }

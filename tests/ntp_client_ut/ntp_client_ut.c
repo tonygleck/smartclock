@@ -6,12 +6,12 @@
 #include <stdlib.h>
 #endif
 
-void* my_gballoc_malloc(size_t size)
+static void* my_gballoc_malloc(size_t size)
 {
     return malloc(size);
 }
 
-void my_gballoc_free(void* ptr)
+static void my_gballoc_free(void* ptr)
 {
     free(ptr);
 }
@@ -33,7 +33,7 @@ void my_gballoc_free(void* ptr)
 
 #include "umock_c/umocktypes_charptr.h"
 #include "umock_c/umock_c_negative_tests.h"
-#include "macro_utils.h"
+#include "azure_macro_utils/macro_utils.h"
 
 #define ENABLE_MOCKS
 #include "lib-util-c/alarm_timer.h"
@@ -135,7 +135,7 @@ static CONCRETE_IO_HANDLE my_socketio_create(void* io_create_parameters)
 
 static void my_socketio_destroy(CONCRETE_IO_HANDLE socket_io)
 {
-    free(socket_io);
+    my_gballoc_free(socket_io);
 }
 
 static void sleep_for_now(unsigned int milliseconds)
@@ -437,7 +437,6 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         STRICT_EXPECTED_CALL(socketio_dowork(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(socketio_dowork(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(socketio_destroy(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(gballoc_free(IGNORED_PTR_ARG));
 
         // act
         ntp_client_process(handle);
