@@ -37,8 +37,9 @@ static void my_gballoc_free(void* ptr)
 
 #define ENABLE_MOCKS
 #include "lib-util-c/alarm_timer.h"
-#include "azure_c_shared_utility/gballoc.h"
-#include "azure_c_shared_utility/socketio.h"
+#include "lib-util-c/sys_debug_shim.h"
+#include "patchcords/xio_client.h"
+#include "patchcords/xio_socket.h"
 #undef ENABLE_MOCKS
 
 #include "ntp_client.h"
@@ -50,8 +51,8 @@ MOCKABLE_FUNCTION(, void, ntp_time_callback, void*, user_ctx, NTP_OPERATION_RESU
 static const ALARM_TIMER_HANDLE TEST_TIMER_HANDLE = (ALARM_TIMER_HANDLE)0x1234;
 static const char* TEST_NTP_SERVER_ADDRESS = "test_server.org";
 
-#define TEST_SOCKETIO_INTERFACE_DESCRIPTION     (const IO_INTERFACE_DESCRIPTION*)0x4242
-#define TEST_IO_HANDLE                          (XIO_HANDLE)0x4243
+#define TEST_xio_socket_INTERFACE_DESCRIPTION     (const IO_INTERFACE_DESCRIPTION*)0x4242
+#define TEST_IO_HANDLE                          (XIO_IMPL_HANDLE)0x4243
 
 #define NTP_TEST_PACKET_SIZE                    48
 
@@ -107,7 +108,7 @@ static void* g_on_io_error_context;
 static ON_IO_CLOSE_COMPLETE g_on_io_close_complete;
 static void* g_on_io_close_complete_context;
 
-static int my_socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_complete, void* on_io_open_complete_context, ON_BYTES_RECEIVED on_bytes_received, void* on_bytes_received_context, ON_IO_ERROR on_io_error, void* on_io_error_context)
+static int my_socket_open(XIO_IMPL_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_complete, void* on_io_open_complete_context, ON_BYTES_RECEIVED on_bytes_received, void* on_bytes_received_context, ON_IO_ERROR on_io_error, void* on_io_error_context)
 {
     (void)socket_io;
     g_on_io_open_complete = on_io_open_complete;
@@ -119,7 +120,7 @@ static int my_socketio_open(CONCRETE_IO_HANDLE socket_io, ON_IO_OPEN_COMPLETE on
     return 0;
 }
 
-static int my_socketio_close(CONCRETE_IO_HANDLE socket_io, ON_IO_CLOSE_COMPLETE on_io_close_complete, void* callback_context)
+static int my_socket_close(XIO_IMPL_HANDLE socket_io, ON_IO_CLOSE_COMPLETE on_io_close_complete, void* callback_context)
 {
     (void)socket_io;
     g_on_io_close_complete = on_io_close_complete;
@@ -127,13 +128,13 @@ static int my_socketio_close(CONCRETE_IO_HANDLE socket_io, ON_IO_CLOSE_COMPLETE 
     return 0;
 }
 
-static CONCRETE_IO_HANDLE my_socketio_create(void* io_create_parameters)
+static XIO_IMPL_HANDLE my_socket_create(const void* create_parameters)
 {
-    (void)io_create_parameters;
+    (void)create_parameters;
     return my_gballoc_malloc(1);
 }
 
-static void my_socketio_destroy(CONCRETE_IO_HANDLE socket_io)
+static void my_socket_destroy(XIO_IMPL_HANDLE socket_io)
 {
     my_gballoc_free(socket_io);
 }
@@ -157,9 +158,8 @@ static void my_ntp_time_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result
 
 static void setup_ntp_client_get_time_mocks(NTP_CLIENT_HANDLE handle, size_t ntp_timeout)
 {
-    STRICT_EXPECTED_CALL(socketio_create(IGNORED_PTR_ARG));
-    STRICT_EXPECTED_CALL(socketio_setoption(IGNORED_PTR_ARG, "ADDRESS_TYPE", IGNORED_PTR_ARG));
-    STRICT_EXPECTED_CALL(socketio_open(IGNORED_PTR_ARG, IGNORED_PTR_ARG, handle, IGNORED_PTR_ARG, handle, IGNORED_PTR_ARG, handle));
+    STRICT_EXPECTED_CALL(xio_socket_create(IGNORED_PTR_ARG));
+    STRICT_EXPECTED_CALL(xio_socket_open(IGNORED_PTR_ARG, IGNORED_PTR_ARG, handle, IGNORED_PTR_ARG, handle, IGNORED_PTR_ARG, handle));
     STRICT_EXPECTED_CALL(alarm_timer_start(TEST_TIMER_HANDLE, ntp_timeout));
 }
 
@@ -179,15 +179,15 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         //REGISTER_TYPE(IO_SEND_RESULT, IO_SEND_RESULT);
         REGISTER_UMOCK_ALIAS_TYPE(time_t, int);
         REGISTER_UMOCK_ALIAS_TYPE(XIO_HANDLE, void*);
-        REGISTER_UMOCK_ALIAS_TYPE(CONCRETE_IO_HANDLE, void*);
+        REGISTER_UMOCK_ALIAS_TYPE(XIO_IMPL_HANDLE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_IO_OPEN_COMPLETE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_BYTES_RECEIVED, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_IO_ERROR, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_IO_CLOSE_COMPLETE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_SEND_COMPLETE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(NTP_OPERATION_RESULT, int);
-        //REGISTER_TYPE(const SOCKETIO_CONFIG*, const_SOCKETIO_CONFIG_ptr);
-        //REGISTER_UMOCK_ALIAS_TYPE(SOCKETIO_CONFIG*, const SOCKETIO_CONFIG*);
+        //REGISTER_TYPE(const xio_socket_CONFIG*, const_xio_socket_CONFIG_ptr);
+        //REGISTER_UMOCK_ALIAS_TYPE(xio_socket_CONFIG*, const xio_socket_CONFIG*);
 
         REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_create, TEST_TIMER_HANDLE);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(alarm_timer_create, NULL);
@@ -196,19 +196,15 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(alarm_timer_start, __LINE__);
         REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_is_expired, false);
 
-        REGISTER_GLOBAL_MOCK_RETURN(socketio_get_interface_description, TEST_SOCKETIO_INTERFACE_DESCRIPTION);
-        REGISTER_GLOBAL_MOCK_FAIL_RETURN(socketio_get_interface_description, NULL);
-        REGISTER_GLOBAL_MOCK_HOOK(socketio_create, my_socketio_create);
-        REGISTER_GLOBAL_MOCK_FAIL_RETURN(socketio_create, NULL);
-        REGISTER_GLOBAL_MOCK_HOOK(socketio_destroy, my_socketio_destroy)
+        REGISTER_GLOBAL_MOCK_HOOK(xio_socket_create, my_socket_create);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(xio_socket_create, NULL);
+        REGISTER_GLOBAL_MOCK_HOOK(xio_socket_destroy, my_socket_destroy)
 
-        REGISTER_GLOBAL_MOCK_HOOK(socketio_open, my_socketio_open);
-        REGISTER_GLOBAL_MOCK_FAIL_RETURN(socketio_open, __LINE__);
-        REGISTER_GLOBAL_MOCK_HOOK(socketio_close, my_socketio_close);
-        REGISTER_GLOBAL_MOCK_RETURN(xio_send, 0);
-        REGISTER_GLOBAL_MOCK_FAIL_RETURN(xio_send, __LINE__);
-        REGISTER_GLOBAL_MOCK_RETURN(socketio_setoption, 0);
-        REGISTER_GLOBAL_MOCK_FAIL_RETURN(socketio_setoption, __LINE__);
+        REGISTER_GLOBAL_MOCK_HOOK(xio_socket_open, my_socket_open);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(xio_socket_open, __LINE__);
+        REGISTER_GLOBAL_MOCK_HOOK(xio_socket_close, my_socket_close);
+        REGISTER_GLOBAL_MOCK_RETURN(xio_socket_send, 0);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(xio_socket_send, __LINE__);
 
         REGISTER_GLOBAL_MOCK_HOOK(ntp_time_callback, my_ntp_time_callback);
 
@@ -383,8 +379,8 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         g_on_io_open_complete(g_on_io_open_complete_context, IO_OPEN_OK);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(socketio_dowork(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(socketio_send(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_NUM_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_dowork(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_send(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_NUM_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_reset(TEST_TIMER_HANDLE));
 
         // act
@@ -406,8 +402,8 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         g_on_io_open_complete(g_on_io_open_complete_context, IO_OPEN_OK);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(socketio_dowork(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(socketio_send(IGNORED_PTR_ARG, IGNORED_PTR_ARG, 48, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_dowork(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_send(IGNORED_PTR_ARG, IGNORED_PTR_ARG, 48, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_reset(TEST_TIMER_HANDLE));
 
         // act
@@ -431,12 +427,12 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         g_on_bytes_received(g_on_bytes_received_context, (const unsigned char*)&g_test_recv_packet, NTP_TEST_PACKET_SIZE);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(socketio_dowork(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_dowork(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(ntp_time_callback(IGNORED_PTR_ARG, NTP_OP_RESULT_SUCCESS, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(socketio_close(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(socketio_dowork(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(socketio_dowork(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(socketio_destroy(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_close(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_dowork(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_dowork(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_destroy(IGNORED_PTR_ARG));
 
         // act
         ntp_client_process(handle);

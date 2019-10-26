@@ -13,3 +13,6 @@
 [submodule "deps/parson"]
 	path = deps/parson
 	url = https://github.com/kgabis/parson.git
+[submodule "deps/libpatchcords"]
+	path = deps/libpatchcords
+	url = https://github.com/tonygleck/libpatchcords.git

@@ -45,7 +45,7 @@ static int check_ntp_time(void)
     return 0;
 }
 
-static void weather_cond_callback(void* user_ctx, WEATHER_OPERATION_RESULT result, const WEATHER_CONDITIONS* cond)
+/*static void weather_cond_callback(void* user_ctx, WEATHER_OPERATION_RESULT result, const WEATHER_CONDITIONS* cond)
 {
     if (result == WEATHER_OP_RESULT_SUCCESS)
     {
@@ -61,7 +61,7 @@ static void check_weather_value()
     {
         weather_client_destroy(handle);
     }
-}
+}*/
 
 int main(int argc, char* argv[])
 {

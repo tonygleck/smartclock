@@ -13,9 +13,10 @@
     #include <sys/timeb.h>
 #endif
 
+#include "patchcords/xio_client.h"
+#include "patchcords/xio_socket.h"
+
 #include "ntp_client.h"
-#include "azure_c_shared_utility/socketio.h"
-#include "azure_c_shared_utility/shared_util_options.h"
 #include "lib-util-c/alarm_timer.h"
 #include "lib-util-c/app_logging.h"
 
@@ -86,7 +87,7 @@ typedef struct NTP_CLIENT_INFO_TAG
 {
     NTP_TIME_CALLBACK ntp_callback;
     void* user_ctx;
-    CONCRETE_IO_HANDLE socketio;
+    XIO_IMPL_HANDLE socket_impl;
     size_t timeout_sec;
     bool server_connected;
 
@@ -176,7 +177,7 @@ static uint32_t clock_get_time(void)
   return result;
 }
 
-static void on_io_open_complete(void* context, IO_OPEN_RESULT open_result)
+static void on_socket_open_complete(void* context, IO_OPEN_RESULT open_result)
 {
     NTP_CLIENT_INFO* ntp_client = (NTP_CLIENT_INFO*)context;
     if (ntp_client == NULL)
@@ -185,7 +186,7 @@ static void on_io_open_complete(void* context, IO_OPEN_RESULT open_result)
     }
     else
     {
-        if (open_result == IO_SEND_OK)
+        if (open_result == IO_OPEN_OK)
         {
             ntp_client->server_connected = true;
             ntp_client->ntp_state = NTP_CLIENT_STATE_CONNECTED;
@@ -194,12 +195,12 @@ static void on_io_open_complete(void* context, IO_OPEN_RESULT open_result)
         {
             ntp_client->ntp_state = NTP_CLIENT_STATE_ERROR;
             ntp_client->ntp_op_result = NTP_OP_RESULT_COMM_ERR;
-            log_error("open failed");
+            log_error("socket open failed");
         }
     }
 }
 
-static void on_io_bytes_received(void* context, const unsigned char* buffer, size_t size)
+static void on_socket_bytes_received(void* context, const unsigned char* buffer, size_t size)
 {
     NTP_CLIENT_INFO* ntp_client = (NTP_CLIENT_INFO*)context;
     if (ntp_client == NULL)
@@ -239,7 +240,7 @@ static void on_io_bytes_received(void* context, const unsigned char* buffer, siz
     }
 }
 
-static void on_io_error(void* context)
+static void on_socket_error(void* context, IO_ERROR_RESULT error_result)
 {
     NTP_CLIENT_INFO* ntp_client = (NTP_CLIENT_INFO*)context;
     if (ntp_client == NULL)
@@ -278,7 +279,7 @@ static int send_initial_ntp_packet(NTP_CLIENT_INFO* ntp_client)
     //ntp_info.ntp_transmit_timestamp.integer = ntp_info.ntp_orig_timestamp.integer;
     //ntp_info.ntp_transmit_timestamp.fractional = ntp_info.ntp_orig_timestamp.fractional;
 
-    if (socketio_send(ntp_client->socketio, &ntp_info, ntp_len, NULL, NULL) != 0)
+    if (xio_socket_send(ntp_client->socket_impl, &ntp_info, ntp_len, NULL, NULL) != 0)
     {
         log_error("Failure sending NTP packet to server");
         result = MU_FAILURE;
@@ -293,29 +294,23 @@ static int send_initial_ntp_packet(NTP_CLIENT_INFO* ntp_client)
 static int init_connect_to_server(NTP_CLIENT_INFO* ntp_client, const char* time_server)
 {
     int result;
-    SOCKETIO_CONFIG socketio_config;
+    SOCKETIO_CONFIG socket_config;
 
-    socketio_config.hostname = time_server;
-    socketio_config.port = NTP_PORT_NUM;
-    if ((ntp_client->socketio = socketio_create(&socketio_config)) == NULL)
+    socket_config.hostname = time_server;
+    socket_config.port = NTP_PORT_NUM;
+    socket_config.address_type = ADDRESS_TYPE_UDP;
+    if ((ntp_client->socket_impl = xio_socket_create(&socket_config)) == NULL)
     {
         log_error("Error connecting to NTP server %s:%d", time_server, NTP_PORT_NUM);
         result = MU_FAILURE;
     }
     else
     {
-        if (socketio_setoption(ntp_client->socketio, OPTION_ADDRESS_TYPE, OPTION_ADDRESS_TYPE_UDP_SOCKET) != 0)
+        if (xio_socket_open(ntp_client->socket_impl, on_socket_open_complete, ntp_client, on_socket_bytes_received, ntp_client, on_socket_error, ntp_client) != 0)
         {
             log_error("Error opening socket IO.");
-            socketio_destroy(ntp_client->socketio);
-            ntp_client->socketio = NULL;
-            result = MU_FAILURE;
-        }
-        else if (socketio_open(ntp_client->socketio, on_io_open_complete, ntp_client, on_io_bytes_received, ntp_client, on_io_error, ntp_client) != 0)
-        {
-            log_error("Error opening socket IO.");
-            socketio_destroy(ntp_client->socketio);
-            ntp_client->socketio = NULL;
+            xio_socket_destroy(ntp_client->socket_impl);
+            ntp_client->socket_impl = NULL;
             result = MU_FAILURE;
         }
         else
@@ -330,12 +325,12 @@ static void close_ntp_connection(NTP_CLIENT_INFO* ntp_client)
 {
     if (ntp_client->server_connected)
     {
-        if (socketio_close(ntp_client->socketio, on_connection_closed, ntp_client) == 0)
+        if (xio_socket_close(ntp_client->socket_impl, on_connection_closed, ntp_client) == 0)
         {
             size_t counter = 0;
             do
             {
-                socketio_dowork(ntp_client->socketio);
+                xio_socket_dowork(ntp_client->socket_impl);
                 counter++;
                 //ThreadAPI_Sleep(2);
             } while (ntp_client->server_connected && counter < MAX_CLOSE_RETRIES);
@@ -343,11 +338,11 @@ static void close_ntp_connection(NTP_CLIENT_INFO* ntp_client)
         }
     }
     // Close client
-    if (ntp_client->socketio)
+    if (ntp_client->socket_impl)
     {
-        socketio_destroy(ntp_client->socketio);
+        xio_socket_destroy(ntp_client->socket_impl);
     }
-    ntp_client->socketio = NULL;
+    ntp_client->socket_impl = NULL;
 }
 
 static bool is_timed_out(NTP_CLIENT_INFO* ntp_client)
@@ -426,7 +421,7 @@ void ntp_client_process(NTP_CLIENT_HANDLE handle)
 {
     if (handle != NULL)
     {
-        socketio_dowork(handle->socketio);
+        xio_socket_dowork(handle->socket_impl);
 
         // Check timeout here
         if (handle->server_connected)
