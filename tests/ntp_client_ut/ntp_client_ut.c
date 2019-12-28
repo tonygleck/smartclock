@@ -379,7 +379,7 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         g_on_io_open_complete(g_on_io_open_complete_context, IO_OPEN_OK);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(xio_socket_dowork(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_process_item(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(xio_socket_send(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_NUM_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_reset(TEST_TIMER_HANDLE));
 
@@ -402,7 +402,7 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         g_on_io_open_complete(g_on_io_open_complete_context, IO_OPEN_OK);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(xio_socket_dowork(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_process_item(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(xio_socket_send(IGNORED_PTR_ARG, IGNORED_PTR_ARG, 48, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_reset(TEST_TIMER_HANDLE));
 
@@ -427,11 +427,11 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         g_on_bytes_received(g_on_bytes_received_context, (const unsigned char*)&g_test_recv_packet, NTP_TEST_PACKET_SIZE);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(xio_socket_dowork(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_process_item(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(ntp_time_callback(IGNORED_PTR_ARG, NTP_OP_RESULT_SUCCESS, IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(xio_socket_close(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(xio_socket_dowork(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(xio_socket_dowork(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_process_item(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_process_item(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(xio_socket_destroy(IGNORED_PTR_ARG));
 
         // act

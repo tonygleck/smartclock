@@ -12,17 +12,14 @@
 function(add_unittest_directory whatIsBuilding)
     if (${include_ut})
         add_subdirectory(${whatIsBuilding})
-        if (WIN32)
-        else()
-            add_test(NAME ${whatIsBuilding}_valgrind COMMAND valgrind --num-callers=10 --error-exitcode=1 --leak-check=full --track-origins=yes $TARGET_FILE:${whatIsBuilding})
-        endif()
     endif()
 endfunction(add_unittest_directory)
 
 function(build_test_project whatIsBuilding folder)
-    add_definitions(-DGB_MEASURE_MEMORY_FOR_THIS -DGB_DEBUG_ALLOC)
+    add_definitions(-DUSE_MEMORY_DEBUG_SHIM)
 
     set(test_include_dir ${MICROMOCK_INC_FOLDER} ${TESTRUNNERSWITCHER_INC_FOLDER} ${CTEST_INC_FOLDER} ${UMOCK_C_INC_FOLDER})
+    set(logging_files ${CMAKE_SOURCE_DIR}/deps/lib-util-c/src/app_logging.c)
     include_directories(${test_include_dir})
 
     if (WIN32)

@@ -6,12 +6,12 @@
 #include <stdlib.h>
 #endif
 
-void* my_gballoc_malloc(size_t size)
+static void* my_mem_shim_malloc(size_t size)
 {
     return malloc(size);
 }
 
-void my_gballoc_free(void* ptr)
+static void my_mem_shim_free(void* ptr)
 {
     free(ptr);
 }
@@ -37,10 +37,12 @@ void my_gballoc_free(void* ptr)
 #include "azure_macro_utils/macro_utils.h"
 
 #define ENABLE_MOCKS
+#include "lib-util-c/sys_debug_shim.h"
 #include "lib-util-c/alarm_timer.h"
-#include "azure_c_shared_utility/gballoc.h"
-#include "azure_c_shared_utility/socketio.h"
-#include "azure_uhttp_c/uhttp.h"
+#include "lib-util-c/crt_extensions.h"
+#include "http_client/http_client.h"
+#include "patchcords/xio_client.h"
+#include "patchcords/xio_socket.h"
 #include "parson.h"
 #undef ENABLE_MOCKS
 
@@ -93,8 +95,8 @@ static void on_umock_c_error(UMOCK_C_ERROR_CODE error_code)
 TEST_DEFINE_ENUM_TYPE(HTTP_CLIENT_RESULT, HTTP_CLIENT_RESULT_VALUE);
 IMPLEMENT_UMOCK_C_ENUM_TYPE(HTTP_CLIENT_RESULT, HTTP_CLIENT_RESULT_VALUE);
 
-TEST_DEFINE_ENUM_TYPE(HTTP_CALLBACK_REASON, HTTP_CALLBACK_REASON_VALUES);
-IMPLEMENT_UMOCK_C_ENUM_TYPE(HTTP_CALLBACK_REASON, HTTP_CALLBACK_REASON_VALUES);
+// TEST_DEFINE_ENUM_TYPE(HTTP_CLIENT_RESULT, HTTP_CALLBACK_REASON_VALUES);
+// IMPLEMENT_UMOCK_C_ENUM_TYPE(HTTP_CALLBACK_REASON, HTTP_CALLBACK_REASON_VALUES);
 
 TEST_DEFINE_ENUM_TYPE(HTTP_CLIENT_REQUEST_TYPE, HTTP_CLIENT_REQUEST_TYPE_VALUES);
 IMPLEMENT_UMOCK_C_ENUM_TYPE(HTTP_CLIENT_REQUEST_TYPE, HTTP_CLIENT_REQUEST_TYPE_VALUES);
@@ -103,15 +105,15 @@ static TEST_MUTEX_HANDLE g_testByTest;
 
 static ON_HTTP_OPEN_COMPLETE_CALLBACK g_on_http_open_complete;
 static void* g_on_http_open_complete_context;
-static ON_SEND_COMPLETE g_on_io_send_complete;
-static void* g_on_io_send_complete_context;
+// static ON_SEND_COMPLETE g_on_io_send_complete;
+// static void* g_on_io_send_complete_context;
 
 static ON_HTTP_REQUEST_CALLBACK g_on_request_callback;
 static void* g_on_request_context;
 static ON_HTTP_ERROR_CALLBACK g_on_io_error;
 static void* g_on_io_error_context;
 
-static ON_IO_CLOSE_COMPLETE g_on_io_close_complete;
+static ON_HTTP_CLIENT_CLOSE g_on_io_close_complete;
 static void* g_on_io_close_complete_context;
 
 static void my_condition_callback(void* user_ctx, WEATHER_OPERATION_RESULT result, const WEATHER_CONDITIONS* conditions)
@@ -127,44 +129,39 @@ static void my_condition_callback(void* user_ctx, WEATHER_OPERATION_RESULT resul
     }
 }
 
-static HTTP_CLIENT_HANDLE my_uhttp_client_create(const IO_INTERFACE_DESCRIPTION* io_interface_desc, const void* xio_param, ON_HTTP_ERROR_CALLBACK on_http_error, void* callback_ctx)
+static HTTP_CLIENT_HANDLE my_http_client_create(void)
 {
-    (void)io_interface_desc;
-    (void)xio_param;
-    g_on_io_error = on_http_error;
-    g_on_io_error_context = callback_ctx;
-    return (HTTP_CLIENT_HANDLE)my_gballoc_malloc(1);
+    return (HTTP_CLIENT_HANDLE)my_mem_shim_malloc(1);
 }
 
-static HTTP_CLIENT_RESULT my_uhttp_client_open(HTTP_CLIENT_HANDLE handle, const char* host, int port_num, ON_HTTP_OPEN_COMPLETE_CALLBACK on_connect, void* callback_ctx)
+static int my_http_client_open(HTTP_CLIENT_HANDLE handle, XIO_INSTANCE_HANDLE xio_handle, ON_HTTP_OPEN_COMPLETE_CALLBACK on_open_complete_cb, void* user_ctx, ON_HTTP_ERROR_CALLBACK on_error_cb, void* err_user_ctx)
 {
     (void)handle;
-    (void)host;
-    (void)port_num;
-    g_on_http_open_complete = on_connect;
-    g_on_http_open_complete_context = callback_ctx;
-    return HTTP_CLIENT_OK;
+    g_on_io_error = on_error_cb;
+    g_on_io_error_context = err_user_ctx;
+    g_on_http_open_complete = on_open_complete_cb;
+    g_on_http_open_complete_context = user_ctx;
+    return 0;
 }
 
-static void my_uhttp_client_destroy(HTTP_CLIENT_HANDLE handle)
+static void my_http_client_destroy(HTTP_CLIENT_HANDLE handle)
 {
-    my_gballoc_free(handle);
+    my_mem_shim_free(handle);
 }
 
-static HTTP_CLIENT_RESULT my_uhttp_client_execute_request(HTTP_CLIENT_HANDLE handle, HTTP_CLIENT_REQUEST_TYPE request_type, const char* relative_path,
-    HTTP_HEADERS_HANDLE http_header_handle, const unsigned char* content, size_t content_length, ON_HTTP_REQUEST_CALLBACK on_request_callback, void* callback_ctx)
+static int my_http_client_execute_request(HTTP_CLIENT_HANDLE handle, HTTP_CLIENT_REQUEST_TYPE request_type, const char* relative_path,
+    HTTP_HEADERS_HANDLE http_header, const unsigned char* content, size_t content_length, ON_HTTP_REQUEST_CALLBACK on_request_callback, void* callback_ctx)
 {
     (void)handle;
     (void)request_type;
     (void)relative_path;
-    (void)http_header_handle;
+    (void)http_header;
     (void)content;
     (void)content_length;
     g_on_request_callback = on_request_callback;
     g_on_request_context = callback_ctx;
-    return HTTP_CLIENT_OK;
+    return 0;
 }
-
 
 static void sleep_for_now(unsigned int milliseconds)
 {
@@ -191,22 +188,22 @@ BEGIN_TEST_SUITE(weather_client_ut)
         (void)umocktypes_stdint_register_types();
 
         REGISTER_UMOCK_ALIAS_TYPE(time_t, int);
-        REGISTER_UMOCK_ALIAS_TYPE(UHTTP_HANDLE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_HTTP_ERROR_CALLBACK, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_HTTP_OPEN_COMPLETE_CALLBACK, void*);
-        REGISTER_UMOCK_ALIAS_TYPE(ON_HTTP_CLOSED_CALLBACK, void*);
+        REGISTER_UMOCK_ALIAS_TYPE(ON_HTTP_CLIENT_CLOSE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(HTTP_CLIENT_HANDLE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(HTTP_HEADERS_HANDLE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_HTTP_REQUEST_CALLBACK, void*);
+        REGISTER_UMOCK_ALIAS_TYPE(XIO_INSTANCE_HANDLE, void*);
+
         REGISTER_UMOCK_ALIAS_TYPE(WEATHER_OPERATION_RESULT, int);
 
         REGISTER_TYPE(HTTP_CLIENT_RESULT, HTTP_CLIENT_RESULT);
-        REGISTER_TYPE(HTTP_CALLBACK_REASON, HTTP_CALLBACK_REASON);
         REGISTER_TYPE(HTTP_CLIENT_REQUEST_TYPE, HTTP_CLIENT_REQUEST_TYPE);
 
-        REGISTER_GLOBAL_MOCK_HOOK(gballoc_malloc, my_gballoc_malloc);
-        REGISTER_GLOBAL_MOCK_FAIL_RETURN(gballoc_malloc, NULL);
-        REGISTER_GLOBAL_MOCK_HOOK(gballoc_free, my_gballoc_free);
+        REGISTER_GLOBAL_MOCK_HOOK(mem_shim_malloc, my_mem_shim_malloc);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(mem_shim_malloc, NULL);
+        REGISTER_GLOBAL_MOCK_HOOK(mem_shim_free, my_mem_shim_free);
 
         REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_create, TEST_TIMER_HANDLE);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(alarm_timer_create, NULL);
@@ -215,15 +212,15 @@ BEGIN_TEST_SUITE(weather_client_ut)
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(alarm_timer_start, __LINE__);
         REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_is_expired, false);
 
-        REGISTER_GLOBAL_MOCK_RETURN(socketio_get_interface_description, TEST_SOCKETIO_INTERFACE_DESCRIPTION);
-        REGISTER_GLOBAL_MOCK_FAIL_RETURN(socketio_get_interface_description, NULL);
-        REGISTER_GLOBAL_MOCK_FAIL_RETURN(uhttp_client_create, NULL);
-        REGISTER_GLOBAL_MOCK_HOOK(uhttp_client_create, my_uhttp_client_create);
-        REGISTER_GLOBAL_MOCK_HOOK(uhttp_client_destroy, my_uhttp_client_destroy);
-        REGISTER_GLOBAL_MOCK_HOOK(uhttp_client_open, my_uhttp_client_open);
-        REGISTER_GLOBAL_MOCK_FAIL_RETURN(uhttp_client_open, HTTP_CLIENT_ERROR);
-        REGISTER_GLOBAL_MOCK_HOOK(uhttp_client_execute_request, my_uhttp_client_execute_request)
-        REGISTER_GLOBAL_MOCK_FAIL_RETURN(uhttp_client_execute_request, HTTP_CLIENT_ERROR);
+        REGISTER_GLOBAL_MOCK_RETURN(xio_socket_get_interface, TEST_SOCKETIO_INTERFACE_DESCRIPTION);
+
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(http_client_create, NULL);
+        REGISTER_GLOBAL_MOCK_HOOK(http_client_create, my_http_client_create);
+        REGISTER_GLOBAL_MOCK_HOOK(http_client_destroy, my_http_client_destroy);
+        REGISTER_GLOBAL_MOCK_HOOK(http_client_open, my_http_client_open);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(http_client_open, HTTP_CLIENT_ERROR);
+        REGISTER_GLOBAL_MOCK_HOOK(http_client_execute_request, my_http_client_execute_request)
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(http_client_execute_request, HTTP_CLIENT_ERROR);
 
         result = umocktypes_charptr_register_types();
         ASSERT_ARE_EQUAL(int, 0, result);
@@ -255,21 +252,22 @@ BEGIN_TEST_SUITE(weather_client_ut)
 
     static void setup_open_connection_mocks(void)
     {
-        STRICT_EXPECTED_CALL(socketio_get_interface_description());
-        STRICT_EXPECTED_CALL(uhttp_client_create(TEST_SOCKETIO_INTERFACE_DESCRIPTION, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(uhttp_client_set_trace(IGNORED_PTR_ARG, true, true)).CallCannotFail();
-        STRICT_EXPECTED_CALL(uhttp_client_open(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_NUM_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(http_client_create());
+        STRICT_EXPECTED_CALL(xio_socket_get_interface()).CallCannotFail();
+        STRICT_EXPECTED_CALL(xio_client_create(TEST_SOCKETIO_INTERFACE_DESCRIPTION, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(http_client_set_trace(IGNORED_PTR_ARG, true)).CallCannotFail();
+        STRICT_EXPECTED_CALL(http_client_open(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_PTR_ARG, TEST_DEFAULT_TIMEOUT_VALUE));
     }
 
     static void setup_close_connection(void)
     {
-        STRICT_EXPECTED_CALL(uhttp_client_close(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(http_client_close(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
         for (size_t index = 0; index < 10; index++)
         {
-            STRICT_EXPECTED_CALL(uhttp_client_dowork(IGNORED_PTR_ARG));
+            STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
         }
-        STRICT_EXPECTED_CALL(uhttp_client_destroy(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(http_client_destroy(IGNORED_PTR_ARG));
     }
 
     TEST_FUNCTION(weather_client_create_api_key_NULL_fail)
@@ -344,7 +342,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
         WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(uhttp_client_destroy(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(http_client_destroy(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_destroy(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
@@ -364,7 +362,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
         WEATHER_LOCATION location = { 1.0, 2.0 };
         WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
-        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CALLBACK_REASON_OK);
+        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         umock_c_reset_all_calls();
 
         setup_close_connection();
@@ -739,7 +737,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
         WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(uhttp_client_dowork(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
         // setup_open_connection_mocks();
         // STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_PTR_ARG, TEST_DEFAULT_TIMEOUT_VALUE));
 
@@ -759,11 +757,11 @@ BEGIN_TEST_SUITE(weather_client_ut)
         WEATHER_LOCATION location = { 1.0, 2.0 };
         WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
-        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CALLBACK_REASON_OK);
+        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(uhttp_client_dowork(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(uhttp_client_execute_request(IGNORED_PTR_ARG, HTTP_CLIENT_REQUEST_GET, IGNORED_PTR_ARG, NULL, NULL, 0, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(http_client_execute_request(IGNORED_PTR_ARG, HTTP_CLIENT_REQUEST_GET, IGNORED_PTR_ARG, NULL, NULL, 0, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_PTR_ARG, TEST_DEFAULT_TIMEOUT_VALUE));
 
         // act
@@ -782,12 +780,12 @@ BEGIN_TEST_SUITE(weather_client_ut)
         WEATHER_LOCATION location = { 1.0, 2.0 };
         WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
-        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CALLBACK_REASON_OK);
+        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         weather_client_process(client_handle);
         umock_c_reset_all_calls();
 
         // act
-        STRICT_EXPECTED_CALL(uhttp_client_dowork(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_is_expired(IGNORED_PTR_ARG)).SetReturn(true);
         STRICT_EXPECTED_CALL(condition_callback(IGNORED_PTR_ARG, WEATHER_OP_RESULT_TIMEOUT, NULL));
         setup_close_connection();
@@ -807,17 +805,17 @@ BEGIN_TEST_SUITE(weather_client_ut)
         WEATHER_LOCATION location = { 1.0, 2.0 };
         WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
-        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CALLBACK_REASON_OK);
+        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         weather_client_process(client_handle);
         umock_c_reset_all_calls();
 
         // act
         STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(uhttp_client_dowork(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(condition_callback(IGNORED_PTR_ARG, WEATHER_OP_RESULT_SUCCESS, IGNORED_PTR_ARG));
 
-        g_on_request_callback(g_on_request_context, HTTP_CALLBACK_REASON_OK, TEST_ACTUAL_WEATHER, strlen(TEST_ACTUAL_WEATHER), 200, TEST_HTTP_HEADER);
+        g_on_request_callback(g_on_request_context, HTTP_CLIENT_OK, TEST_ACTUAL_WEATHER, strlen(TEST_ACTUAL_WEATHER), 200, TEST_HTTP_HEADER);
         weather_client_process(client_handle);
 
         // assert
@@ -833,14 +831,14 @@ BEGIN_TEST_SUITE(weather_client_ut)
         WEATHER_LOCATION location = { 1.0, 2.0 };
         WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
-        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CALLBACK_REASON_OK);
+        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         weather_client_process(client_handle);
         umock_c_reset_all_calls();
 
         // act
         STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG)).SetReturn(NULL);
 
-        g_on_request_callback(g_on_request_context, HTTP_CALLBACK_REASON_OK, TEST_ACTUAL_WEATHER, strlen(TEST_ACTUAL_WEATHER), 200, TEST_HTTP_HEADER);
+        g_on_request_callback(g_on_request_context, HTTP_CLIENT_OK, TEST_ACTUAL_WEATHER, strlen(TEST_ACTUAL_WEATHER), 200, TEST_HTTP_HEADER);
 
         // assert
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());

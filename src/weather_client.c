@@ -4,15 +4,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "lib-util-c/sys_debug_shim.h"
+
 #include "lib-util-c/app_logging.h"
 #include "lib-util-c/alarm_timer.h"
+#include "lib-util-c/crt_extensions.h"
 
 #include "weather_client.h"
 
-#include "azure_uhttp_c/uhttp.h"
-#include "azure_c_shared_utility/gballoc.h"
-#include "azure_c_shared_utility/platform.h"
-#include "azure_c_shared_utility/socketio.h"
+#include "http_client/http_client.h"
+#include "patchcords/xio_client.h"
+#include "patchcords/xio_socket.h"
 #include "parson.h"
 
 /* http://openweathermap.org/ */
@@ -58,6 +60,8 @@ typedef enum WEATHER_QUERY_TYPE_TAG
 typedef struct WEATHER_CLIENT_INFO_TAG
 {
     HTTP_CLIENT_HANDLE http_handle;
+    XIO_INSTANCE_HANDLE socket;
+
     ALARM_TIMER_HANDLE timer_handle;
     char* api_key;
     size_t timeout_sec;
@@ -226,7 +230,7 @@ static int parse_weather_data(WEATHER_CLIENT_INFO* client_info, WEATHER_CONDITIO
     return result;
 }
 
-static void on_http_error(void* user_ctx, HTTP_CALLBACK_REASON error_result)
+static void on_http_error(void* user_ctx, HTTP_CLIENT_RESULT error_result)
 {
     WEATHER_CLIENT_INFO* client_info = (WEATHER_CLIENT_INFO*)user_ctx;
     if (client_info == NULL)
@@ -239,7 +243,7 @@ static void on_http_error(void* user_ctx, HTTP_CALLBACK_REASON error_result)
     }
 }
 
-static void on_http_connected(void* user_ctx, HTTP_CALLBACK_REASON open_result)
+static void on_http_connected(void* user_ctx, HTTP_CLIENT_RESULT open_result)
 {
     WEATHER_CLIENT_INFO* client_info = (WEATHER_CLIENT_INFO*)user_ctx;
     if (client_info == NULL)
@@ -248,7 +252,7 @@ static void on_http_connected(void* user_ctx, HTTP_CALLBACK_REASON open_result)
     }
     else
     {
-        if (open_result == HTTP_CALLBACK_REASON_OK)
+        if (open_result == HTTP_CLIENT_OK)
         {
             client_info->is_open = true;
             // If the query type is not None then set the state as send
@@ -270,14 +274,14 @@ static void on_http_connected(void* user_ctx, HTTP_CALLBACK_REASON open_result)
     }
 }
 
-static void on_http_reply_recv(void* user_ctx, HTTP_CALLBACK_REASON request_result, const unsigned char* content, size_t content_len, unsigned int status_code, HTTP_HEADERS_HANDLE responseHeadersHandle)
+static void on_http_reply_recv(void* user_ctx, HTTP_CLIENT_RESULT request_result, const unsigned char* content, size_t content_len, unsigned int status_code, HTTP_HEADERS_HANDLE response_headers)
 {
     WEATHER_CLIENT_INFO* client_info = (WEATHER_CLIENT_INFO*)user_ctx;
     if (client_info == NULL)
     {
         log_error("Unexpected user context NULL");
     }
-    else if (request_result != HTTP_CALLBACK_REASON_OK)
+    else if (request_result != HTTP_CLIENT_OK)
     {
         log_error("Invalid recv result returned %d", (int)request_result);
         client_info->op_result = WEATHER_OP_RESULT_INVALID_DATA_ERR;
@@ -353,7 +357,7 @@ static int send_weather_data(WEATHER_CLIENT_INFO* client_info)
             break;
     }
 
-    if (uhttp_client_execute_request(client_info->http_handle, HTTP_CLIENT_REQUEST_GET, weather_api_path, NULL, NULL, 0, on_http_reply_recv, client_info) != HTTP_CLIENT_OK)
+    if (http_client_execute_request(client_info->http_handle, HTTP_CLIENT_REQUEST_GET, weather_api_path, NULL, NULL, 0, on_http_reply_recv, client_info) != HTTP_CLIENT_OK)
     {
         log_error("Failure executing http request");
         result = __LINE__;
@@ -371,17 +375,19 @@ static void close_http_connection(WEATHER_CLIENT_INFO* client_info)
 #ifndef DEMO_MODE
     if (client_info->is_open)
     {
-        uhttp_client_close(client_info->http_handle, on_http_close, client_info);
+        http_client_close(client_info->http_handle, on_http_close, client_info);
         size_t attempt = 0;
         do
         {
-            uhttp_client_dowork(client_info->http_handle);
+            http_client_process_item(client_info->http_handle);
             // Make sure we don't just spin here forever
             attempt++;
         } while (client_info->is_open && attempt < MAX_CLOSE_ATTEMPTS);
     }
-    uhttp_client_destroy(client_info->http_handle);
+    http_client_destroy(client_info->http_handle);
     client_info->http_handle = NULL;
+    xio_client_destroy(client_info->socket);
+    client_info->socket = NULL;
 #endif // DEMO_MODE
 }
 
@@ -389,29 +395,31 @@ static int open_connection(WEATHER_CLIENT_INFO* client_info)
 {
     int result;
 #ifndef DEMO_MODE
-    const IO_INTERFACE_DESCRIPTION* io_desc;
-    SOCKETIO_CONFIG config;
-    config.accepted_socket = NULL;
+    SOCKETIO_CONFIG config = {0};
     config.hostname = WEATHER_API_HOSTNAME;
     config.port = HTTP_PORT_VALUE;
+    config.address_type = ADDRESS_TYPE_IP;
 
-    if ((io_desc = socketio_get_interface_description()) == NULL)
-    {
-        log_error("Failure getting socket io interface description");
-        result = __LINE__;
-    }
-    else if ((client_info->http_handle = uhttp_client_create(io_desc, &config, on_http_error, client_info)) == NULL)
+    if ((client_info->http_handle = http_client_create()) == NULL)
     {
         log_error("Failure creating http client");
         result = __LINE__;
     }
+    else if ((client_info->socket = xio_client_create(xio_socket_get_interface(), &config)) == NULL)
+    {
+        log_error("Failure opening sockets");
+        http_client_destroy(client_info->http_handle);
+        result = __LINE__;
+    }
     else
     {
-        (void)uhttp_client_set_trace(client_info->http_handle, true, true);
-        if (uhttp_client_open(client_info->http_handle, config.hostname, config.port, on_http_connected, client_info) != HTTP_CLIENT_OK)
+        (void)http_client_set_trace(client_info->http_handle, true);
+
+        if (http_client_open(client_info->http_handle, client_info->socket, on_http_connected, client_info, on_http_error, client_info) != HTTP_CLIENT_OK)
         {
             log_error("Failure opening http connection: %s:%d", config.hostname, config.port);
-            uhttp_client_destroy(client_info->http_handle);
+            xio_client_destroy(client_info->socket);
+            http_client_destroy(client_info->http_handle);
             result = __LINE__;
         }
         else if (alarm_timer_start(client_info->timer_handle, client_info->timeout_sec) != 0)
@@ -447,8 +455,7 @@ WEATHER_CLIENT_HANDLE weather_client_create(const char* api_key, TEMPERATURE_UNI
     {
         memset(result, 0, sizeof(WEATHER_CLIENT_INFO));
 
-        size_t key_len = strlen(api_key);
-        if ((result->api_key = (char*)malloc(key_len+1)) == NULL)
+        if (clone_string(&result->api_key, api_key) != 0)
         {
             log_error("Failure allocating api key");
             free(result);
@@ -463,7 +470,6 @@ WEATHER_CLIENT_HANDLE weather_client_create(const char* api_key, TEMPERATURE_UNI
         }
         else
         {
-            strcpy(result->api_key, api_key);
             result->state = WEATHER_CLIENT_STATE_IDLE;
             set_temp_units(result, units);
         }
@@ -641,7 +647,7 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
                 break;
         }
 #else
-        uhttp_client_dowork(handle->http_handle);
+        http_client_process_item(handle->http_handle);
 
         switch (handle->state)
         {

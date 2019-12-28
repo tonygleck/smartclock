@@ -4,6 +4,8 @@ cmake_minimum_required(VERSION 2.8.11)
 
 set(theseTestsName ntp_client_ut)
 
+include_directories(${PROJECT_SOURCE_DIR}/deps/parson ${PROJECT_SOURCE_DIR}/inc)
+
 set(${theseTestsName}_test_files
     ${theseTestsName}.c
 )

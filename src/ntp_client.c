@@ -330,7 +330,7 @@ static void close_ntp_connection(NTP_CLIENT_INFO* ntp_client)
             size_t counter = 0;
             do
             {
-                xio_socket_dowork(ntp_client->socket_impl);
+                xio_socket_process_item(ntp_client->socket_impl);
                 counter++;
                 //ThreadAPI_Sleep(2);
             } while (ntp_client->server_connected && counter < MAX_CLOSE_RETRIES);
@@ -421,7 +421,7 @@ void ntp_client_process(NTP_CLIENT_HANDLE handle)
 {
     if (handle != NULL)
     {
-        xio_socket_dowork(handle->socket_impl);
+        xio_socket_process_item(handle->socket_impl);
 
         // Check timeout here
         if (handle->server_connected)
