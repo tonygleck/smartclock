@@ -8,15 +8,27 @@ extern "C" {
 #include <cstdint>
 #else
 #include <stdint.h>
+#include <stdbool.h>
 #endif /* __cplusplus */
+
+#include "umock_c/umock_c_prod.h"
+
+typedef enum SOUND_MGR_STATE_TAG
+{
+    SOUND_STATE_IDLE,
+    SOUND_STATE_PLAYING,
+    SOUND_STATE_PAUSED,
+    SOUND_STATE_ERROR
+} SOUND_MGR_STATE;
 
 typedef struct SOUND_MGR_INFO_TAG* SOUND_MGR_HANDLE;
 
-extern SOUND_MGR_HANDLE sound_mgr_create(void);
-extern void sound_mgr_destroy(SOUND_MGR_HANDLE handle);
+MOCKABLE_FUNCTION(, SOUND_MGR_HANDLE, sound_mgr_create);
+MOCKABLE_FUNCTION(, void, sound_mgr_destroy, SOUND_MGR_HANDLE, handle);
 
-extern int sound_mgr_play(const char* sound_file);
-extern int sound_mgr_stop(void);
+MOCKABLE_FUNCTION(, int, sound_mgr_play, SOUND_MGR_HANDLE, handle, const char*, sound_file, bool, set_repeat);
+MOCKABLE_FUNCTION(, int, sound_mgr_stop, SOUND_MGR_HANDLE, handle);
+MOCKABLE_FUNCTION(, SOUND_MGR_STATE, sound_mgr_get_current_state, SOUND_MGR_HANDLE, handle);
 
 #ifdef __cplusplus
 }

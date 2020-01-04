@@ -139,11 +139,10 @@ static int get_weather_description(JSON_Object* root_obj, WEATHER_CONDITIONS* co
                 const char* desc_value = json_object_get_string(weather_obj, "description");
                 if (desc_value != NULL)
                 {
-                    size_t desc_len = strlen(desc_value);
-                    conditions->description = (const char*)malloc(desc_len+1);
-                    if (conditions->description != NULL)
+                    char* temp_desc;
+                    if (clone_string(&temp_desc, desc_value) == 0)
                     {
-                        strcpy((char*)conditions->description, desc_value);
+                        conditions->description = temp_desc;
                         const char* icon_value = json_object_get_string(weather_obj, "icon");
                         if (icon_value != NULL && strlen(icon_value) < ICON_MAX_LENGTH)
                         {
@@ -357,7 +356,7 @@ static int send_weather_data(WEATHER_CLIENT_INFO* client_info)
             break;
     }
 
-    if (http_client_execute_request(client_info->http_handle, HTTP_CLIENT_REQUEST_GET, weather_api_path, NULL, NULL, 0, on_http_reply_recv, client_info) != HTTP_CLIENT_OK)
+    if (http_client_execute_request(client_info->http_handle, HTTP_CLIENT_REQUEST_GET, weather_api_path, NULL, NULL, 0, on_http_reply_recv, client_info) != 0)
     {
         log_error("Failure executing http request");
         result = __LINE__;
@@ -415,7 +414,7 @@ static int open_connection(WEATHER_CLIENT_INFO* client_info)
     {
         (void)http_client_set_trace(client_info->http_handle, true);
 
-        if (http_client_open(client_info->http_handle, client_info->socket, on_http_connected, client_info, on_http_error, client_info) != HTTP_CLIENT_OK)
+        if (http_client_open(client_info->http_handle, client_info->socket, on_http_connected, client_info, on_http_error, client_info) != 0)
         {
             log_error("Failure opening http connection: %s:%d", config.hostname, config.port);
             xio_client_destroy(client_info->socket);
@@ -485,6 +484,11 @@ void weather_client_destroy(WEATHER_CLIENT_HANDLE handle)
 
         alarm_timer_destroy(handle->timer_handle);
         free(handle->api_key);
+        free(handle->weather_data);
+        if (handle->query_type == QUERY_TYPE_NAME)
+        {
+            free(handle->weather_query.name);
+        }
         free(handle);
     }
 }
@@ -579,17 +583,10 @@ int weather_client_get_by_city(WEATHER_CLIENT_HANDLE handle, const char* city_na
     }
     else
     {
-        size_t length = strlen(city_name);
         handle->timeout_sec = timeout;
-        if ((handle->weather_query.name = (char*)malloc(length+1)) == NULL)
-        {
-            log_error("Failure allocating city name");
-            result = __LINE__;
-        }
-        else if (strcpy(handle->weather_query.name, city_name) == NULL)
+        if (clone_string(&handle->weather_query.name, city_name) != 0)
         {
             log_error("Failure copying city name");
-            free(handle->weather_query.name);
             result = __LINE__;
         }
         else if (!handle->is_open && open_connection(handle) != 0)
@@ -694,6 +691,9 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
                 {
                     handle->conditions_callback(handle->condition_ctx, WEATHER_OP_RESULT_SUCCESS, &weather_cond);
                     handle->state = WEATHER_CLIENT_STATE_IDLE;
+
+                    // Clear the weather data info
+                    free((void*)weather_cond.description);
                 }
                 break;
             }

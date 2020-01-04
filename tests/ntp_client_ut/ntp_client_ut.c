@@ -2,27 +2,23 @@
 
 #ifdef __cplusplus
 #include <cstdlib>
+#include <cstddef>
+#include <ctime>
 #else
 #include <stdlib.h>
+#include <stddef.h>
+#include <time.h>
 #endif
 
-static void* my_gballoc_malloc(size_t size)
+static void* my_mem_shim_malloc(size_t size)
 {
     return malloc(size);
 }
 
-static void my_gballoc_free(void* ptr)
+static void my_mem_shim_free(void* ptr)
 {
     free(ptr);
 }
-
-#ifdef __cplusplus
-#include <cstddef>
-#include <ctime>
-#else
-#include <stddef.h>
-#include <time.h>
-#endif
 
 /**
  * Include the test tools.
@@ -131,12 +127,12 @@ static int my_socket_close(XIO_IMPL_HANDLE socket_io, ON_IO_CLOSE_COMPLETE on_io
 static XIO_IMPL_HANDLE my_socket_create(const void* create_parameters)
 {
     (void)create_parameters;
-    return my_gballoc_malloc(1);
+    return my_mem_shim_malloc(1);
 }
 
 static void my_socket_destroy(XIO_IMPL_HANDLE socket_io)
 {
-    my_gballoc_free(socket_io);
+    my_mem_shim_free(socket_io);
 }
 
 static void sleep_for_now(unsigned int milliseconds)
@@ -188,6 +184,10 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         REGISTER_UMOCK_ALIAS_TYPE(NTP_OPERATION_RESULT, int);
         //REGISTER_TYPE(const xio_socket_CONFIG*, const_xio_socket_CONFIG_ptr);
         //REGISTER_UMOCK_ALIAS_TYPE(xio_socket_CONFIG*, const xio_socket_CONFIG*);
+
+        REGISTER_GLOBAL_MOCK_HOOK(mem_shim_malloc, my_mem_shim_malloc);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(mem_shim_malloc, NULL);
+        REGISTER_GLOBAL_MOCK_HOOK(mem_shim_free, my_mem_shim_free);
 
         REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_create, TEST_TIMER_HANDLE);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(alarm_timer_create, NULL);
@@ -243,21 +243,37 @@ BEGIN_TEST_SUITE(ntp_client_ut)
     TEST_FUNCTION(ntp_client_create_handle_fail)
     {
         // arrange
+        int negativeTestsInitResult = umock_c_negative_tests_init();
+        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+
+        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_create()).SetReturn(NULL);
 
-        // act
-        NTP_CLIENT_HANDLE handle = ntp_client_create();
+        umock_c_negative_tests_snapshot();
 
-        // assert
-        ASSERT_IS_NULL(handle);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        size_t count = umock_c_negative_tests_call_count();
+        for (size_t index = 0; index < count; index++)
+        {
+            if (umock_c_negative_tests_can_call_fail(index))
+            {
+                umock_c_negative_tests_reset();
+                umock_c_negative_tests_fail_call(index);
 
+                // act
+                NTP_CLIENT_HANDLE handle = ntp_client_create();
+
+                // assert
+                ASSERT_IS_NULL(handle);
+            }
+        }
         // cleanup
+        umock_c_negative_tests_deinit();
     }
 
     TEST_FUNCTION(ntp_client_create_succeed)
     {
         // arrange
+        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_create());
 
         // act

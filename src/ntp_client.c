@@ -17,6 +17,7 @@
 #include "patchcords/xio_socket.h"
 
 #include "ntp_client.h"
+#include "lib-util-c/sys_debug_shim.h"
 #include "lib-util-c/alarm_timer.h"
 #include "lib-util-c/app_logging.h"
 

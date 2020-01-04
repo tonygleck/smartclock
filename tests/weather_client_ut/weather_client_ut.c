@@ -163,6 +163,24 @@ static int my_http_client_execute_request(HTTP_CLIENT_HANDLE handle, HTTP_CLIENT
     return 0;
 }
 
+static XIO_INSTANCE_HANDLE my_xio_client_create(const IO_INTERFACE_DESCRIPTION* io_interface_description, const void* parameters)
+{
+    return (XIO_INSTANCE_HANDLE)my_mem_shim_malloc(1);
+}
+
+static void my_xio_client_destroy(XIO_INSTANCE_HANDLE xio)
+{
+    my_mem_shim_free(xio);
+}
+
+static int my_clone_string(char** target, const char* source)
+{
+    size_t len = strlen(source);
+    *target = my_mem_shim_malloc(len+1);
+    strcpy(*target, source);
+    return 0;
+}
+
 static void sleep_for_now(unsigned int milliseconds)
 {
 #ifdef WIN32
@@ -208,6 +226,10 @@ BEGIN_TEST_SUITE(weather_client_ut)
         REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_create, TEST_TIMER_HANDLE);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(alarm_timer_create, NULL);
 
+        REGISTER_GLOBAL_MOCK_HOOK(xio_client_create, my_xio_client_create);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(xio_client_create, NULL);
+        REGISTER_GLOBAL_MOCK_HOOK(xio_client_destroy, my_xio_client_destroy);
+
         REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_start, 0);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(alarm_timer_start, __LINE__);
         REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_is_expired, false);
@@ -221,6 +243,9 @@ BEGIN_TEST_SUITE(weather_client_ut)
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(http_client_open, HTTP_CLIENT_ERROR);
         REGISTER_GLOBAL_MOCK_HOOK(http_client_execute_request, my_http_client_execute_request)
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(http_client_execute_request, HTTP_CLIENT_ERROR);
+
+        REGISTER_GLOBAL_MOCK_HOOK(clone_string, my_clone_string);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(clone_string, __LINE__);
 
         result = umocktypes_charptr_register_types();
         ASSERT_ARE_EQUAL(int, 0, result);
@@ -250,6 +275,13 @@ BEGIN_TEST_SUITE(weather_client_ut)
         TEST_MUTEX_RELEASE(g_testByTest);
     }
 
+    static void setup_weather_client_create_mocks(void)
+    {
+        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(clone_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(alarm_timer_create());
+    }
+
     static void setup_open_connection_mocks(void)
     {
         STRICT_EXPECTED_CALL(http_client_create());
@@ -268,6 +300,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
             STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
         }
         STRICT_EXPECTED_CALL(http_client_destroy(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_client_destroy(IGNORED_PTR_ARG));
     }
 
     TEST_FUNCTION(weather_client_create_api_key_NULL_fail)
@@ -290,9 +323,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
         int negativeTestsInitResult = umock_c_negative_tests_init();
         ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
 
-        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(alarm_timer_create());
+        setup_weather_client_create_mocks();
 
         umock_c_negative_tests_snapshot();
 
@@ -300,18 +331,16 @@ BEGIN_TEST_SUITE(weather_client_ut)
         size_t count = umock_c_negative_tests_call_count();
         for (size_t index = 0; index < count; index++)
         {
-            if (!umock_c_negative_tests_can_call_fail(index))
+            if (umock_c_negative_tests_can_call_fail(index))
             {
-                continue;
+                umock_c_negative_tests_reset();
+                umock_c_negative_tests_fail_call(index);
+
+                WEATHER_CLIENT_HANDLE handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+
+                // assert
+                ASSERT_IS_NULL(handle);
             }
-
-            umock_c_negative_tests_reset();
-            umock_c_negative_tests_fail_call(index);
-
-            WEATHER_CLIENT_HANDLE handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
-
-            // assert
-            ASSERT_IS_NULL(handle);
         }
 
         //cleanup
@@ -321,9 +350,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
     TEST_FUNCTION(weather_client_create_succeed)
     {
         // arrange
-        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(alarm_timer_create());
+        setup_weather_client_create_mocks();
 
         // act
         WEATHER_CLIENT_HANDLE handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
@@ -343,7 +370,9 @@ BEGIN_TEST_SUITE(weather_client_ut)
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(http_client_destroy(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_client_destroy(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_destroy(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
 
@@ -367,6 +396,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
 
         setup_close_connection();
         STRICT_EXPECTED_CALL(alarm_timer_destroy(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
 
@@ -667,7 +697,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
         WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(clone_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
         setup_open_connection_mocks();
 
         // act
@@ -689,7 +719,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
 
         ASSERT_ARE_EQUAL(int, 0, umock_c_negative_tests_init());
 
-        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(clone_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
         setup_open_connection_mocks();
 
         umock_c_negative_tests_snapshot();
@@ -698,18 +728,16 @@ BEGIN_TEST_SUITE(weather_client_ut)
         size_t count = umock_c_negative_tests_call_count();
         for (size_t index = 0; index < count; index++)
         {
-            if (!umock_c_negative_tests_can_call_fail(index))
+            if (umock_c_negative_tests_can_call_fail(index))
             {
-                continue;
+                umock_c_negative_tests_reset();
+                umock_c_negative_tests_fail_call(index);
+
+                int result = weather_client_get_by_city(client_handle, TEST_CITY_NAME, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+
+                // assert
+                ASSERT_ARE_NOT_EQUAL(int, 0, result, "Failure in test %lu/%lu", (unsigned long)index, (unsigned long)count);
             }
-
-            umock_c_negative_tests_reset();
-            umock_c_negative_tests_fail_call(index);
-
-            int result = weather_client_get_by_city(client_handle, TEST_CITY_NAME, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
-
-            // assert
-            ASSERT_ARE_NOT_EQUAL(int, 0, result, "Failure in test %lu/%lu", (unsigned long)index, (unsigned long)count);
         }
 
         // cleanup
@@ -812,10 +840,12 @@ BEGIN_TEST_SUITE(weather_client_ut)
         // act
         STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(clone_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(condition_callback(IGNORED_PTR_ARG, WEATHER_OP_RESULT_SUCCESS, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
 
-        g_on_request_callback(g_on_request_context, HTTP_CLIENT_OK, TEST_ACTUAL_WEATHER, strlen(TEST_ACTUAL_WEATHER), 200, TEST_HTTP_HEADER);
+        size_t len = strlen(TEST_ACTUAL_WEATHER);
+        g_on_request_callback(g_on_request_context, HTTP_CLIENT_OK, TEST_ACTUAL_WEATHER, len, 200, TEST_HTTP_HEADER);
         weather_client_process(client_handle);
 
         // assert
@@ -838,7 +868,8 @@ BEGIN_TEST_SUITE(weather_client_ut)
         // act
         STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG)).SetReturn(NULL);
 
-        g_on_request_callback(g_on_request_context, HTTP_CLIENT_OK, TEST_ACTUAL_WEATHER, strlen(TEST_ACTUAL_WEATHER), 200, TEST_HTTP_HEADER);
+        size_t len = strlen(TEST_ACTUAL_WEATHER);
+        g_on_request_callback(g_on_request_context, HTTP_CLIENT_OK, TEST_ACTUAL_WEATHER, len, 200, TEST_HTTP_HEADER);
 
         // assert
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());

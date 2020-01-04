@@ -1,7 +1,5 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
 const electron = require('electron');
-
 const { app, BrowserWindow } = electron;//require('electron')
 
 function createWindow () {
@@ -13,7 +11,7 @@ function createWindow () {
     }
 
     // Create the browser window.
-    //let win = new BrowserWindow({ width: 600, height: 800, x: 0, y: 0, resizable: false, titleBarStyle: "hidden" })
+    //let win = new BrowserWindow({ frame: false, width: 600, height: 800, x: 0, y: 0, resizable: false, titleBarStyle: "hidden" })
     let win = new BrowserWindow({ width: 1024, height: 768, x: 0, y: 0, resizable: false })
 
     // and load the index.html of the app.
@@ -63,3 +61,23 @@ app.on('activate', () => {
       createWindow()
     }
 })
+
+// prevent multiple instances in Electron
+// const lock = app.requestSingleInstanceLock();
+// if (!lock) {
+//     app.quit();
+// }
+// else {
+//     app.on('second-instance', () => {
+//         // If user tries to run a second instance, would focus on current window
+//         if (mainWindow) {
+//             if (mainWindow.isMinimized()) {
+//                 mainWindow.restore();
+//             }
+//             mainWindow.focus();
+//         }
+//     });
+//     app.on('ready', () => {
+//         createWindow();
+//     });
+// }

@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/tonygleck/smartclock#readme",
   "devDependencies": {
-    "electron": "^4.0.5"
+    "electron": "^4.2.12"
   },
   "dependencies": {
     "electron-prebuilt": "^1.4.13"

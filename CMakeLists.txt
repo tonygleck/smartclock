@@ -76,17 +76,21 @@ set(smartclock_test_files
 )
 
 set(clockutil_src_files
-    ${PROJECT_SOURCE_DIR}/src/ntp_client.c
-    ${PROJECT_SOURCE_DIR}/src/alarm_scheduler.c
-    ${PROJECT_SOURCE_DIR}/src/weather_client.c
     ${PROJECT_SOURCE_DIR}/deps/parson/parson.c
+    ${PROJECT_SOURCE_DIR}/src/alarm_scheduler.c
+    ${PROJECT_SOURCE_DIR}/src/ntp_client.c
+    ${PROJECT_SOURCE_DIR}/src/sound_mgr_openal.c
+    #${PROJECT_SOURCE_DIR}/src/system_config.c
+    ${PROJECT_SOURCE_DIR}/src/weather_client.c
 )
 
 set(clockutil_h_files
-    ${PROJECT_SOURCE_DIR}/inc/ntp_client.h
-    ${PROJECT_SOURCE_DIR}/inc/alarm_scheduler.h
-    ${PROJECT_SOURCE_DIR}/inc/weather_client.h
     ${PROJECT_SOURCE_DIR}/deps/parson/parson.h
+    ${PROJECT_SOURCE_DIR}/inc/alarm_scheduler.h
+    ${PROJECT_SOURCE_DIR}/inc/ntp_client.h
+    ${PROJECT_SOURCE_DIR}/inc/sound_mgr.h
+    #${PROJECT_SOURCE_DIR}/inc/system_config.h
+    ${PROJECT_SOURCE_DIR}/inc/weather_client.h
 )
 
 add_library(clock_util SHARED ${clockutil_src_files} ${clockutil_h_files})
@@ -96,6 +100,7 @@ target_include_directories(clock_util PUBLIC ${PROJECT_SOURCE_DIR}/inc)
 target_link_libraries(clock_util lib-util-c)
 target_link_libraries(clock_util patchcords)
 target_link_libraries(clock_util http_client)
+target_link_libraries(clock_util openal)
 if (UNIX)
     target_link_libraries(clock_util cord_berkley)
 endif (UNIX)
@@ -115,14 +120,8 @@ if (${include_ut})
     enable_testing()
     include (CTest)
 
-    if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/testrunnerswitcher/CMakeLists.txt")
-        execute_process(COMMAND git clone https://github.com/Azure/azure-c-testrunnerswitcher.git -q --no-tags ${CMAKE_CURRENT_SOURCE_DIR}/deps/testrunnerswitcher)
-    endif()
-    if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/deps/ctest/CMakeLists.txt")
-        execute_process(COMMAND git clone https://github.com/Azure/azure-ctest.git -q --no-tags ${CMAKE_CURRENT_SOURCE_DIR}/deps/ctest)
-    endif()
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/testrunnerswitcher)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/ctest)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/azure-c-testrunnerswitcher)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/azure-ctest)
 
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)
 endif()

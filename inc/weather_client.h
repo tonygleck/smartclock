@@ -38,7 +38,7 @@ typedef struct WEATHER_CONDITIONS_TAG
     double lo_temp;
     uint8_t humidity;
     uint32_t pressure;
-    const char* description;
+    char* description;
     char weather_icon[ICON_MAX_LENGTH];
 } WEATHER_CONDITIONS;
 
