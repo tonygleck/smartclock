@@ -95,14 +95,13 @@ static TEST_MUTEX_HANDLE g_testByTest;
 
 static ON_IO_OPEN_COMPLETE g_on_io_open_complete;
 static void* g_on_io_open_complete_context;
-static ON_SEND_COMPLETE g_on_io_send_complete;
-static void* g_on_io_send_complete_context;
 static ON_BYTES_RECEIVED g_on_bytes_received;
 static void* g_on_bytes_received_context;
 static ON_IO_ERROR g_on_io_error;
 static void* g_on_io_error_context;
 static ON_IO_CLOSE_COMPLETE g_on_io_close_complete;
 static void* g_on_io_close_complete_context;
+static int g_call_completion = 0;
 
 static int my_socket_open(XIO_IMPL_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_complete, void* on_io_open_complete_context, ON_BYTES_RECEIVED on_bytes_received, void* on_bytes_received_context, ON_IO_ERROR on_io_error, void* on_io_error_context)
 {
@@ -133,6 +132,24 @@ static XIO_IMPL_HANDLE my_socket_create(const void* create_parameters)
 static void my_socket_destroy(XIO_IMPL_HANDLE socket_io)
 {
     my_mem_shim_free(socket_io);
+}
+
+static void my_xio_socket_process_item(XIO_IMPL_HANDLE xio)
+{
+    if (g_call_completion == 1)
+    {
+        g_on_io_open_complete(g_on_io_open_complete_context, IO_OPEN_OK);
+        g_call_completion++;
+    }
+    else if (g_call_completion == 2)
+    {
+        g_on_bytes_received(g_on_bytes_received_context, (const unsigned char*)&g_test_recv_packet, NTP_TEST_PACKET_SIZE);
+        g_call_completion++;
+    }
+    else if (g_call_completion == 3)
+    {
+        g_on_io_close_complete(g_on_io_close_complete_context);
+    }
 }
 
 static void sleep_for_now(unsigned int milliseconds)
@@ -199,6 +216,7 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         REGISTER_GLOBAL_MOCK_HOOK(xio_socket_create, my_socket_create);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(xio_socket_create, NULL);
         REGISTER_GLOBAL_MOCK_HOOK(xio_socket_destroy, my_socket_destroy)
+        REGISTER_GLOBAL_MOCK_HOOK(xio_socket_process_item, my_xio_socket_process_item);
 
         REGISTER_GLOBAL_MOCK_HOOK(xio_socket_open, my_socket_open);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(xio_socket_open, __LINE__);
@@ -233,6 +251,7 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         }
 
         umock_c_reset_all_calls();
+        g_call_completion = 0;
     }
 
     TEST_FUNCTION_CLEANUP(function_cleanup)
@@ -293,6 +312,24 @@ BEGIN_TEST_SUITE(ntp_client_ut)
 
         // act
         ntp_client_destroy(NULL);
+
+        // assert
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    TEST_FUNCTION(ntp_client_destroy_handle_succeed)
+    {
+        // arrange
+        NTP_CLIENT_HANDLE handle = ntp_client_create();
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(alarm_timer_destroy(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
+
+        // act
+        ntp_client_destroy(handle);
 
         // assert
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
@@ -498,6 +535,53 @@ BEGIN_TEST_SUITE(ntp_client_ut)
 
         // cleanup
         ntp_client_destroy(handle);
+    }
+
+    TEST_FUNCTION(ntp_client_set_time_server_NULL_fail)
+    {
+        size_t ntp_timeout = 20;
+
+        // arrange
+
+        // act
+        int result = ntp_client_set_time(NULL, ntp_timeout);
+
+        // assert
+        ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    TEST_FUNCTION(ntp_client_set_time_succeed)
+    {
+        size_t ntp_timeout = 20;
+        g_call_completion = 1;
+
+        // arrange
+        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(alarm_timer_create());
+        STRICT_EXPECTED_CALL(xio_socket_create(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_open(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_PTR_ARG, ntp_timeout));
+        STRICT_EXPECTED_CALL(xio_socket_process_item(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_send(IGNORED_PTR_ARG, IGNORED_PTR_ARG, 48, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(alarm_timer_reset(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_process_item(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_close(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_process_item(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_destroy(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(alarm_timer_destroy(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
+
+        // act
+        int result = ntp_client_set_time(TEST_NTP_SERVER_ADDRESS, ntp_timeout);
+
+        // assert
+        ASSERT_ARE_EQUAL(int, 0, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
     }
 
 END_TEST_SUITE(ntp_client_ut)

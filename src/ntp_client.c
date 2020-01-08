@@ -264,6 +264,7 @@ static void on_connection_closed(void* context)
     }
     else
     {
+        ntp_client->server_connected = false;
     }
 }
 
@@ -342,8 +343,8 @@ static void close_ntp_connection(NTP_CLIENT_INFO* ntp_client)
     if (ntp_client->socket_impl)
     {
         xio_socket_destroy(ntp_client->socket_impl);
+        ntp_client->socket_impl = NULL;
     }
-    ntp_client->socket_impl = NULL;
 }
 
 static bool is_timed_out(NTP_CLIENT_INFO* ntp_client)
@@ -402,7 +403,7 @@ int ntp_client_get_time(NTP_CLIENT_HANDLE handle, const char* time_server, size_
         log_error("Failure initializing connection to ntp server.");
         result = __LINE__;
     }
-    else if (alarm_timer_start(handle->timer_handle, timeout_sec) != 0)
+    else if (timeout_sec > 0 && alarm_timer_start(handle->timer_handle, timeout_sec) != 0)
     {
         log_error("Failure starting timer alarm.");
         close_ntp_connection(handle);
@@ -489,27 +490,46 @@ static void ntp_result_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result,
     }
 }
 
-bool ntp_client_set_time(const char* time_server, size_t timeout_sec)
+int ntp_client_set_time(const char* time_server, size_t timeout_sec)
 {
-    NTP_CLIENT_HANDLE ntp_client = ntp_client_create();
-    if (ntp_client != NULL)
+    int result;
+    if (time_server == NULL)
     {
-        SET_TIME_INFO set_time_info = { 0 };
-        if (ntp_client_get_time(ntp_client, time_server, timeout_sec, ntp_result_callback, &set_time_info) == 0)
+        log_error("Invalid parameter specified time_server: %p", time_server);
+        result = __LINE__;
+    }
+    else
+    {
+        NTP_CLIENT_HANDLE ntp_client = ntp_client_create();
+        if (ntp_client == NULL)
         {
-            do
+            log_error("Failure creating ntp client handle");
+            result = __LINE__;
+        }
+        else
+        {
+            SET_TIME_INFO set_time_info = { 0 };
+            if (ntp_client_get_time(ntp_client, time_server, timeout_sec, ntp_result_callback, &set_time_info) == 0)
             {
-                ntp_client_process(ntp_client);
-                // Sleep here
-            } while (set_time_info.operation_complete == 0);
+                do
+                {
+                    ntp_client_process(ntp_client);
+                    // Sleep here
+                } while (set_time_info.operation_complete == 0);
+            }
+            else
+            {
+                log_error("Failure unable to get time from time server: %s", time_server);
+                result = __LINE__;
+            }
+            if (set_time_info.operation_complete == OPERATION_SUCCESSFUL)
+            {
+                // Set the system time
+                log_info("Setting time from server: %s", time_server);
+                //stime(set_time_info.curr_time);
+            }
+            ntp_client_destroy(ntp_client);
         }
-        if (set_time_info.operation_complete == OPERATION_SUCCESSFUL)
-        {
-            // Set the system time
-            //stime(set_time_info.curr_time);
-        }
-        ntp_client_destroy(ntp_client);
     }
     return 0;
-
 }
