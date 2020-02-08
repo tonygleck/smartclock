@@ -3,11 +3,11 @@
 #ifdef __cplusplus
 #include <cstdlib>
 #include <cstddef>
-#include <ctime>
+#include <cstdio>
 #else
+#include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
-#include <time.h>
 #endif
 
 static void* my_mem_shim_malloc(size_t size)
@@ -25,8 +25,6 @@ static void my_mem_shim_free(void* ptr)
  */
 #include "testrunnerswitcher.h"
 #include "umock_c/umock_c.h"
-//#include "umock_c_prod.h"
-
 #include "umock_c/umocktypes_charptr.h"
 #include "umock_c/umock_c_negative_tests.h"
 #include "azure_macro_utils/macro_utils.h"
@@ -190,8 +188,6 @@ BEGIN_TEST_SUITE(ntp_client_ut)
 
         //REGISTER_TYPE(IO_OPEN_RESULT, IO_OPEN_RESULT);
         //REGISTER_TYPE(IO_SEND_RESULT, IO_SEND_RESULT);
-        REGISTER_UMOCK_ALIAS_TYPE(time_t, int);
-        REGISTER_UMOCK_ALIAS_TYPE(XIO_HANDLE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(XIO_IMPL_HANDLE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_IO_OPEN_COMPLETE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_BYTES_RECEIVED, void*);
@@ -199,6 +195,7 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         REGISTER_UMOCK_ALIAS_TYPE(ON_IO_CLOSE_COMPLETE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_SEND_COMPLETE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(NTP_OPERATION_RESULT, int);
+        REGISTER_UMOCK_ALIAS_TYPE(time_t, long);
         //REGISTER_TYPE(const xio_socket_CONFIG*, const_xio_socket_CONFIG_ptr);
         //REGISTER_UMOCK_ALIAS_TYPE(xio_socket_CONFIG*, const xio_socket_CONFIG*);
 

@@ -36,10 +36,10 @@ static void destroy_schedule_list_cb(void* user_ctx, void* item)
     }
 }
 
-static uint8_t get_current_day(const struct tm* curr_time)
+static uint8_t get_current_day_from_value(int wday)
 {
     uint8_t result;
-    switch (curr_time->tm_wday)
+    switch (wday)
     {
         case 0:
             result = Sunday;
@@ -65,6 +65,82 @@ static uint8_t get_current_day(const struct tm* curr_time)
         default:
             result = NoDay;
             break;
+    }
+    return result;
+}
+
+static uint8_t get_current_day(const struct tm* curr_time)
+{
+    return get_current_day_from_value(curr_time->tm_wday);
+}
+
+static int get_next_trigger_day(int current_day, uint32_t trigger_day)
+{
+    int result;
+    for (uint8_t index = 0; index < 7; index++)
+    {
+        result = current_day;
+        uint8_t compare_value = get_current_day_from_value(current_day);
+        if (compare_value & trigger_day)
+        {
+            break;
+        }
+        if (current_day == 6)
+        {
+            current_day = 0;
+        }
+        else
+        {
+            current_day++;
+        }
+    }
+    return result;
+}
+
+static bool is_alarm_triggered_sooner(const ALARM_INFO* ai_inital, const ALARM_INFO* ai_compare, const struct tm* curr_time)
+{
+    bool result;
+    // Convert all time to current time
+    int init_val_delta = get_next_trigger_day(curr_time->tm_wday, ai_inital->trigger_days) - curr_time->tm_wday;
+    int cmp_val_delta = get_next_trigger_day(curr_time->tm_wday, ai_compare->trigger_days) - curr_time->tm_wday;
+
+    if (init_val_delta < cmp_val_delta)
+    {
+        result = false;
+    }
+    else if (cmp_val_delta < init_val_delta)
+    {
+        result = true;
+    }
+    else
+    {
+        // The days are equal, need to evaluate the hours
+        if (ai_inital->trigger_time.hour == ai_compare->trigger_time.hour)
+        {
+            // Compare minutesTIME_INFO_PTR
+            result = ai_inital->trigger_time.min > ai_compare->trigger_time.min;
+        }
+        else
+        {
+            if (
+                (ai_inital->trigger_time.hour > curr_time->tm_hour && ai_compare->trigger_time.hour > curr_time->tm_hour) ||
+                (ai_inital->trigger_time.hour < curr_time->tm_hour && ai_compare->trigger_time.hour < curr_time->tm_hour)
+               )
+            {
+                result = ai_inital->trigger_time.hour > ai_compare->trigger_time.hour;
+            }
+            else
+            {
+                if (ai_inital->trigger_time.hour > curr_time->tm_hour && ai_compare->trigger_time.hour < curr_time->tm_hour)
+                {
+                    result = false;
+                }
+                else
+                {
+                    result = true;
+                }
+            }
+        }
     }
     return result;
 }
@@ -106,10 +182,10 @@ static int store_time_object(ALARM_SCHEDULER* scheduler, const ALARM_STORAGE_ITE
     return result;
 }
 
-static int play_alarm()
-{
-
-}
+//static int play_alarm()
+//{
+//    return 0;
+//}
 
 SCHEDULER_HANDLE alarm_scheduler_create(void)
 {
@@ -266,6 +342,74 @@ int alarm_scheduler_add_alarm(SCHEDULER_HANDLE handle, const char* alarm_text, c
         else
         {
             result = 0;
+        }
+    }
+    return result;
+}
+
+int alarm_scheduler_remove_alarm(SCHEDULER_HANDLE handle, const char* alarm_text)
+{
+    int result;
+    if (handle == NULL || alarm_text == NULL)
+    {
+        log_error("Invalid argument handle:%p alarm_text: %p", handle, alarm_text);
+        result = __LINE__;
+    }
+    else
+    {
+        result = 0;
+        size_t alarm_cnt = item_list_item_count(handle->sched_list);
+        for (size_t index = 0; index < alarm_cnt; index++)
+        {
+            ALARM_STORAGE_ITEM* alarm_info = (ALARM_STORAGE_ITEM*)item_list_get_item(handle->sched_list, index);
+            if (alarm_info != NULL)
+            {
+                if (strcmp(alarm_info->alarm_info.alarm_text, alarm_text) == 0)
+                {
+                    if (item_list_remove_item(handle->sched_list, index) != 0)
+                    {
+                        log_error("Failure removing item %s", alarm_text);
+                        result = __LINE__;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    return result;
+}
+
+const ALARM_INFO* alarm_scheduler_get_next_alarm(SCHEDULER_HANDLE handle)
+{
+    const ALARM_INFO* result = NULL;
+    if (handle == NULL)
+    {
+        log_error("Invalid argument handle is NULL");
+    }
+    else
+    {
+        struct tm* curr_time = get_time_value();
+
+        // Loop through the available alarms and see if any are triggered
+        size_t alarm_cnt = item_list_item_count(handle->sched_list);
+        for (size_t index = 0; index < alarm_cnt; index++)
+        {
+            ALARM_STORAGE_ITEM* alarm_info = (ALARM_STORAGE_ITEM*)item_list_get_item(handle->sched_list, index);
+            if (alarm_info != NULL)
+            {
+                if (result == NULL)
+                {
+                    // If we only have 1 alarm then this is the next one
+                    result = &alarm_info->alarm_info;
+                }
+                else
+                {
+                    if (is_alarm_triggered_sooner(result, &alarm_info->alarm_info, curr_time))
+                    {
+                        result = &alarm_info->alarm_info;
+                    }
+                }
+            }
         }
     }
     return result;

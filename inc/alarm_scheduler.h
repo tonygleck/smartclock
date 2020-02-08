@@ -43,6 +43,8 @@ extern void alarm_scheduler_destroy(SCHEDULER_HANDLE handle);
 extern const ALARM_INFO* alarm_scheduler_is_triggered(SCHEDULER_HANDLE handle);
 extern int alarm_scheduler_add_alarm(SCHEDULER_HANDLE handle, const char* alarm_text, const TIME_INFO* time, uint32_t trigger_days, const char* sound_file);
 extern int alarm_scheduler_add_alarm_info(SCHEDULER_HANDLE handle, const ALARM_INFO* alarm_info);
+extern int alarm_scheduler_remove_alarm(SCHEDULER_HANDLE handle, const char* alarm_text);
+extern const ALARM_INFO* alarm_scheduler_get_next_alarm(SCHEDULER_HANDLE handle);
 
 #ifdef __cplusplus
 }

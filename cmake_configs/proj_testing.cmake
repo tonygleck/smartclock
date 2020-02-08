@@ -1,16 +1,7 @@
 #Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#function(build_code_coverage  whatIsBuilding)
-#    if (CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_BUILD_TYPE STREQUAL "Debug")
-#        link_libraries(gcov)
-
-#        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage -fprofile-arcs -ftest-coverage")
-#        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage -fprofile-arcs -ftest-coverage")
-#    endif()
-#endfunction()
-
 function(add_unittest_directory whatIsBuilding)
-    if (${include_ut})
+    if (${smartclock_ut})
         add_subdirectory(${whatIsBuilding})
     endif()
 endfunction(add_unittest_directory)
@@ -30,6 +21,9 @@ function(build_test_project whatIsBuilding folder)
 
         set_target_properties(${whatIsBuilding} PROPERTIES LINKER_LANGUAGE CXX)
         set_target_properties(${whatIsBuilding} PROPERTIES FOLDER ${folder})
+    else()
+        find_program(MEMORYCHECK_COMMAND valgrind)
+        set(MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full" )
     endif()
 
     add_executable(${whatIsBuilding}_exe
@@ -40,6 +34,8 @@ function(build_test_project whatIsBuilding folder)
         ${CMAKE_CURRENT_LIST_DIR}/main.c
         ${logging_files}
     )
+    compileTargetAsC99(${whatIsBuilding}_exe)
+
     set_target_properties(${whatIsBuilding}_exe
             PROPERTIES
             FOLDER ${folder})
@@ -48,5 +44,21 @@ function(build_test_project whatIsBuilding folder)
     target_include_directories(${whatIsBuilding}_exe PUBLIC ${include_dir})
 
     target_link_libraries(${whatIsBuilding}_exe umock_c ctest testrunnerswitcher m)
+
+    if (${ENABLE_COVERAGE})
+        set_target_properties(${whatIsBuilding}_exe PROPERTIES COMPILE_FLAGS "-fprofile-arcs -ftest-coverage")
+        target_link_libraries(${whatIsBuilding}_exe gcov)
+        set(CMAKE_CXX_OUTPUT_EXTENSION_REPLACE 1)
+    endif()
+
     add_test(NAME ${whatIsBuilding} COMMAND $<TARGET_FILE:${whatIsBuilding}_exe>)
+endfunction()
+
+function(enable_coverage_testing)
+    if (${ENABLE_COVERAGE})
+        find_program(GCOV_PATH gcov)
+        if(NOT GCOV_PATH)
+            message(FATAL_ERROR "gcov not found! Aborting...")
+        endif() # NOT GCOV_PATH
+    endif()
 endfunction()

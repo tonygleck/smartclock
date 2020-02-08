@@ -26,12 +26,12 @@ static const char* API_ZIPCODE_FMT = "/data/2.5/weather?id=%d&%s&appid=%s";
 static const char* TEMP_UNIT_FAHRENHEIT_VALUE = "units=imperial";
 static const char* TEMP_UNIT_CELSIUS_VALUE = "units=metric";
 static const char* TEMP_UNIT_KELVIN_VALUE = "";
-static const char* DEMO_ACTUAL_WEATHER = "{\"coord\": {\"lon\": -0.13,\"lat\": 51.51 \
-},\"weather\": [ {\"id\": 300,\"main\": \"Drizzle\", \"description\": \"light intensity drizzle\", \
-\"icon\": \"09d\"}],\"base\": \"stations\",\"main\": {\"temp\": 280.32,\"pressure\": 1012,\"humidity\": 81, \
-\"temp_min\": 279.15,\"temp_max\": 281.15},\"visibility\": 10000,\"wind\": {\"speed\": 4.1,\"deg\": 80}, \
-\"clouds\": {\"all\": 90},\"dt\": 1485789600,\"sys\": {\"type\": 1,\"id\": 5091,\"message\": 0.0103,\"country\": \
-\"GB\",\"sunrise\": 1485762037,\"sunset\": 1485794875},\"id\": 2643743,\"name\": \"London\",\"cod\": 200}";
+/* static const char* DEMO_ACTUAL_WEATHER = "{\"coord\": {\"lon\": -0.13,\"lat\": 51.51 \
+ },\"weather\": [ {\"id\": 300,\"main\": \"Drizzle\", \"description\": \"light intensity drizzle\", \
+ \"icon\": \"09d\"}],\"base\": \"stations\",\"main\": {\"temp\": 280.32,\"pressure\": 1012,\"humidity\": 81, \
+ \"temp_min\": 279.15,\"temp_max\": 281.15},\"visibility\": 10000,\"wind\": {\"speed\": 4.1,\"deg\": 80}, \
+ \"clouds\": {\"all\": 90},\"dt\": 1485789600,\"sys\": {\"type\": 1,\"id\": 5091,\"message\": 0.0103,\"country\": \
+ \"GB\",\"sunrise\": 1485762037,\"sunset\": 1485794875},\"id\": 2643743,\"name\": \"London\",\"cod\": 200}";*/
 
 
 #define HTTP_PORT_VALUE     80
@@ -134,7 +134,12 @@ static int get_weather_description(JSON_Object* root_obj, WEATHER_CONDITIONS* co
                 log_error("Failure getting initial array node");
                 result = __LINE__;
             }
-            else if ((weather_obj = json_value_get_object(weather_node)) != NULL)
+            else if ((weather_obj = json_value_get_object(weather_node)) == NULL)
+            {
+                log_error("Failure getting weather node object");
+                result = __LINE__;
+            }
+            else
             {
                 const char* desc_value = json_object_get_string(weather_obj, "description");
                 if (desc_value != NULL)
@@ -215,8 +220,10 @@ static int parse_weather_data(WEATHER_CLIENT_INFO* client_info, WEATHER_CONDITIO
             log_error("Failure parsing weather description");
             result = __LINE__;
         }
-        else if (get_main_weather_info(root_obj, conditions))
+        else if (get_main_weather_info(root_obj, conditions) != 0)
         {
+            // Remove items
+            free(conditions->description);
             log_error("Failure parsing main weather info");
             result = __LINE__;
         }
@@ -231,6 +238,7 @@ static int parse_weather_data(WEATHER_CLIENT_INFO* client_info, WEATHER_CONDITIO
 
 static void on_http_error(void* user_ctx, HTTP_CLIENT_RESULT error_result)
 {
+    (void)error_result;
     WEATHER_CLIENT_INFO* client_info = (WEATHER_CLIENT_INFO*)user_ctx;
     if (client_info == NULL)
     {
@@ -238,7 +246,6 @@ static void on_http_error(void* user_ctx, HTTP_CLIENT_RESULT error_result)
     }
     else
     {
-
     }
 }
 
@@ -275,6 +282,7 @@ static void on_http_connected(void* user_ctx, HTTP_CLIENT_RESULT open_result)
 
 static void on_http_reply_recv(void* user_ctx, HTTP_CLIENT_RESULT request_result, const unsigned char* content, size_t content_len, unsigned int status_code, HTTP_HEADERS_HANDLE response_headers)
 {
+    (void)response_headers;
     WEATHER_CLIENT_INFO* client_info = (WEATHER_CLIENT_INFO*)user_ctx;
     if (client_info == NULL)
     {
@@ -289,7 +297,7 @@ static void on_http_reply_recv(void* user_ctx, HTTP_CLIENT_RESULT request_result
     else if (status_code > 300)
     {
         log_error("Invalid status code returned by weather service %d", (int)status_code);
-        client_info->op_result = WEATHER_OP_RESULT_INVALID_DATA_ERR;
+        client_info->op_result = WEATHER_OP_RESULT_STATUS_CODE;
         client_info->state = WEATHER_CLIENT_STATE_ERROR;
     }
     else
@@ -315,7 +323,9 @@ static void on_http_reply_recv(void* user_ctx, HTTP_CLIENT_RESULT request_result
             }
             else
             {
-                log_error("Failure allocating weather content");
+                log_error("Failure incoming weather content when not anticipated");
+                free(client_info->weather_data);
+                client_info->weather_data = NULL;
                 client_info->op_result = WEATHER_OP_RESULT_INVALID_DATA_ERR;
                 client_info->state = WEATHER_CLIENT_STATE_ERROR;
             }
@@ -338,10 +348,8 @@ static void on_http_close(void* user_ctx)
 
 static int send_weather_data(WEATHER_CLIENT_INFO* client_info)
 {
-    int result;
-#ifdef DEMO_MODE
-    result = 0;
-#else
+    int result = 0;
+#ifndef DEMO_MODE
     char weather_api_path[128];
     switch (client_info->query_type)
     {
@@ -354,11 +362,20 @@ static int send_weather_data(WEATHER_CLIENT_INFO* client_info)
         case QUERY_TYPE_NAME:
             sprintf(weather_api_path, API_NAME_PATH_FMT, client_info->weather_query.name, client_info->temp_units, client_info->api_key);
             break;
+        case QUERY_TYPE_NONE:
+        default:
+            result = __LINE__;
+            break;
     }
 
-    if (http_client_execute_request(client_info->http_handle, HTTP_CLIENT_REQUEST_GET, weather_api_path, NULL, NULL, 0, on_http_reply_recv, client_info) != 0)
+    if (result == 0 && http_client_execute_request(client_info->http_handle, HTTP_CLIENT_REQUEST_GET, weather_api_path, NULL, NULL, 0, on_http_reply_recv, client_info) != 0)
     {
         log_error("Failure executing http request");
+        result = __LINE__;
+    }
+    else if (alarm_timer_start(client_info->timer_handle, client_info->timeout_sec) != 0)
+    {
+        log_error("Failure setting the timeout value");
         result = __LINE__;
     }
     else
@@ -516,10 +533,7 @@ int weather_client_get_by_coordinate(WEATHER_CLIENT_HANDLE handle, const WEATHER
         }
         else
         {
-            if (handle->is_open)
-            {
-                handle->state = WEATHER_CLIENT_STATE_SEND;
-            }
+            handle->state = WEATHER_CLIENT_STATE_SEND;
             // Store data
             handle->query_type = QUERY_TYPE_COORDINATES;
             handle->weather_query.coord_info.latitude = location->latitude;
@@ -532,7 +546,7 @@ int weather_client_get_by_coordinate(WEATHER_CLIENT_HANDLE handle, const WEATHER
     return result;
 }
 
-int weather_client_get_by_zipcode(WEATHER_CLIENT_HANDLE handle, size_t zipcode, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx)
+int weather_client_get_by_zipcode(WEATHER_CLIENT_HANDLE handle, uint32_t zipcode, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx)
 {
     int result;
     if (handle == NULL || zipcode == 0 || conditions_callback == NULL)
@@ -555,13 +569,12 @@ int weather_client_get_by_zipcode(WEATHER_CLIENT_HANDLE handle, size_t zipcode, 
         }
         else
         {
-            if (handle->is_open)
-            {
-                handle->state = WEATHER_CLIENT_STATE_SEND;
-            }
+            handle->state = WEATHER_CLIENT_STATE_SEND;
             // Store data
             handle->query_type = QUERY_TYPE_ZIP_CODE;
             handle->weather_query.zip_code = zipcode;
+            handle->conditions_callback = conditions_callback;
+            handle->condition_ctx = user_ctx;
             result = 0;
         }
     }
@@ -597,10 +610,9 @@ int weather_client_get_by_city(WEATHER_CLIENT_HANDLE handle, const char* city_na
         }
         else
         {
-            if (handle->is_open)
-            {
-                handle->state = WEATHER_CLIENT_STATE_SEND;
-            }
+            handle->state = WEATHER_CLIENT_STATE_SEND;
+            handle->conditions_callback = conditions_callback;
+            handle->condition_ctx = user_ctx;
             handle->query_type = QUERY_TYPE_NAME;
             result = 0;
         }
@@ -635,12 +647,15 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
                 else
                 {
                     handle->conditions_callback(handle->condition_ctx, WEATHER_OP_RESULT_SUCCESS, &weather_cond);
+                    free(weather_cond.description);
                     handle->state = WEATHER_CLIENT_STATE_IDLE;
                 }
                 break;
             }
             case WEATHER_CLIENT_STATE_ERROR:
             case WEATHER_CLIENT_STATE_CALLBACK:
+                handle->conditions_callback(handle->condition_ctx, handle->op_result, NULL);
+                handle->state = WEATHER_CLIENT_STATE_IDLE;
                 break;
         }
 #else
@@ -656,12 +671,7 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
                 if (send_weather_data(handle) != 0)
                 {
                     log_error("Failure sending data to weather service");
-                    handle->conditions_callback(handle->condition_ctx, WEATHER_OP_RESULT_COMM_ERR, NULL);
-                    handle->state = WEATHER_CLIENT_STATE_ERROR;
-                }
-                else if (handle->timeout_sec != 0 && alarm_timer_start(handle->timer_handle, handle->timeout_sec) != 0)
-                {
-                    log_error("Failure setting the timeout value");
+                    handle->op_result = WEATHER_OP_RESULT_COMM_ERR;
                     handle->state = WEATHER_CLIENT_STATE_ERROR;
                 }
                 else
@@ -671,11 +681,12 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
                 break;
             case WEATHER_CLIENT_STATE_CONNECTING:
             case WEATHER_CLIENT_STATE_SENT:
-                if (alarm_timer_is_expired(handle->timer_handle))
+                if (is_timed_out(handle))
                 {
-                    handle->conditions_callback(handle->condition_ctx, WEATHER_OP_RESULT_TIMEOUT, NULL);
-                    close_http_connection(handle);
-                    handle->state = WEATHER_CLIENT_STATE_IDLE;
+                    log_error("Failure, timeout encountered");
+
+                    handle->op_result = WEATHER_OP_RESULT_TIMEOUT;
+                    handle->state = WEATHER_CLIENT_STATE_ERROR;
                 }
                 break;
             case WEATHER_CLIENT_STATE_RECV:
@@ -684,7 +695,7 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
                 if (parse_weather_data(handle, &weather_cond) != 0)
                 {
                     log_error("Failure parsing weather data");
-                    handle->conditions_callback(handle->condition_ctx, WEATHER_OP_RESULT_INVALID_DATA_ERR, NULL);
+                    handle->op_result = WEATHER_OP_RESULT_INVALID_DATA_ERR;
                     handle->state = WEATHER_CLIENT_STATE_ERROR;
                 }
                 else
@@ -694,6 +705,11 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
 
                     // Clear the weather data info
                     free((void*)weather_cond.description);
+                }
+                if (handle->weather_data != NULL)
+                {
+                    free(handle->weather_data);
+                    handle->weather_data = NULL;
                 }
                 break;
             }

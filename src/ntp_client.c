@@ -29,7 +29,7 @@
 #define OPERATION_FAILURE       2
 
 static const unsigned long long NTP_TIMESTAMP_DELTA = 2208988800ull;
-static const uint32_t JAN_1ST_1900 = 2415021;
+//static const uint32_t JAN_1ST_1900 = 2415021;
 
 typedef struct SET_TIME_INFO_TAG
 {
@@ -210,7 +210,7 @@ static void on_socket_bytes_received(void* context, const unsigned char* buffer,
     }
     else
     {
-        NTP_RESP_PACKET resp_packet;
+        //NTP_RESP_PACKET resp_packet;
         if (ntp_client->collection_size+size > NTP_PACKET_SIZE)
         {
             log_error("Recieving packet size too large");
@@ -250,6 +250,7 @@ static void on_socket_error(void* context, IO_ERROR_RESULT error_result)
     }
     else
     {
+        (void)error_result;
         ntp_client->ntp_state = NTP_CLIENT_STATE_ERROR;
         ntp_client->ntp_op_result = NTP_OP_RESULT_COMM_ERR;
     }
@@ -527,9 +528,10 @@ int ntp_client_set_time(const char* time_server, size_t timeout_sec)
                 // Set the system time
                 log_info("Setting time from server: %s", time_server);
                 //stime(set_time_info.curr_time);
+                result = 0;
             }
             ntp_client_destroy(ntp_client);
         }
     }
-    return 0;
+    return result;
 }

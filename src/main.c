@@ -8,11 +8,11 @@
 #include "parson.h"
 #include "lib-util-c/app_logging.h"
 
-static const char* NTP_SERVER_ADDRESS = "0.north-america.pool.ntp.org";
+//static const char* NTP_SERVER_ADDRESS = "0.north-america.pool.ntp.org";
 
-#define NTP_TIMEOUT         5
+//#define NTP_TIMEOUT         5
 
-static void ntp_result_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result, time_t current_time)
+/*static void ntp_result_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result, time_t current_time)
 {
     int* operation_complete = (int*)user_ctx;
     if (ntp_result == NTP_OP_RESULT_SUCCESS)
@@ -45,7 +45,7 @@ static int check_ntp_time(void)
     return 0;
 }
 
-/*static void weather_cond_callback(void* user_ctx, WEATHER_OPERATION_RESULT result, const WEATHER_CONDITIONS* cond)
+static void weather_cond_callback(void* user_ctx, WEATHER_OPERATION_RESULT result, const WEATHER_CONDITIONS* cond)
 {
     if (result == WEATHER_OP_RESULT_SUCCESS)
     {

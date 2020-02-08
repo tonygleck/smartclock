@@ -98,6 +98,16 @@ static void my_alcDestroyContext(ALCcontext *context)
     my_mem_shim_free(context);
 }
 
+static void my_alGenSources(ALsizei n, ALuint *sources)
+{
+    sources = (ALuint*)my_mem_shim_malloc(1);
+}
+
+static void my_alDeleteSources(ALsizei n, const ALuint *sources)
+{
+    my_mem_shim_free((void*)sources);
+}
+
 MU_DEFINE_ENUM_STRINGS(UMOCK_C_ERROR_CODE, UMOCK_C_ERROR_CODE_VALUES)
 static void on_umock_c_error(UMOCK_C_ERROR_CODE error_code)
 {
@@ -118,6 +128,7 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
 
         //REGISTER_TYPE(IO_OPEN_RESULT, IO_OPEN_RESULT);
         REGISTER_UMOCK_ALIAS_TYPE(ALCenum, int);
+        REGISTER_UMOCK_ALIAS_TYPE(ALsizei, int);
 
         REGISTER_GLOBAL_MOCK_HOOK(mem_shim_malloc, my_mem_shim_malloc);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(mem_shim_malloc, NULL);
@@ -129,7 +140,10 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         REGISTER_GLOBAL_MOCK_HOOK(alcCloseDevice, my_alcCloseDevice);
         REGISTER_GLOBAL_MOCK_HOOK(alcCreateContext, my_alcCreateContext);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(alcCreateContext, NULL);
+        REGISTER_GLOBAL_MOCK_HOOK(alDeleteSources, my_alDeleteSources);
         REGISTER_GLOBAL_MOCK_HOOK(alcDestroyContext, my_alcDestroyContext);
+        REGISTER_GLOBAL_MOCK_HOOK(alGenSources, my_alGenSources);
+
         REGISTER_GLOBAL_MOCK_RETURN(alcMakeContextCurrent, 1);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(alcMakeContextCurrent, 0);
 
@@ -212,6 +226,19 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         umock_c_negative_tests_deinit();
     }
 
+    TEST_FUNCTION(sound_mgr_destroy_handle_NULL_succeed)
+    {
+        // arrange
+
+        // act
+        sound_mgr_destroy(NULL);
+
+        // assert
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
     TEST_FUNCTION(sound_mgr_destroy_succeed)
     {
         // arrange
@@ -232,6 +259,23 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
+    }
+
+    TEST_FUNCTION(sound_mgr_play_succeed)
+    {
+        // arrange
+        SOUND_MGR_HANDLE handle = sound_mgr_create();
+        umock_c_reset_all_calls();
+
+
+        // act
+        //sound_mgr_play();
+
+        // assert
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        sound_mgr_destroy(handle);
     }
 
 END_TEST_SUITE(sound_mgr_ut)

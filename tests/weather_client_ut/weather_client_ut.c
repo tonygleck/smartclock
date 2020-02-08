@@ -18,10 +18,8 @@ static void my_mem_shim_free(void* ptr)
 
 #ifdef __cplusplus
 #include <cstddef>
-#include <ctime>
 #else
 #include <stddef.h>
-#include <time.h>
 #endif
 
 /**
@@ -44,17 +42,13 @@ static void my_mem_shim_free(void* ptr)
 #include "patchcords/xio_client.h"
 #include "patchcords/xio_socket.h"
 #include "parson.h"
-#undef ENABLE_MOCKS
 
-#include "weather_client.h"
-
-#define ENABLE_MOCKS
-/*MOCKABLE_FUNCTION(, JSON_Value*, json_parse_string, const char *, string);
+MOCKABLE_FUNCTION(, JSON_Value*, json_parse_string, const char *, string);
+MOCKABLE_FUNCTION(, JSON_Object*, json_value_get_object, const JSON_Value *, value);
+MOCKABLE_FUNCTION(, JSON_Array*, json_object_get_array, const JSON_Object*, object, const char*, name);
+MOCKABLE_FUNCTION(, size_t, json_array_get_count, const JSON_Array*, array);
 MOCKABLE_FUNCTION(, JSON_Status, json_serialize_to_file, const JSON_Value*, value, const char *, filename);
 MOCKABLE_FUNCTION(, JSON_Value*, json_parse_file, const char*, string);
-MOCKABLE_FUNCTION(, JSON_Object*, json_value_get_object, const JSON_Value *, value);
-MOCKABLE_FUNCTION(, size_t, json_array_get_count, const JSON_Array*, array);
-MOCKABLE_FUNCTION(, JSON_Array*, json_object_get_array, const JSON_Object*, object, const char*, name);
 MOCKABLE_FUNCTION(, double, json_object_get_number, const JSON_Object*, object, const char*, name);
 MOCKABLE_FUNCTION(, JSON_Array*, json_array_get_array, const JSON_Array*, array, size_t, index);
 MOCKABLE_FUNCTION(, JSON_Value*, json_array_get_value, const JSON_Array*, array, size_t, index);
@@ -63,10 +57,19 @@ MOCKABLE_FUNCTION(, const char*, json_object_get_string, const JSON_Object*, obj
 MOCKABLE_FUNCTION(, const char*, json_value_get_string, const JSON_Value*, value);
 MOCKABLE_FUNCTION(, JSON_Object*, json_object_get_object, const JSON_Object*, object, const char*, name);
 MOCKABLE_FUNCTION(, void, json_value_free, JSON_Value*, value);
-MOCKABLE_FUNCTION(, double, json_value_get_number, const JSON_Value*, value);*/
+MOCKABLE_FUNCTION(, double, json_value_get_number, const JSON_Value*, value);
+#undef ENABLE_MOCKS
+
+#include "weather_client.h"
+
+#define ENABLE_MOCKS
 MOCKABLE_FUNCTION(, void, condition_callback, void*, user_ctx, WEATHER_OPERATION_RESULT, result, const WEATHER_CONDITIONS*, conditions);
 
 #undef ENABLE_MOCKS
+
+static JSON_Value* TEST_JSON_VALUE = (JSON_Value*)0x11111117;
+static JSON_Object* TEST_JSON_OBJECT = (JSON_Object*)0x11111118;
+static JSON_Array* TEST_ARRAY_OBJECT = (JSON_Array*)0x11111119;
 
 static const ALARM_TIMER_HANDLE TEST_TIMER_HANDLE = (ALARM_TIMER_HANDLE)0x1234;
 static const char* TEST_WEATHER_SERVER_ADDRESS = "test_weather.org";
@@ -78,6 +81,11 @@ static const char* TEST_ACTUAL_WEATHER = "{\"coord\": {\"lon\": -0.13,\"lat\": 5
 \"temp_min\": 279.15,\"temp_max\": 281.15},\"visibility\": 10000,\"wind\": {\"speed\": 4.1,\"deg\": 80}, \
 \"clouds\": {\"all\": 90},\"dt\": 1485789600,\"sys\": {\"type\": 1,\"id\": 5091,\"message\": 0.0103,\"country\": \
 \"GB\",\"sunrise\": 1485762037,\"sunset\": 1485794875},\"id\": 2643743,\"name\": \"London\",\"cod\": 200}";
+static const char* TEST_NODE_STRING = "{ node: \"data\" }";
+static const char* TEST_DESCRIPTION = "light intensity drizzle";
+static const char* TEST_ICON = "t_icon";
+
+static uint32_t TEST_ZIPCODE = 98077;
 
 static size_t TEST_WEATHER_CONTENT_LEN = 20;
 
@@ -92,8 +100,8 @@ static void on_umock_c_error(UMOCK_C_ERROR_CODE error_code)
     ASSERT_FAIL("umock_c reported error :%s", MU_ENUM_TO_STRING(UMOCK_C_ERROR_CODE, error_code));
 }
 
-TEST_DEFINE_ENUM_TYPE(HTTP_CLIENT_RESULT, HTTP_CLIENT_RESULT_VALUE);
-IMPLEMENT_UMOCK_C_ENUM_TYPE(HTTP_CLIENT_RESULT, HTTP_CLIENT_RESULT_VALUE);
+TEST_DEFINE_ENUM_TYPE(HTTP_CLIENT_RESULT, HTTP_CLIENT_RESULT_VALUES);
+IMPLEMENT_UMOCK_C_ENUM_TYPE(HTTP_CLIENT_RESULT, HTTP_CLIENT_RESULT_VALUES);
 
 // TEST_DEFINE_ENUM_TYPE(HTTP_CLIENT_RESULT, HTTP_CALLBACK_REASON_VALUES);
 // IMPLEMENT_UMOCK_C_ENUM_TYPE(HTTP_CALLBACK_REASON, HTTP_CALLBACK_REASON_VALUES);
@@ -115,16 +123,19 @@ static void* g_on_io_error_context;
 
 static ON_HTTP_CLIENT_CLOSE g_on_io_close_complete;
 static void* g_on_io_close_complete_context;
+static bool g_error_condition_called;
 
 static void my_condition_callback(void* user_ctx, WEATHER_OPERATION_RESULT result, const WEATHER_CONDITIONS* conditions)
 {
     (void)user_ctx;
     if (result == WEATHER_OP_RESULT_SUCCESS)
     {
+        g_error_condition_called = false;
         ASSERT_ARE_EQUAL(char_ptr, conditions->description, "light intensity drizzle");
     }
     else
     {
+        g_error_condition_called = true;
         ASSERT_IS_NULL(conditions);
     }
 }
@@ -205,7 +216,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
         (void)umocktypes_bool_register_types();
         (void)umocktypes_stdint_register_types();
 
-        REGISTER_UMOCK_ALIAS_TYPE(time_t, int);
+        REGISTER_UMOCK_ALIAS_TYPE(time_t, long);
         REGISTER_UMOCK_ALIAS_TYPE(ON_HTTP_ERROR_CALLBACK, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_HTTP_OPEN_COMPLETE_CALLBACK, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_HTTP_CLIENT_CLOSE, void*);
@@ -247,6 +258,30 @@ BEGIN_TEST_SUITE(weather_client_ut)
         REGISTER_GLOBAL_MOCK_HOOK(clone_string, my_clone_string);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(clone_string, __LINE__);
 
+        REGISTER_GLOBAL_MOCK_RETURN(json_parse_string, TEST_JSON_VALUE);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_parse_string, NULL);
+        REGISTER_GLOBAL_MOCK_RETURN(json_value_get_object, TEST_JSON_OBJECT);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_value_get_object, NULL);
+        REGISTER_GLOBAL_MOCK_RETURN(json_object_get_value, TEST_JSON_VALUE);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_object_get_value, NULL);
+        REGISTER_GLOBAL_MOCK_RETURN(json_object_get_string, TEST_NODE_STRING);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_object_get_string, NULL);
+        REGISTER_GLOBAL_MOCK_RETURN(json_value_get_string, TEST_NODE_STRING);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_value_get_string, NULL);
+        REGISTER_GLOBAL_MOCK_RETURN(json_object_get_object, TEST_JSON_OBJECT);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_object_get_object, NULL);
+        REGISTER_GLOBAL_MOCK_RETURN(json_object_get_array, TEST_ARRAY_OBJECT);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_object_get_array, NULL);
+        REGISTER_GLOBAL_MOCK_RETURN(json_array_get_value, TEST_JSON_VALUE);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_array_get_value, NULL);
+        REGISTER_GLOBAL_MOCK_RETURN(json_object_get_number, 1);
+
+        REGISTER_GLOBAL_MOCK_RETURN(json_array_get_value, TEST_JSON_VALUE);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_array_get_value, NULL);
+
+
+        REGISTER_GLOBAL_MOCK_HOOK(condition_callback, my_condition_callback);
+
         result = umocktypes_charptr_register_types();
         ASSERT_ARE_EQUAL(int, 0, result);
 
@@ -275,6 +310,32 @@ BEGIN_TEST_SUITE(weather_client_ut)
         TEST_MUTEX_RELEASE(g_testByTest);
     }
 
+    static void setup_weather_client_process_recv_mocks(void)
+    {
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_parse_string(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_value_get_object(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_object_get_array(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_array_get_count(IGNORED_PTR_ARG)).CallCannotFail().SetReturn(1);
+        STRICT_EXPECTED_CALL(json_array_get_value(IGNORED_PTR_ARG, 0));
+        STRICT_EXPECTED_CALL(json_value_get_object(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_PTR_ARG, "description")).SetReturn(TEST_DESCRIPTION);
+        STRICT_EXPECTED_CALL(clone_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_PTR_ARG, "icon")).CallCannotFail().SetReturn(TEST_ICON);
+
+        STRICT_EXPECTED_CALL(json_object_get_object(IGNORED_PTR_ARG, "main"));
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_PTR_ARG, "temp")).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_PTR_ARG, "pressure")).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_PTR_ARG, "humidity")).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_PTR_ARG, "temp_min")).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_PTR_ARG, "temp_max")).CallCannotFail();
+
+        STRICT_EXPECTED_CALL(json_value_free(IGNORED_PTR_ARG));
+
+        STRICT_EXPECTED_CALL(condition_callback(IGNORED_PTR_ARG, WEATHER_OP_RESULT_SUCCESS, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
+    }
+
     static void setup_weather_client_create_mocks(void)
     {
         STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
@@ -289,6 +350,13 @@ BEGIN_TEST_SUITE(weather_client_ut)
         STRICT_EXPECTED_CALL(xio_client_create(TEST_SOCKETIO_INTERFACE_DESCRIPTION, IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(http_client_set_trace(IGNORED_PTR_ARG, true)).CallCannotFail();
         STRICT_EXPECTED_CALL(http_client_open(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_PTR_ARG, TEST_DEFAULT_TIMEOUT_VALUE));
+    }
+
+    static void setup_weather_client_process_send_mocks(void)
+    {
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(http_client_execute_request(IGNORED_PTR_ARG, HTTP_CLIENT_REQUEST_GET, IGNORED_PTR_ARG, NULL, NULL, 0, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_PTR_ARG, TEST_DEFAULT_TIMEOUT_VALUE));
     }
 
@@ -366,7 +434,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
     TEST_FUNCTION(weather_client_destroy_not_open_succeed)
     {
         // arrange
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_FAHRENHEIGHT);
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(http_client_destroy(IGNORED_PTR_ARG));
@@ -440,7 +508,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
     TEST_FUNCTION(weather_client_get_by_coordinate_location_NULL_fail)
     {
         // arrange
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_KELVIN);
         umock_c_reset_all_calls();
 
         // act
@@ -533,13 +601,11 @@ BEGIN_TEST_SUITE(weather_client_ut)
 
     TEST_FUNCTION(weather_client_get_by_zipcode_handle_null_fail)
     {
-        size_t zipcode = 98077;
-
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
 
         // act
-        int result = weather_client_get_by_zipcode(NULL, zipcode, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+        int result = weather_client_get_by_zipcode(NULL, TEST_ZIPCODE, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
 
         // assert
         ASSERT_ARE_NOT_EQUAL(int, 0, result);
@@ -568,13 +634,12 @@ BEGIN_TEST_SUITE(weather_client_ut)
     TEST_FUNCTION(weather_client_get_by_zipcode_callback_NULL_fail)
     {
         // arrange
-        size_t zipcode = 98077;
 
         WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
         umock_c_reset_all_calls();
 
         // act
-        int result = weather_client_get_by_zipcode(client_handle, zipcode, TEST_DEFAULT_TIMEOUT_VALUE, NULL, NULL);
+        int result = weather_client_get_by_zipcode(client_handle, TEST_ZIPCODE, TEST_DEFAULT_TIMEOUT_VALUE, NULL, NULL);
 
         // assert
         ASSERT_ARE_NOT_EQUAL(int, 0, result);
@@ -587,7 +652,6 @@ BEGIN_TEST_SUITE(weather_client_ut)
     TEST_FUNCTION(weather_client_get_by_zipcode_succeed)
     {
         // arrange
-        size_t zipcode = 98077;
 
         WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
         umock_c_reset_all_calls();
@@ -595,7 +659,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
         setup_open_connection_mocks();
 
         // act
-        int result = weather_client_get_by_zipcode(client_handle, zipcode, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+        int result = weather_client_get_by_zipcode(client_handle, TEST_ZIPCODE, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
 
         // assert
         ASSERT_ARE_EQUAL(int, 0, result);
@@ -608,8 +672,6 @@ BEGIN_TEST_SUITE(weather_client_ut)
     TEST_FUNCTION(weather_client_get_by_zipcode_fail)
     {
         // arrange
-        size_t zipcode = 98077;
-
         WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
         umock_c_reset_all_calls();
 
@@ -631,7 +693,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
             umock_c_negative_tests_reset();
             umock_c_negative_tests_fail_call(index);
 
-            int result = weather_client_get_by_zipcode(client_handle, zipcode, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+            int result = weather_client_get_by_zipcode(client_handle, TEST_ZIPCODE, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
 
             // assert
             ASSERT_ARE_NOT_EQUAL(int, 0, result, "Failure in test %lu/%lu", (unsigned long)index, (unsigned long)count);
@@ -766,8 +828,6 @@ BEGIN_TEST_SUITE(weather_client_ut)
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
-        // setup_open_connection_mocks();
-        // STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_PTR_ARG, TEST_DEFAULT_TIMEOUT_VALUE));
 
         // act
         weather_client_process(client_handle);
@@ -788,9 +848,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(http_client_execute_request(IGNORED_PTR_ARG, HTTP_CLIENT_REQUEST_GET, IGNORED_PTR_ARG, NULL, NULL, 0, IGNORED_PTR_ARG, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_PTR_ARG, TEST_DEFAULT_TIMEOUT_VALUE));
+        setup_weather_client_process_send_mocks();
 
         // act
         weather_client_process(client_handle);
@@ -802,12 +860,52 @@ BEGIN_TEST_SUITE(weather_client_ut)
         weather_client_destroy(client_handle);
     }
 
+    TEST_FUNCTION(weather_client_process_send_fail)
+    {
+        // arrange
+        WEATHER_LOCATION location = { 1.0, 2.0 };
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        umock_c_reset_all_calls();
+
+        int negativeTestsInitResult = umock_c_negative_tests_init();
+        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+
+        setup_weather_client_process_send_mocks();
+
+        umock_c_negative_tests_snapshot();
+
+        size_t count = umock_c_negative_tests_call_count();
+        for (size_t index = 0; index < count; index++)
+        {
+            if (umock_c_negative_tests_can_call_fail(index))
+            {
+                weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+                g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
+
+                umock_c_negative_tests_reset();
+                umock_c_negative_tests_fail_call(index);
+
+                // act
+                weather_client_process(client_handle);
+                g_error_condition_called = false;
+                weather_client_process(client_handle);
+
+                // assert
+                ASSERT_IS_TRUE(g_error_condition_called);
+            }
+        }
+
+        // cleanup
+        weather_client_destroy(client_handle);
+        umock_c_negative_tests_deinit();
+    }
+
     TEST_FUNCTION(weather_client_process_sent_timeout_succeed)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
         WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
-        weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+        weather_client_get_by_city(NULL, TEST_CITY_NAME, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         weather_client_process(client_handle);
         umock_c_reset_all_calls();
@@ -815,9 +913,10 @@ BEGIN_TEST_SUITE(weather_client_ut)
         // act
         STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_is_expired(IGNORED_PTR_ARG)).SetReturn(true);
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(condition_callback(IGNORED_PTR_ARG, WEATHER_OP_RESULT_TIMEOUT, NULL));
-        setup_close_connection();
 
+        weather_client_process(client_handle);
         weather_client_process(client_handle);
 
         // assert
@@ -839,9 +938,29 @@ BEGIN_TEST_SUITE(weather_client_ut)
 
         // act
         STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
+
         STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_parse_string(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_value_get_object(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_object_get_array(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_array_get_count(IGNORED_PTR_ARG)).CallCannotFail().SetReturn(1);
+        STRICT_EXPECTED_CALL(json_array_get_value(IGNORED_PTR_ARG, 0));
+        STRICT_EXPECTED_CALL(json_value_get_object(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_PTR_ARG, "description")).SetReturn(TEST_DESCRIPTION);
         STRICT_EXPECTED_CALL(clone_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_PTR_ARG, "icon")).SetReturn(TEST_ICON);
+
+        STRICT_EXPECTED_CALL(json_object_get_object(IGNORED_PTR_ARG, "main"));
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_PTR_ARG, "temp")).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_PTR_ARG, "pressure")).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_PTR_ARG, "humidity")).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_PTR_ARG, "temp_min")).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_PTR_ARG, "temp_max")).CallCannotFail();
+
+        STRICT_EXPECTED_CALL(json_value_free(IGNORED_PTR_ARG));
+
         STRICT_EXPECTED_CALL(condition_callback(IGNORED_PTR_ARG, WEATHER_OP_RESULT_SUCCESS, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
 
         size_t len = strlen(TEST_ACTUAL_WEATHER);
@@ -855,7 +974,49 @@ BEGIN_TEST_SUITE(weather_client_ut)
         weather_client_destroy(client_handle);
     }
 
-    TEST_FUNCTION(weather_client_process_recv_fail)
+    TEST_FUNCTION(weather_client_process_recv_500_http_status_succeed)
+    {
+        // arrange
+        WEATHER_LOCATION location = { 1.0, 2.0 };
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
+        weather_client_process(client_handle);
+        umock_c_reset_all_calls();
+
+        // act
+        g_on_request_callback(g_on_request_context, HTTP_CLIENT_OK, NULL, 0, 404, TEST_HTTP_HEADER);
+        weather_client_process(client_handle);
+
+        // assert
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        weather_client_destroy(client_handle);
+    }
+
+    TEST_FUNCTION(weather_client_process_recv_http_error_succeed)
+    {
+        // arrange
+        WEATHER_LOCATION location = { 1.0, 2.0 };
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
+        weather_client_process(client_handle);
+        umock_c_reset_all_calls();
+
+        // act
+        g_on_request_callback(g_on_request_context, HTTP_CLIENT_ERROR, NULL, 0, 200, TEST_HTTP_HEADER);
+        weather_client_process(client_handle);
+
+        // assert
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        weather_client_destroy(client_handle);
+    }
+
+    TEST_FUNCTION(weather_client_request_callback_recv_fail)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
@@ -876,6 +1037,51 @@ BEGIN_TEST_SUITE(weather_client_ut)
 
         // cleanup
         weather_client_destroy(client_handle);
+    }
+
+    TEST_FUNCTION(weather_client_process_recv_fail)
+    {
+        // arrange
+        WEATHER_LOCATION location = { 1.0, 2.0 };
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        weather_client_get_by_zipcode(client_handle, TEST_ZIPCODE, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
+        size_t len = strlen(TEST_ACTUAL_WEATHER);
+        umock_c_reset_all_calls();
+
+        int negativeTestsInitResult = umock_c_negative_tests_init();
+        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+
+        setup_weather_client_process_recv_mocks();
+
+        umock_c_negative_tests_snapshot();
+
+        size_t count = umock_c_negative_tests_call_count();
+        for (size_t index = 0; index < count; index++)
+        {
+            if (umock_c_negative_tests_can_call_fail(index))
+            {
+                weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+                weather_client_process(client_handle);
+                g_on_request_callback(g_on_request_context, HTTP_CLIENT_OK, TEST_ACTUAL_WEATHER, len, 200, TEST_HTTP_HEADER);
+
+                umock_c_negative_tests_reset();
+                umock_c_negative_tests_fail_call(index);
+
+                // act
+                weather_client_process(client_handle);
+
+                g_error_condition_called = false;
+                weather_client_process(client_handle);
+
+                // assert
+                ASSERT_IS_TRUE(g_error_condition_called);
+            }
+        }
+
+        // cleanup
+        weather_client_destroy(client_handle);
+        umock_c_negative_tests_deinit();
     }
 
 END_TEST_SUITE(weather_client_ut)

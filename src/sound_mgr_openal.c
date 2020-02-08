@@ -113,9 +113,9 @@ static void deinitialize_openai(SOUND_MGR_INFO* sound_info)
 
 // This utility returns the start of data for a chunk given a range of bytes it might be within.  Pass 1 for
 // swapped if the machine is not the same endian as the file.
-static const char* find_data_chunk(const char* file_begin, const char* file_end, int desired_id, int swapped)
+static const char* find_data_chunk(const unsigned char* file_begin, const unsigned char* file_end, int desired_id, int swapped)
 {
-    const char* result = NULL;
+    const unsigned char* result = NULL;
     while (file_begin < file_end)
     {
         chunk_header* h = (chunk_header *)file_begin;
@@ -130,14 +130,14 @@ static const char* find_data_chunk(const char* file_begin, const char* file_end,
             break;
         }
         int chunk_size = swapped ? SWAP_32(h->size) : h->size;
-        const char *next = file_begin + chunk_size + sizeof(chunk_header);
+        const unsigned char *next = file_begin + chunk_size + sizeof(chunk_header);
         if (next > file_end || next <= file_begin)
         {
             break;
         }
         file_begin = next;
     }
-    return result;
+    return (const char*)result;
 }
 
 // Given a chunk, find its end by going back to the header.
@@ -188,7 +188,7 @@ static int validate_wav_data(unsigned char* wav_buffer, long wav_size, format_in
             log_error("Could not find WAVE signature in wave file");
             result = __LINE__;
         }
-        else if ((format = find_data_chunk(riff+4, chunk_end(riff, *swapped), FMT_ID, *swapped)) == NULL)
+        else if ((format = find_data_chunk((const unsigned char*)riff+4, (const unsigned char*)chunk_end(riff, *swapped), FMT_ID, *swapped)) == NULL)
         {
             log_error("Could not find FMT chunk in wave file");
             result = __LINE__;
@@ -222,7 +222,7 @@ static int validate_wav_data(unsigned char* wav_buffer, long wav_size, format_in
                 log_error("Must have 8 or 16 bit sounds");
                 result = __LINE__;
             }
-            else if ((*wav_data = find_data_chunk(riff+4, chunk_end(riff, *swapped), DATA_ID, *swapped)) == NULL)
+            else if ((*wav_data = (const unsigned char*)find_data_chunk((const unsigned char*)riff+4, (const unsigned char*)chunk_end(riff, *swapped), DATA_ID, *swapped)) == NULL)
             {
                 log_error("Could not find the DATA chunk");
                 result = __LINE__;
@@ -257,7 +257,7 @@ static unsigned char* open_wav_file(const char* filename, long* wav_size)
             log_error("Failure allocating wav file");
             result = NULL;
         }
-        else if (fread(result, 1, *wav_size, wav_file) != *wav_size)
+        else if (fread(result, 1, *wav_size, wav_file) != (size_t)*wav_size)
         {
             log_error("Failure reading wav file");
             free(result);
@@ -272,7 +272,7 @@ static int construct_buffer_data(SOUND_MGR_INFO* sound_info, format_info* fmt_in
 {
     int result;
 
-    ALenum error;
+    //ALenum error;
     alGenBuffers(1, &sound_info->sound_buf);
     if (sound_info->sound_buf == 0)
     {
@@ -391,7 +391,7 @@ int sound_mgr_play(SOUND_MGR_HANDLE handle, const char* sound_file, bool set_rep
         unsigned char* wav_buffer;
         format_info fmt_info = {0};
         int swapped;
-        if ((wav_buffer = open_wav_file(sound_file, &handle->wav_size)) == NULL)
+        if ((wav_buffer = open_wav_file(sound_file, (long*)&handle->wav_size)) == NULL)
         {
             log_error("Failure opening wav file");
             result = __LINE__;
@@ -404,7 +404,7 @@ int sound_mgr_play(SOUND_MGR_HANDLE handle, const char* sound_file, bool set_rep
         else
         {
             int sample_size = fmt_info.num_channels * fmt_info.bits_per_sample / 8;
-            handle->wav_size = chunk_end(handle->wav_data, swapped) - (const char*)handle->wav_data;
+            handle->wav_size = chunk_end((const char*)handle->wav_data, swapped) - (const char*)handle->wav_data;
             int data_samples = handle->wav_size / sample_size;
 
             // If the file is swapped and we have 16-bit audio, we need to endian-swap the audio too or we'll
@@ -429,6 +429,7 @@ int sound_mgr_play(SOUND_MGR_HANDLE handle, const char* sound_file, bool set_rep
             {
                 alSourcePlay(handle->source);
                 handle->sound_state = SOUND_STATE_PLAYING;
+                result = 0;
             }
         }
     }

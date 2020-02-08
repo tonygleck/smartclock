@@ -16,7 +16,7 @@ function createWindow () {
 
     // and load the index.html of the app.
     //win.loadFile('index.html');
-    win.loadURL('file://' + __dirname + '/index.html');
+    win.loadURL('file://' + __dirname + '/html/index.html');
 
     //win.setMenuBarVisibility(false);
 
