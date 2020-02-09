@@ -4,11 +4,16 @@ body {
     background-color: #3d3f42;
 }
 
+* {
+    margin: 0;
+    padding: 0;
+}
+
 #clock {
     height: 100px;
     width: 800px;
     margin: auto;
-    position: absolute;
+    /*position: absolute;*/
     top: 0; left: 0; bottom: 0; right: 0;
     /*padding-top: 70px;*/
     font-family: 'Lato';
@@ -20,12 +25,12 @@ body {
 #period {
     height: 100px;
     width: 820px;
-    position: absolute;
     top: 0; left: 0; bottom: 0; right: 0;
     font-family: 'Lato';
     text-align: center;
     color: white;
     font-size: 100px;
+    float: none;
 }
 
 #forcast {

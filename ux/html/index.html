@@ -3,57 +3,81 @@
     <head>
         <meta charset="UTF-8">
         <title>SmartClock</title>
-        <link rel="stylesheet" type="text/css" href="../css/clock.css">
+        <!--link rel="stylesheet" type="text/css" href="../css/clock.css"-->
         <link rel="stylesheet" type="text/css" href="../css/dialog.css">
         <script language="JavaScript" src="../js/clock_view.js"></script>
+        <style>
+            body {
+                font-family:Helvetica,Arial;
+                background-color: #3d3f42;
+                color: white;
+            }
+            .container {
+                align-items: center;
+                height: 80%;
+            }
+            .weather-container {
+                display: block;
+                float: right;
+            }
+            .weather-container > div {
+                display: flex;
+                padding: 20px;
+                display: block;
+            }
+            .clock-container {
+                display: flex;
+                float: left;
+                width: 80%;
+
+            }
+            .clock-container > div {
+                display: flex;
+                padding: 5px;
+                font-family: 'Lato';
+            }
+            .clock_face {
+                margin-left:20px;
+                font-size: 90px;
+            }
+            .clock_period {
+                font-size: 50px;
+            }
+            .clock_date {
+                padding: 25px;
+                font-size: 20px;
+            }
+        </style>
     </head>
     <body>
-        <script type="text/javascript">
-            //const ipc = require('electron').ipcRenderer;
+        <div class="container">
+            <div class="clock-container">
+                <div class="clock_face" id='clock'></div>
+                <div class="clock_period" id='period'>X.X</div>
+            </div>
 
-            //ipc.on('message', (event, message) => {
-            //    console.log(message); // logs out "Hello second window!"
-            //})
-
-            function open_dialog()
-            {
-                modal.style.display = "block";
-            }
-
-            setInterval(construct_clock, 500);
-        </script>
-
-        <div id="forcast">
-            <div id="day_1_weather"><img src="../img/sunny.png">75</div>
-            <div id="day_2_weather"><img src="../img/sunny.png">68</div>
-            <div id="day_3_weather"><img src="../img/sunny.png">70</div>
-            <div id="day_4_weather"><img src="../img/sunny.png">71</div>
+            <div class="weather-container">
+                <div id='weather_day_0' class="weather">
+                    <img id="weather_day_0_img" src="../img/sunny.png" alt="" />&nbsp;58 F
+                </div>
+                <div id='weather_day_1' class="weather">
+                    <img id="weather_day_0_img" src="../img/sunny.png" alt="" />&nbsp;54 F
+                </div>
+                <div id='weather_day_2' class="weather">
+                    <img id="weather_day_0_img" src="../img/sunny.png" alt="" />&nbsp;60 F
+                </div>
+                <div id='weather_day_3' class="weather">
+                    <img id="weather_day_0_img" src="../img/sunny.png" alt="" />&nbsp;51 F
+                </div>
+            </div>
         </div>
-        <div id='clock'></div><div id='period'>p.m.</div>
+        <div class="date-container">
+            <p class="clock_date" id="clock_date">date</p>
+        </div>
 
-        <!--table >
-            <tbody>
-                <tr>
-                   <td id="day_1_weather">Today</td>
-                    <td id="clock_row" rowspan="4">            if (event.target == modal) {
-                modal.style.display = "none";
-            }
+        <!--button id="set_alarm" onclick="open_dialog()">Set Alarm</button-->
 
-                <tr>
-                    <td id="day_2_weather">Tomorrow</td>
-                </tr>
-                <tr>
-                    <td id="day_3_weather">Day After</td>
-                </tr>
-                <tr>
-                    <td id="day_4_weather">Next Day</td>
-                </tr>
-            </tbody>
-        </table-->
-
-        <button id="set_alarm" onclick="open_dialog()">Set Alarm</button>
         <div id="alarm_dlg" class="modal">
-
             <!-- Modal content -->
             <div class="modal-content">
                 <span class="close">&times;</span>
@@ -62,6 +86,12 @@
         </div>
 
         <script type="text/javascript">
+            function open_dialog()
+            {
+                modal.style.display = "block";
+            }
+            setInterval(construct_clock, 500);
+
             // Get the modal
             var modal = document.getElementById("alarm_dlg");
             // Get the button that opens the modal
