@@ -40,7 +40,7 @@ function format_time(digits)
 
 function format_date_value(curr_time)
 {
-    var format_date = month[curr_time.getMonth()] + " " +curr_time.getDay() + " " + curr_time.getFullYear() + " " + weekday[curr_time.getDay()];
+    var format_date = weekday[curr_time.getDay()] + "  " + month[curr_time.getMonth()] + " " + curr_time.getDate() + " " + curr_time.getFullYear();
     return format_date;
 }
 
