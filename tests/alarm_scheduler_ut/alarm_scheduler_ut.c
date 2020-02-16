@@ -414,7 +414,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
                 int result = alarm_scheduler_add_alarm(handle, TEST_ALARM_TEXT, &tm_info, Monday|Tuesday, TEST_TEST_SOUND_FILE);
 
                 // assert
-                ASSERT_ARE_NOT_EQUAL(int, 0, result, "alarm_scheduler_add_alarm failure%d/%d", (int)index, (int)count);
+                ASSERT_ARE_NOT_EQUAL(int, 0, result, "alarm_scheduler_add_alarm failure %d/%d", (int)index, (int)count);
             }
         }
 

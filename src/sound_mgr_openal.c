@@ -8,6 +8,7 @@
 #include "lib-util-c/sys_debug_shim.h"
 #include "lib-util-c/app_logging.h"
 #include "lib-util-c/crt_extensions.h"
+#include "lib-util-c/file_mgr.h"
 #include "sound_mgr.h"
 
 #include <AL/al.h>
@@ -239,31 +240,31 @@ static int validate_wav_data(unsigned char* wav_buffer, long wav_size, format_in
 static unsigned char* open_wav_file(const char* filename, long* wav_size)
 {
     unsigned char* result;
-    FILE* wav_file;
-
-    if ((wav_file = fopen(filename, "rb")) == NULL)
+    FILE_MGR_HANDLE file_mgr;
+    if ((file_mgr = file_mgr_open(filename, "rb")) == NULL)
     {
         log_error("Failure loading wav");
         result = NULL;
     }
     else
     {
-        fseek(wav_file, 0, SEEK_END);
-        *wav_size = ftell(wav_file);
-        fseek(wav_file, 0, SEEK_SET);
-
-        if ((result = (unsigned char*)malloc(*wav_size)) == NULL)
+        if ((*wav_size = file_mgr_get_length(file_mgr)) == 0)
+        {
+            log_error("Invalid file size found");
+            result = NULL;
+        }
+        else if ((result = (unsigned char*)malloc(*wav_size)) == NULL)
         {
             log_error("Failure allocating wav file");
             result = NULL;
         }
-        else if (fread(result, 1, *wav_size, wav_file) != (size_t)*wav_size)
+        else if (file_mgr_read(file_mgr, result, *wav_size) != (size_t)*wav_size)
         {
             log_error("Failure reading wav file");
             free(result);
             result = NULL;
         }
-        fclose(wav_file);
+        file_mgr_close(file_mgr);
     }
     return result;
 }

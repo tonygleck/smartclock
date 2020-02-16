@@ -905,7 +905,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
         WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
-        weather_client_get_by_city(NULL, TEST_CITY_NAME, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+        weather_client_get_by_city(client_handle, TEST_CITY_NAME, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         weather_client_process(client_handle);
         umock_c_reset_all_calls();
@@ -984,6 +984,9 @@ BEGIN_TEST_SUITE(weather_client_ut)
         weather_client_process(client_handle);
         umock_c_reset_all_calls();
 
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(condition_callback(IGNORED_PTR_ARG, WEATHER_OP_RESULT_STATUS_CODE, NULL));
+
         // act
         g_on_request_callback(g_on_request_context, HTTP_CLIENT_OK, NULL, 0, 404, TEST_HTTP_HEADER);
         weather_client_process(client_handle);
@@ -1004,6 +1007,9 @@ BEGIN_TEST_SUITE(weather_client_ut)
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         weather_client_process(client_handle);
         umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(condition_callback(IGNORED_PTR_ARG, WEATHER_OP_RESULT_INVALID_DATA_ERR, NULL));
 
         // act
         g_on_request_callback(g_on_request_context, HTTP_CLIENT_ERROR, NULL, 0, 200, TEST_HTTP_HEADER);
