@@ -13,6 +13,7 @@ typedef struct TIME_INFO_TAG
 {
     uint8_t hour;
     uint8_t min;
+    uint8_t sec;
 } TIME_INFO;
 
 enum DayOfTheWeek

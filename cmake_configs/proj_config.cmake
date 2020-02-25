@@ -1,6 +1,6 @@
 # Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-function(addCompileSettings theTarget)
+function(smartclock_addCompileSettings theTarget)
     if (MSVC)
         target_compile_options(${theTarget} PRIVATE -W4 /WX /wd4201 -D_CRT_SECURE_NO_WARNINGS)
         target_compile_definitions(-D_CRT_SECURE_NO_WARNINGS /WX)
@@ -10,9 +10,9 @@ function(addCompileSettings theTarget)
         # -Wno-long-long -Wno-variadic-macros -fPIC
 
         if (${DEBUG_CONFIG})
-            target_compile_options(${theTarget} PRIVATE -O3)
-        else()
             target_compile_options(${theTarget} PRIVATE -O0)
+        else()
+            target_compile_options(${theTarget} PRIVATE -O3)
         endif()
     endif()
 endfunction()

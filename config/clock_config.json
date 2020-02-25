@@ -1,0 +1,25 @@
+{
+    "ntpAddress": "0.north-america.pool.ntp.org",
+    "option": 3,
+    "timezone": -8,
+    "brightness": 10,
+    "digitColor": 3,
+    "shade_start_time": "21:00",
+    "shade_end_time": "07:00",
+    "alarms": [
+        {
+            "name": "workout time",
+            "time": "04:50:00",
+            "frequency": 21,
+            "sound": "alarm_sound1.mp3",
+            "snooze": 0
+        },
+        {
+            "name": "Day Off",
+            "time": "06:10:00",
+            "frequency": 127,
+            "sound": "alarm_sound1.mp3",
+            "snooze": 0
+        }
+    ]
+}

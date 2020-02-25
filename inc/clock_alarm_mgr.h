@@ -1,7 +1,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#ifndef SYSTEM_CONFIG_H
-#define SYSTEM_CONFIG_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -11,11 +10,15 @@ extern "C" {
 #include <stdbool.h>
 #endif /* __cplusplus */
 
-extern int config_mgr_set_display(bool turn_on);
-extern int config_mgr_display_brightness(uint8_t setting);
+#include "umock_c/umock_c_prod.h"
+
+#include "alarm_scheduler.h"
+
+MOCKABLE_FUNCTION(, int, clock_alarm_load, SCHEDULER_HANDLE sched_mgr);
+
+MOCKABLE_FUNCTION(, int, clock_alarm_get_next, SCHEDULER_HANDLE sched_mgr);
 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
 
-#endif // SYSTEM_CONFIG_H

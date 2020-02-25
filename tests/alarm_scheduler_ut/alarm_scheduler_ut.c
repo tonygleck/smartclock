@@ -91,11 +91,16 @@ static ITEM_LIST_HANDLE my_item_list_create(ITEM_LIST_DESTROY_ITEM destroy_cb, v
 
 static void my_item_list_destroy(ITEM_LIST_HANDLE handle)
 {
-    if (g_insert_item[0] != NULL || g_insert_item[1] != NULL)
+    if (g_insert_item[0] != NULL)
     {
-        size_t index = g_insert_item[0] != NULL ? 0 : 1;
-        g_list_destroy_item(g_destroy_user_ctx, (void*)g_insert_item[index]);
-        g_insert_item[index] = NULL;
+        g_list_destroy_item(g_destroy_user_ctx, (void*)g_insert_item[0]);
+        g_insert_item[0] = NULL;
+        insert_item_index--;
+    }
+    if (g_insert_item[1] != NULL)
+    {
+        g_list_destroy_item(g_destroy_user_ctx, (void*)g_insert_item[1]);
+        g_insert_item[1] = NULL;
         insert_item_index--;
     }
     my_mem_shim_free(handle);

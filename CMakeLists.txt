@@ -20,7 +20,7 @@ else()
     set(DEBUG_CONFIG OFF)
 endif()
 
-include("${CMAKE_CURRENT_LIST_DIR}/cmake_configs/proj_config.cmake")
+include("${PROJECT_SOURCE_DIR}/cmake_configs/proj_config.cmake")
 
 if (${set_demo_mode})
     add_definitions(-DDEMO_MODE)
@@ -48,8 +48,13 @@ if (NOT TARGET http_client)
     include_directories(${PROJECT_SOURCE_DIR}/deps/http_client/inc)
 endif()
 
-set(smartclock_test_files
-    src/main.c
+set(smartclock_include_files
+    ${PROJECT_SOURCE_DIR}/inc/config_mgr.h
+)
+
+set(smartclock_src_files
+    ${PROJECT_SOURCE_DIR}/src/main.c
+    ${PROJECT_SOURCE_DIR}/src/config_mgr.c
 )
 
 set(clockutil_src_files
@@ -83,17 +88,18 @@ if (UNIX)
 else()
 endif (UNIX)
 
-addCompileSettings(clock_util)
+smartclock_addCompileSettings(clock_util)
 compileTargetAsC99(clock_util)
 
-add_executable(smartclock_exe ${smartclock_test_files})
+add_executable(smartclock_exe ${smartclock_src_files})
 target_link_libraries(smartclock_exe clock_util asound patchcords)
+target_link_libraries(smartclock_exe lib-util-c)
 target_include_directories(smartclock_exe PRIVATE ./deps/parson)
 target_include_directories(smartclock_exe PUBLIC ${PROJECT_SOURCE_DIR}/inc)
 
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/samples)
 
-addCompileSettings(smartclock_exe)
+smartclock_addCompileSettings(smartclock_exe)
 compileTargetAsC99(smartclock_exe)
 
 # Add testing
