@@ -399,6 +399,7 @@ int sound_mgr_play(SOUND_MGR_HANDLE handle, const char* sound_file, bool set_rep
         }
         else if (validate_wav_data(wav_buffer, handle->wav_size, &fmt_info, &handle->wav_data, &swapped) != 0)
         {
+            free(wav_buffer);
             log_error("Failure validating wav data");
             result = __LINE__;
         }
@@ -432,6 +433,7 @@ int sound_mgr_play(SOUND_MGR_HANDLE handle, const char* sound_file, bool set_rep
                 handle->sound_state = SOUND_STATE_PLAYING;
                 result = 0;
             }
+            free(wav_buffer);
         }
     }
     return result;

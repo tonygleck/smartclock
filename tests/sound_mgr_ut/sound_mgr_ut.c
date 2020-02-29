@@ -297,6 +297,7 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
 
         // Construct Data buffer
         STRICT_EXPECTED_CALL(alSourcePlay(IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
     }
 
     TEST_FUNCTION(sound_mgr_create_succeed)

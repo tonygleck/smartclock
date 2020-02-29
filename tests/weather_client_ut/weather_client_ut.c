@@ -234,8 +234,8 @@ BEGIN_TEST_SUITE(weather_client_ut)
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(mem_shim_malloc, NULL);
         REGISTER_GLOBAL_MOCK_HOOK(mem_shim_free, my_mem_shim_free);
 
-        REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_create, TEST_TIMER_HANDLE);
-        REGISTER_GLOBAL_MOCK_FAIL_RETURN(alarm_timer_create, NULL);
+        REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_init, 0);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(alarm_timer_init, __LINE__);
 
         REGISTER_GLOBAL_MOCK_HOOK(xio_client_create, my_xio_client_create);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(xio_client_create, NULL);
@@ -340,7 +340,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
     {
         STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
         STRICT_EXPECTED_CALL(clone_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(alarm_timer_create());
+        STRICT_EXPECTED_CALL(alarm_timer_init(IGNORED_PTR_ARG));
     }
 
     static void setup_open_connection_mocks(void)
@@ -439,7 +439,6 @@ BEGIN_TEST_SUITE(weather_client_ut)
 
         STRICT_EXPECTED_CALL(http_client_destroy(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(xio_client_destroy(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(alarm_timer_destroy(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
@@ -463,7 +462,6 @@ BEGIN_TEST_SUITE(weather_client_ut)
         umock_c_reset_all_calls();
 
         setup_close_connection();
-        STRICT_EXPECTED_CALL(alarm_timer_destroy(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));

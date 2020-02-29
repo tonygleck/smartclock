@@ -62,7 +62,7 @@ typedef struct WEATHER_CLIENT_INFO_TAG
     HTTP_CLIENT_HANDLE http_handle;
     XIO_INSTANCE_HANDLE socket;
 
-    ALARM_TIMER_HANDLE timer_handle;
+    ALARM_TIMER_INFO timer_info;
     char* api_key;
     size_t timeout_sec;
 
@@ -90,7 +90,7 @@ static bool is_timed_out(WEATHER_CLIENT_INFO* client_info)
     bool result = false;
     if (client_info->timeout_sec > 0)
     {
-        result = alarm_timer_is_expired(client_info->timer_handle);
+        result = alarm_timer_is_expired(&client_info->timer_info);
     }
     return result;
 }
@@ -373,7 +373,7 @@ static int send_weather_data(WEATHER_CLIENT_INFO* client_info)
         log_error("Failure executing http request");
         result = __LINE__;
     }
-    else if (alarm_timer_start(client_info->timer_handle, client_info->timeout_sec) != 0)
+    else if (alarm_timer_start(&client_info->timer_info, client_info->timeout_sec) != 0)
     {
         log_error("Failure setting the timeout value");
         result = __LINE__;
@@ -438,7 +438,7 @@ static int open_connection(WEATHER_CLIENT_INFO* client_info)
             http_client_destroy(client_info->http_handle);
             result = __LINE__;
         }
-        else if (alarm_timer_start(client_info->timer_handle, client_info->timeout_sec) != 0)
+        else if (alarm_timer_start(&client_info->timer_info, client_info->timeout_sec) != 0)
         {
             log_error("Failure setting the timeout value");
             close_http_connection(client_info);
@@ -477,7 +477,7 @@ WEATHER_CLIENT_HANDLE weather_client_create(const char* api_key, TEMPERATURE_UNI
             free(result);
             result = NULL;
         }
-        else if ((result->timer_handle = alarm_timer_create()) == NULL)
+        else if (alarm_timer_init(&result->timer_info) != 0)
         {
             log_error("Failure creating timer object");
             free(result->api_key);
@@ -499,7 +499,6 @@ void weather_client_destroy(WEATHER_CLIENT_HANDLE handle)
     {
         close_http_connection(handle);
 
-        alarm_timer_destroy(handle->timer_handle);
         free(handle->api_key);
         free(handle->weather_data);
         if (handle->query_type == QUERY_TYPE_NAME)
