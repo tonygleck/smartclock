@@ -95,7 +95,7 @@ typedef struct NTP_CLIENT_INFO_TAG
     NTP_TIME_PACKET recv_packet;
     NTP_CLIENT_STATE ntp_state;
     NTP_OPERATION_RESULT ntp_op_result;
-    ALARM_TIMER_HANDLE timer_handle;
+    ALARM_TIMER_INFO timer_info;
 
     unsigned char collection_buff[48];
     size_t collection_size;
@@ -353,7 +353,7 @@ static bool is_timed_out(NTP_CLIENT_INFO* ntp_client)
     bool result = false;
     if (ntp_client->timeout_sec > 0)
     {
-        result = alarm_timer_is_expired(ntp_client->timer_handle);
+        result = alarm_timer_is_expired(&ntp_client->timer_info);
     }
     return result;
 }
@@ -368,7 +368,7 @@ NTP_CLIENT_HANDLE ntp_client_create(void)
     else
     {
         memset(result, 0, sizeof(NTP_CLIENT_INFO));
-         if ((result->timer_handle = alarm_timer_create()) == NULL)
+         if (alarm_timer_init(&result->timer_info) != 0)
         {
             free(result);
             result = NULL;
@@ -386,7 +386,6 @@ void ntp_client_destroy(NTP_CLIENT_HANDLE handle)
     if (handle != NULL)
     {
         close_ntp_connection(handle);
-        alarm_timer_destroy(handle->timer_handle);
         free(handle);
     }
 }
@@ -404,7 +403,7 @@ int ntp_client_get_time(NTP_CLIENT_HANDLE handle, const char* time_server, size_
         log_error("Failure initializing connection to ntp server.");
         result = __LINE__;
     }
-    else if (timeout_sec > 0 && alarm_timer_start(handle->timer_handle, timeout_sec) != 0)
+    else if (timeout_sec > 0 && alarm_timer_start(&handle->timer_info, timeout_sec) != 0)
     {
         log_error("Failure starting timer alarm.");
         close_ntp_connection(handle);
@@ -442,7 +441,7 @@ void ntp_client_process(NTP_CLIENT_HANDLE handle)
                     {
                         log_debug("NTP Client: Packet sent");
                         handle->ntp_state = NTP_CLIENT_STATE_SENT;
-                        alarm_timer_reset(handle->timer_handle);
+                        alarm_timer_reset(&handle->timer_info);
                     }
                     break;
                 case NTP_CLIENT_STATE_RECV:
