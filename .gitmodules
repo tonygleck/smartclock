@@ -22,3 +22,6 @@
 [submodule "deps/umock-c"]
 	path = deps/umock-c
 	url = https://github.com/Azure/umock-c.git
+[submodule "deps/gui/lvgl"]
+	path = deps/gui/lvgl
+	url = https://github.com/littlevgl/lvgl.git

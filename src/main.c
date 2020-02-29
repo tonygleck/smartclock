@@ -1,3 +1,4 @@
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +12,7 @@
 #include "config_mgr.h"
 #include "alarm_scheduler.h"
 #include "sound_mgr.h"
+#include "gui_mgr.h"
 
 typedef enum OPERATION_STATE_TAG
 {
@@ -20,6 +22,20 @@ typedef enum OPERATION_STATE_TAG
 } OPERATION_STATE;
 
 #define NTP_TIMEOUT         5
+
+static bool g_run_application = true;
+
+static void thread_mgr_sleep(unsigned int milliseconds)
+{
+#ifdef WIN32
+    Sleep(milliseconds);
+#else
+    time_t seconds = milliseconds / 1000;
+    long nsRemainder = (milliseconds % 1000) * 1000000;
+    struct timespec timeToSleep = { seconds, nsRemainder };
+    (void)nanosleep(&timeToSleep, NULL);
+#endif
+}
 
 static void ntp_result_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result, time_t current_time)
 {
@@ -141,7 +157,7 @@ static int initialize_system(CONFIG_MGR_HANDLE config_mgr, SCHEDULER_HANDLE sche
         printf("Failure loading alarms from config file");
         result = __LINE__;
     }
-    else if (check_ntp_time(config_mgr) != 0)
+    else if (!g_run_application && check_ntp_time(config_mgr) != 0)
     {
         printf("Failure checking ntp time");
         result = __LINE__;
@@ -169,15 +185,17 @@ int main(int argc, char* argv[])
     SCHEDULER_HANDLE sched_mgr;
     CONFIG_MGR_HANDLE config_mgr;
     SOUND_MGR_HANDLE sound_mgr;
+    GUI_MGR_HANDLE gui_mgr;
     const char* config_filepath;
 
-    if ((config_filepath = parse_command_line(argc, argv)) != NULL)
+    if ((config_filepath = parse_command_line(argc, argv)) == NULL)
     {
         printf("Failure parse command line");
     }
     else if ((config_mgr = config_mgr_create(config_filepath)) == NULL ||
         (sched_mgr = alarm_scheduler_create()) == NULL ||
-        (sound_mgr = sound_mgr_create()) == NULL)
+        (sound_mgr = sound_mgr_create()) == NULL ||
+        (gui_mgr = gui_mgr_create()) == NULL)
     {
         printf("Failure creating configuration objects");
     }
@@ -187,11 +205,26 @@ int main(int argc, char* argv[])
         {
             printf("Failure initializing system");
         }
+        else if (gui_mgr_initialize(gui_mgr) != 0)
+        {
+            printf("Failure initializing gui manager");
+        }
+        else if (gui_create_win(gui_mgr) != 0)
+        {
+            printf("Failure creating window");
+        }
         else
         {
+            do
+            {
+                // Sleep here
+                gui_mgr_process_items(gui_mgr);
 
+                thread_mgr_sleep(5);
+            } while (g_run_application);
         }
 
+        gui_mgr_destroy(gui_mgr);
         sound_mgr_destroy(sound_mgr);
         alarm_scheduler_destroy(sched_mgr);
         config_mgr_destroy(config_mgr);
