@@ -135,6 +135,12 @@ int gui_create_win(GUI_MGR_HANDLE handle)
     return 0;
 }
 
+void gui_mgr_set_time_item(GUI_MGR_HANDLE handle, struct tm* curr_time)
+{
+    (void)handle;
+    (void)curr_time;
+}
+
 void gui_mgr_process_items(GUI_MGR_HANDLE handle)
 {
     (void)handle;

@@ -5,7 +5,7 @@ function(smartclock_addCompileSettings theTarget)
         target_compile_options(${theTarget} PRIVATE -W4 /WX /wd4201 -D_CRT_SECURE_NO_WARNINGS)
         target_compile_definitions(-D_CRT_SECURE_NO_WARNINGS /WX)
     else()
-        target_compile_options(${theTarget} PRIVATE -Wall -Werror -Wextra -Wshadow -fPIC)
+        target_compile_options(${theTarget} PRIVATE -Wall -Werror -Wextra -Wshadow -Wno-unused-function -fPIC)
 
         # -Wno-long-long -Wno-variadic-macros -fPIC
 

@@ -31,6 +31,7 @@ static void my_mem_shim_free(void* ptr)
 #include "lib-util-c/sys_debug_shim.h"
 #include "lib-util-c/item_list.h"
 #include "lib-util-c/crt_extensions.h"
+#include "time_mgr.h"
 #undef ENABLE_MOCKS
 
 #include "alarm_scheduler.h"
@@ -44,11 +45,21 @@ static void* g_destroy_user_ctx;
 static const char* TEST_ALARM_TEXT = "test alarm text";
 static const char* TEST_TEST_SOUND_FILE = "test sound text";
 
-static void setup_alarm_time_info(ALARM_INFO* alarm_info)
+static void set_tm_struct(struct tm* curr_time)
 {
-    time_t current_time = time(NULL);
-    struct tm* curr_time = gmtime(&current_time);
+    curr_time->tm_hour = 10;
+    curr_time->tm_isdst = 0;
+    curr_time->tm_mday = 21;
+    curr_time->tm_min = 10;
+    curr_time->tm_mon = 3;
+    curr_time->tm_sec = 0;
+    curr_time->tm_wday = 4;
+    curr_time->tm_yday = 77;
+    curr_time->tm_year = 74;
+}
 
+static void setup_alarm_time_info(ALARM_INFO* alarm_info, struct tm* curr_time)
+{
     switch (curr_time->tm_wday)
     {
         case 0:
@@ -321,8 +332,10 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
     TEST_FUNCTION(alarm_scheduler_add_alarm_info_success)
     {
         // arrange
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
-        setup_alarm_time_info(&g_alarm_info);
+        setup_alarm_time_info(&g_alarm_info, &test_tm);
         umock_c_reset_all_calls();
 
         setup_alarm_scheduler_add_alarm_info_mocks();
@@ -341,8 +354,10 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
     TEST_FUNCTION(alarm_scheduler_add_alarm_info_fail)
     {
         // arrange
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
-        setup_alarm_time_info(&g_alarm_info);
+        setup_alarm_time_info(&g_alarm_info, &test_tm);
         umock_c_reset_all_calls();
 
         int negativeTestsInitResult = umock_c_negative_tests_init();
@@ -375,8 +390,10 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
     TEST_FUNCTION(alarm_scheduler_add_alarm_success)
     {
         // arrange
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
-        setup_alarm_time_info(&g_alarm_info);
+        setup_alarm_time_info(&g_alarm_info, &test_tm);
         umock_c_reset_all_calls();
 
         setup_alarm_scheduler_add_alarm_info_mocks();
@@ -396,8 +413,10 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
     TEST_FUNCTION(alarm_scheduler_add_alarm_fail)
     {
         // arrange
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
-        setup_alarm_time_info(&g_alarm_info);
+        setup_alarm_time_info(&g_alarm_info, &test_tm);
         umock_c_reset_all_calls();
 
         int negativeTestsInitResult = umock_c_negative_tests_init();
@@ -431,8 +450,10 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
     TEST_FUNCTION(alarm_scheduler_is_triggered_alert_success)
     {
         // arrange
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
-        setup_alarm_time_info(&g_alarm_info);
+        setup_alarm_time_info(&g_alarm_info, &test_tm);
         (void)alarm_scheduler_add_alarm_info(handle, &g_alarm_info);
         umock_c_reset_all_calls();
 
@@ -440,7 +461,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
 
         // act
-        const ALARM_INFO* alarm_info = alarm_scheduler_is_triggered(handle);
+        const ALARM_INFO* alarm_info = alarm_scheduler_is_triggered(handle, &test_tm);
 
         // assert
         ASSERT_IS_NOT_NULL(alarm_info);
@@ -468,8 +489,10 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
     TEST_FUNCTION(alarm_scheduler_remove_alarm_no_items_success)
     {
         // arrange
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
-        setup_alarm_time_info(&g_alarm_info);
+        setup_alarm_time_info(&g_alarm_info, &test_tm);
         (void)alarm_scheduler_add_alarm_info(handle, &g_alarm_info);
         umock_c_reset_all_calls();
 
@@ -489,8 +512,10 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
     TEST_FUNCTION(alarm_scheduler_remove_alarm_success)
     {
         // arrange
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
-        setup_alarm_time_info(&g_alarm_info);
+        setup_alarm_time_info(&g_alarm_info, &test_tm);
         (void)alarm_scheduler_add_alarm_info(handle, &g_alarm_info);
         umock_c_reset_all_calls();
 
@@ -520,15 +545,17 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         curr_time.tm_min = 30;
         ALARM_INFO alarm_info1 = {0};
         ALARM_INFO alarm_info2 = {0};
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
 
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
-        setup_alarm_time_info(&alarm_info1);
+        setup_alarm_time_info(&alarm_info1, &test_tm);
         alarm_info1.trigger_days = Wednesday;
         alarm_info1.trigger_time.hour = 12;
         alarm_info1.alarm_text = (char*)alarm_1_text;;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info1);
 
-        setup_alarm_time_info(&alarm_info2);
+        setup_alarm_time_info(&alarm_info2, &test_tm);
         alarm_info2.trigger_days = Tuesday;
         alarm_info2.trigger_time.hour = 13;
         alarm_info2.alarm_text = (char*)alarm_2_text;
@@ -564,15 +591,17 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         curr_time.tm_min = 30;
         ALARM_INFO alarm_info1 = {0};
         ALARM_INFO alarm_info2 = {0};
+        struct tm test_tm = {0};
 
+        set_tm_struct(&test_tm);
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
-        setup_alarm_time_info(&alarm_info1);
+        setup_alarm_time_info(&alarm_info1, &test_tm);
         alarm_info1.trigger_days = Wednesday;
         alarm_info1.trigger_time.hour = 12;
         alarm_info1.alarm_text = (char*)alarm_1_text;;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info1);
 
-        setup_alarm_time_info(&alarm_info2);
+        setup_alarm_time_info(&alarm_info2, &test_tm);
         alarm_info2.trigger_days = Wednesday;
         alarm_info2.trigger_time.hour = 13;
         alarm_info2.alarm_text = (char*)alarm_2_text;
@@ -608,16 +637,18 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         curr_time.tm_min = 30;
         ALARM_INFO alarm_info1 = {0};
         ALARM_INFO alarm_info2 = {0};
+        struct tm test_tm = {0};
 
+        set_tm_struct(&test_tm);
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
-        setup_alarm_time_info(&alarm_info1);
+        setup_alarm_time_info(&alarm_info1, &test_tm);
         alarm_info1.trigger_days = Friday;
         alarm_info1.trigger_time.hour = 12;
         alarm_info1.trigger_time.min = 0;
         alarm_info1.alarm_text = (char*)alarm_1_text;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info1);
 
-        setup_alarm_time_info(&alarm_info2);
+        setup_alarm_time_info(&alarm_info2, &test_tm);
         alarm_info2.trigger_days = Thursday;
         alarm_info2.trigger_time.hour = 13;
         alarm_info2.alarm_text = (char*)alarm_2_text;

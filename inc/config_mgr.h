@@ -31,6 +31,7 @@ MOCKABLE_FUNCTION(, CONFIG_MGR_HANDLE, config_mgr_create, const char*, config_pa
 MOCKABLE_FUNCTION(, void, config_mgr_destroy,  CONFIG_MGR_HANDLE, handle);
 MOCKABLE_FUNCTION(, bool, config_mgr_save, CONFIG_MGR_HANDLE, handle);
 MOCKABLE_FUNCTION(, const char*, config_mgr_get_ntp_address, CONFIG_MGR_HANDLE, handle);
+MOCKABLE_FUNCTION(, const char*, config_mgr_get_zipcode, CONFIG_MGR_HANDLE, handle);
 MOCKABLE_FUNCTION(, int, config_mgr_load_alarm, CONFIG_MGR_HANDLE, handle, ON_ALARM_LOAD_CALLBACK, alarm_cb, void*, user_ctx);
 
 #ifdef __cplusplus

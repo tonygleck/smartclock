@@ -10,6 +10,7 @@
 #include "lib-util-c/item_list.h"
 #include "lib-util-c/crt_extensions.h"
 #include "alarm_scheduler.h"
+#include "time_mgr.h"
 
 #define INVALID_TRIGGERED_DATE      400
 
@@ -216,7 +217,7 @@ void alarm_scheduler_destroy(SCHEDULER_HANDLE handle)
     }
 }
 
-const ALARM_INFO* alarm_scheduler_is_triggered(SCHEDULER_HANDLE handle)
+const ALARM_INFO* alarm_scheduler_is_triggered(SCHEDULER_HANDLE handle, const struct tm* curr_time)
 {
     const ALARM_INFO* result = NULL;
     if (handle == NULL)
@@ -225,9 +226,6 @@ const ALARM_INFO* alarm_scheduler_is_triggered(SCHEDULER_HANDLE handle)
     }
     else
     {
-        time_t mark_time = time(NULL);
-        struct tm* curr_time = gmtime(&mark_time);
-
         // Loop through the available alarms and see if any are triggered
         size_t alarm_cnt = item_list_item_count(handle->sched_list);
         for (size_t index = 0; index < alarm_cnt; index++)

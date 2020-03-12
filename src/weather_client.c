@@ -21,7 +21,7 @@
 static const char* WEATHER_API_HOSTNAME = "api.openweathermap.org";
 static const char* API_COORD_PATH_FMT = "/data/2.5/weather?lat=%f&lon=%f&%s&appid=%s";
 static const char* API_NAME_PATH_FMT = "/data/2.5/weather?q=%s&%s&appid=%s";
-static const char* API_ZIPCODE_FMT = "/data/2.5/weather?id=%d&%s&appid=%s";
+static const char* API_ZIPCODE_FMT = "/data/2.5/weather?id=%s&%s&appid=%s";
 
 static const char* TEMP_UNIT_FAHRENHEIT_VALUE = "units=imperial";
 static const char* TEMP_UNIT_CELSIUS_VALUE = "units=metric";
@@ -79,8 +79,7 @@ typedef struct WEATHER_CLIENT_INFO_TAG
     {
         /* data */
         WEATHER_LOCATION coord_info;
-        size_t zip_code;
-        char* name;
+        char* value;
     } weather_query;
     char* weather_data;
 } WEATHER_CLIENT_INFO;
@@ -354,13 +353,13 @@ static int send_weather_data(WEATHER_CLIENT_INFO* client_info)
     switch (client_info->query_type)
     {
         case QUERY_TYPE_ZIP_CODE:
-            sprintf(weather_api_path, API_ZIPCODE_FMT, client_info->weather_query.zip_code, client_info->temp_units, client_info->api_key);
+            sprintf(weather_api_path, API_ZIPCODE_FMT, client_info->weather_query.value, client_info->temp_units, client_info->api_key);
             break;
         case QUERY_TYPE_COORDINATES:
             sprintf(weather_api_path, API_COORD_PATH_FMT, client_info->weather_query.coord_info.latitude, client_info->weather_query.coord_info.longitude, client_info->temp_units, client_info->api_key);
             break;
         case QUERY_TYPE_NAME:
-            sprintf(weather_api_path, API_NAME_PATH_FMT, client_info->weather_query.name, client_info->temp_units, client_info->api_key);
+            sprintf(weather_api_path, API_NAME_PATH_FMT, client_info->weather_query.value, client_info->temp_units, client_info->api_key);
             break;
         case QUERY_TYPE_NONE:
         default:
@@ -501,9 +500,9 @@ void weather_client_destroy(WEATHER_CLIENT_HANDLE handle)
 
         free(handle->api_key);
         free(handle->weather_data);
-        if (handle->query_type == QUERY_TYPE_NAME)
+        if (handle->query_type == QUERY_TYPE_NAME || handle->query_type == QUERY_TYPE_ZIP_CODE)
         {
-            free(handle->weather_query.name);
+            free(handle->weather_query.value);
         }
         free(handle);
     }
@@ -545,12 +544,12 @@ int weather_client_get_by_coordinate(WEATHER_CLIENT_HANDLE handle, const WEATHER
     return result;
 }
 
-int weather_client_get_by_zipcode(WEATHER_CLIENT_HANDLE handle, uint32_t zipcode, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx)
+int weather_client_get_by_zipcode(WEATHER_CLIENT_HANDLE handle, const char* zipcode, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx)
 {
     int result;
-    if (handle == NULL || zipcode == 0 || conditions_callback == NULL)
+    if (handle == NULL || zipcode == NULL || conditions_callback == NULL)
     {
-        log_error("Invalid parameter specified: handle: %p, zipcode: %d, conditions_callback: %p", handle, (int)zipcode, conditions_callback);
+        log_error("Invalid parameter specified: handle: %p, zipcode: %s, conditions_callback: %p", handle, zipcode, conditions_callback);
         result = __LINE__;
     }
     else if (handle->state != WEATHER_CLIENT_STATE_IDLE && handle->state != WEATHER_CLIENT_STATE_CONNECTED)
@@ -566,12 +565,16 @@ int weather_client_get_by_zipcode(WEATHER_CLIENT_HANDLE handle, uint32_t zipcode
             log_error("Failure opening connection");
             result = __LINE__;
         }
+        else if (clone_string(&handle->weather_query.value, zipcode) != 0)
+        {
+            log_error("Failure copying city name");
+            result = __LINE__;
+        }
         else
         {
             handle->state = WEATHER_CLIENT_STATE_SEND;
             // Store data
             handle->query_type = QUERY_TYPE_ZIP_CODE;
-            handle->weather_query.zip_code = zipcode;
             handle->conditions_callback = conditions_callback;
             handle->condition_ctx = user_ctx;
             result = 0;
@@ -596,7 +599,7 @@ int weather_client_get_by_city(WEATHER_CLIENT_HANDLE handle, const char* city_na
     else
     {
         handle->timeout_sec = timeout;
-        if (clone_string(&handle->weather_query.name, city_name) != 0)
+        if (clone_string(&handle->weather_query.value, city_name) != 0)
         {
             log_error("Failure copying city name");
             result = __LINE__;
@@ -604,7 +607,7 @@ int weather_client_get_by_city(WEATHER_CLIENT_HANDLE handle, const char* city_na
         else if (!handle->is_open && open_connection(handle) != 0)
         {
             log_error("Failure opening connection");
-            free(handle->weather_query.name);
+            free(handle->weather_query.value);
             result = __LINE__;
         }
         else

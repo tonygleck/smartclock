@@ -55,12 +55,14 @@ endif()
 set(smartclock_include_files
     ${PROJECT_SOURCE_DIR}/inc/config_mgr.h
     ${PROJECT_SOURCE_DIR}/inc/gui_mgr.h
+    ${PROJECT_SOURCE_DIR}/inc/smartclock.h
+    ${PROJECT_SOURCE_DIR}/deps/parson/parson.h
 )
-
 set(smartclock_src_files
     ${PROJECT_SOURCE_DIR}/src/main.c
     ${PROJECT_SOURCE_DIR}/src/config_mgr.c
-    ${PROJECT_SOURCE_DIR}/src/gui_mgr_sdl2.c
+    ${PROJECT_SOURCE_DIR}/src/smartclock.c
+    ${PROJECT_SOURCE_DIR}/deps/parson/parson.c
 )
 
 set(clockutil_src_files
@@ -68,18 +70,35 @@ set(clockutil_src_files
     ${PROJECT_SOURCE_DIR}/src/alarm_scheduler.c
     ${PROJECT_SOURCE_DIR}/src/ntp_client.c
     ${PROJECT_SOURCE_DIR}/src/sound_mgr_openal.c
-    #${PROJECT_SOURCE_DIR}/src/system_config.c
     ${PROJECT_SOURCE_DIR}/src/weather_client.c
 )
-
 set(clockutil_h_files
     ${PROJECT_SOURCE_DIR}/deps/parson/parson.h
     ${PROJECT_SOURCE_DIR}/inc/alarm_scheduler.h
     ${PROJECT_SOURCE_DIR}/inc/ntp_client.h
     ${PROJECT_SOURCE_DIR}/inc/sound_mgr.h
+    ${PROJECT_SOURCE_DIR}/inc/time_mgr.h
     #${PROJECT_SOURCE_DIR}/inc/system_config.h
     ${PROJECT_SOURCE_DIR}/inc/weather_client.h
 )
+
+if (WIN32)
+elseif(STM32)
+    set(smartclock_src_files
+        ${smartclock_src_files}
+        ${PROJECT_SOURCE_DIR}/src/gui_mgr_sdl2.c
+    )
+else()
+    set(smartclock_src_files
+        ${smartclock_src_files}
+        ${PROJECT_SOURCE_DIR}/src/gui_mgr_cmd.c
+    )
+    set(clockutil_src_files
+        ${clockutil_src_files}
+        #${PROJECT_SOURCE_DIR}/src/system_config.c
+        ${PROJECT_SOURCE_DIR}/src/pal/linux/time_mgr_linux.c
+    )
+endif()
 
 add_library(clock_util SHARED ${clockutil_src_files} ${clockutil_h_files})
 target_include_directories(clock_util PRIVATE ./deps/parson)
@@ -88,22 +107,28 @@ target_include_directories(clock_util PUBLIC ${PROJECT_SOURCE_DIR}/inc)
 target_link_libraries(clock_util lib-util-c)
 target_link_libraries(clock_util patchcords)
 target_link_libraries(clock_util http_client)
-target_link_libraries(clock_util openal)
-if (UNIX)
+
+if (WIN32)
+elseif(STM32)
+else() # Linux
+    target_link_libraries(clock_util openal)
     target_link_libraries(clock_util cord_berkley)
-else()
-endif (UNIX)
+endif()
 
 smartclock_addCompileSettings(clock_util)
 compileTargetAsC99(clock_util)
 
 add_executable(smartclock_exe ${smartclock_src_files})
+target_include_directories(smartclock_exe PUBLIC ${PROJECT_SOURCE_DIR}/deps/parson)
 target_link_libraries(smartclock_exe clock_util lib-util-c asound patchcords)
-target_link_libraries(smartclock_exe lvgl)
 
-if (UNIX)
+if (WIN32)
+elseif(STM32)
+    target_link_libraries(smartclock_exe lvgl)
+else() # Linux
+    target_link_libraries(smartclock_exe ncurses)
     target_link_libraries(smartclock_exe SDL2 m)
-endif ()
+endif()
 
 target_include_directories(smartclock_exe PRIVATE ./deps/parson)
 target_include_directories(smartclock_exe PUBLIC ${PROJECT_SOURCE_DIR}/inc)

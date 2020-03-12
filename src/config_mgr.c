@@ -13,6 +13,7 @@
 
 static const char* CONFIG_JSON_FILE = "clock_config.json";
 static const char* NTP_ADDRESS_NODE = "ntpAddress";
+static const char* ZIPCODE_NODE = "zipcode";
 static const char* ALARMS_ARRAY_NODE = "alarms";
 
 typedef struct CONFIG_MGR_INFO_TAG
@@ -21,6 +22,7 @@ typedef struct CONFIG_MGR_INFO_TAG
     JSON_Value* json_root;
     JSON_Object* json_object;
     const char* ntp_address;
+    const char* zipcode;
 } CONFIG_MGR_INFO;
 
 static int parse_time_value(const char* time, uint8_t time_array[3])
@@ -71,26 +73,30 @@ CONFIG_MGR_HANDLE config_mgr_create(const char* config_path)
     {
         log_error("Failure allocating config manager");
     }
-    else if (clone_string_with_format(&result->config_file, "%s%s", config_path, CONFIG_JSON_FILE) != 0)
+    else
     {
-        log_error("Failure allocating config manager");
-        free(result);
-        result = NULL;
-    }
-    else if ((result->json_root = json_parse_file(result->config_file)) == NULL)
-    {
-        log_error("Failure allocating config manager");
-        free(result->config_file);
-        free(result);
-        result = NULL;
-    }
-    else if ((result->json_object = json_value_get_object(result->json_root)) == NULL)
-    {
-        log_error("Failure allocating config manager");
-        json_value_free(result->json_root);
-        free(result->config_file);
-        free(result);
-        result = NULL;
+        memset(result, 0, sizeof(CONFIG_MGR_INFO));
+         if (clone_string_with_format(&result->config_file, "%s%s", config_path, CONFIG_JSON_FILE) != 0)
+        {
+            log_error("Failure allocating config manager");
+            free(result);
+            result = NULL;
+        }
+        else if ((result->json_root = json_parse_file(result->config_file)) == NULL)
+        {
+            log_error("Failure allocating config manager");
+            free(result->config_file);
+            free(result);
+            result = NULL;
+        }
+        else if ((result->json_object = json_value_get_object(result->json_root)) == NULL)
+        {
+            log_error("Failure allocating config manager");
+            json_value_free(result->json_root);
+            free(result->config_file);
+            free(result);
+            result = NULL;
+        }
     }
     return result;
 }
@@ -128,6 +134,34 @@ bool config_mgr_save(CONFIG_MGR_HANDLE handle)
     return result;
 }
 
+const char* config_mgr_get_zipcode(CONFIG_MGR_HANDLE handle)
+{
+    const char* result;
+    if (handle == NULL)
+    {
+        log_error("Invalid handle value");
+        result = NULL;
+    }
+    else if (handle->zipcode == NULL)
+    {
+        // Read Zipcode Option
+        if ((handle->ntp_address = json_object_get_string(handle->json_object, ZIPCODE_NODE)) == NULL)
+        {
+            log_error("Failure getting zipcode json object");
+            result = NULL;
+        }
+        else
+        {
+            result = handle->ntp_address;
+        }
+    }
+    else
+    {
+        result = handle->zipcode;
+    }
+    return result;
+}
+
 const char* config_mgr_get_ntp_address(CONFIG_MGR_HANDLE handle)
 {
     const char* result;
@@ -144,7 +178,7 @@ const char* config_mgr_get_ntp_address(CONFIG_MGR_HANDLE handle)
             if ((handle->ntp_address = json_object_get_string(handle->json_object, NTP_ADDRESS_NODE)) == NULL)
             {
                 log_error("Failure getting json object");
-                result = false;
+                result = NULL;
             }
             else
             {
