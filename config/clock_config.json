@@ -4,20 +4,15 @@
     "timezone": -8,
     "brightness": 10,
     "digitColor": 3,
-    "shade_start_time": "21:00",
-    "shade_end_time": "07:00",
+    "shadeStartTime": "21:00",
+    "shadeEndTime": "07:00",
+    "zipcode": "98077",
+    "audioDirectory": "",
     "alarms": [
         {
             "name": "workout time",
             "time": "04:50:00",
             "frequency": 21,
-            "sound": "alarm_sound1.mp3",
-            "snooze": 0
-        },
-        {
-            "name": "Day Off",
-            "time": "06:10:00",
-            "frequency": 127,
             "sound": "alarm_sound1.mp3",
             "snooze": 0
         }

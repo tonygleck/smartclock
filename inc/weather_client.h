@@ -6,11 +6,13 @@
 #include <time.h>
 
 #ifdef __cplusplus
-extern "C" {
+MOCKABLE_FUNCTION(, "C" {
 #include <cstdint>
 #else
 #include <stdint.h>
 #endif /* __cplusplus */
+
+#include "umock_c/umock_c_prod.h"
 
 #define ICON_MAX_LENGTH         8
 typedef struct WEATHER_CLIENT_INFO_TAG* WEATHER_CLIENT_HANDLE;
@@ -52,14 +54,14 @@ typedef struct WEATHER_LOCATION_TAG
 
 typedef void(*WEATHER_CONDITIONS_CALLBACK)(void* user_ctx, WEATHER_OPERATION_RESULT result, const WEATHER_CONDITIONS* conditions);
 
-extern WEATHER_CLIENT_HANDLE weather_client_create(const char* api_key, TEMPERATURE_UNITS units);
-extern void weather_client_destroy(WEATHER_CLIENT_HANDLE handle);
+MOCKABLE_FUNCTION(, WEATHER_CLIENT_HANDLE, weather_client_create, const char*, api_key, TEMPERATURE_UNITS, units);
+MOCKABLE_FUNCTION(, void, weather_client_destroy, WEATHER_CLIENT_HANDLE, handle);
 
-extern int weather_client_get_by_coordinate(WEATHER_CLIENT_HANDLE handle, const WEATHER_LOCATION* location, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
-extern int weather_client_get_by_zipcode(WEATHER_CLIENT_HANDLE handle, uint32_t zipcode, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
-extern int weather_client_get_by_city(WEATHER_CLIENT_HANDLE handle, const char* city_name, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx);
+MOCKABLE_FUNCTION(, int, weather_client_get_by_coordinate, WEATHER_CLIENT_HANDLE, handle, const WEATHER_LOCATION*, location, size_t, timeout, WEATHER_CONDITIONS_CALLBACK, conditions_callback, void*, user_ctx);
+MOCKABLE_FUNCTION(, int, weather_client_get_by_zipcode, WEATHER_CLIENT_HANDLE, handle, const char*, zipcode, size_t, timeout, WEATHER_CONDITIONS_CALLBACK, conditions_callback, void*, user_ctx);
+MOCKABLE_FUNCTION(, int, weather_client_get_by_city, WEATHER_CLIENT_HANDLE, handle, const char*, city_name, size_t, timeout, WEATHER_CONDITIONS_CALLBACK, conditions_callback, void*, user_ctx);
 
-extern void weather_client_process(WEATHER_CLIENT_HANDLE handle);
+MOCKABLE_FUNCTION(, void, weather_client_process, WEATHER_CLIENT_HANDLE, handle);
 
 #ifdef __cplusplus
 }

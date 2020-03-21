@@ -345,6 +345,7 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
         STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG)).SetReturn(TEST_VALID_TIME_VAL);
         STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_PTR_ARG, "frequency"));
         //STRICT_EXPECTED_CALL(test_alarm_load_cb(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
 
         // act
