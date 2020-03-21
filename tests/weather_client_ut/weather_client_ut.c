@@ -656,6 +656,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
         umock_c_reset_all_calls();
 
         setup_open_connection_mocks();
+        STRICT_EXPECTED_CALL(clone_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
 
         // act
         int result = weather_client_get_by_zipcode(client_handle, TEST_ZIPCODE, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);

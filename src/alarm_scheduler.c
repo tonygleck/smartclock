@@ -25,6 +25,16 @@ typedef struct ALARM_SCHEDULER_TAG
     ITEM_LIST_HANDLE sched_list;
 } ALARM_SCHEDULER;
 
+static int normalize_value(int value)
+{
+    int result = value;
+    if (result < 0)
+    {
+        result = result * -1;
+    }
+    return result;
+}
+
 static void destroy_schedule_list_cb(void* user_ctx, void* item)
 {
     ALARM_SCHEDULER* alarm_sched = (ALARM_SCHEDULER*)user_ctx;
@@ -37,9 +47,9 @@ static void destroy_schedule_list_cb(void* user_ctx, void* item)
     }
 }
 
-static uint8_t get_current_day_from_value(int wday)
+static uint16_t get_current_day_from_value(int wday)
 {
-    uint8_t result;
+    uint16_t result;
     switch (wday)
     {
         case 0:
@@ -64,46 +74,89 @@ static uint8_t get_current_day_from_value(int wday)
             result = Saturday;
             break;
         default:
-            result = NoDay;
+            result = Everyday;
             break;
     }
     return result;
 }
 
-static uint8_t get_current_day(const struct tm* curr_time)
+static uint16_t get_current_day(const struct tm* curr_time)
 {
     return get_current_day_from_value(curr_time->tm_wday);
 }
 
-static int get_next_trigger_day(int current_day, uint32_t trigger_day)
+static int get_next_trigger_day(const struct tm* current_tm, uint32_t trigger_day, const TIME_INFO* trigger_time)
 {
     int result;
-    for (uint8_t index = 0; index < 7; index++)
+    if (trigger_day == Everyday)
     {
-        result = current_day;
-        uint8_t compare_value = get_current_day_from_value(current_day);
-        if (compare_value & trigger_day)
+        // If no day is set then it needs to be set to the first day
+        // unless the current hour is greater than the trigger hour
+        // then it's too late
+        if (trigger_time->hour > current_tm->tm_hour)
         {
-            break;
+            result = current_tm->tm_wday;
         }
-        if (current_day == 6)
+        else if (trigger_time->hour == current_tm->tm_hour && trigger_time->min > current_tm->tm_min)
         {
-            current_day = 0;
+            result = current_tm->tm_wday;
         }
         else
         {
-            current_day++;
+            if (current_tm->tm_wday == 6)
+            {
+                result = 0;
+            }
+            else
+            {
+                result = current_tm->tm_wday + 1;
+            }
+        }
+    }
+    else
+    {
+        result = 7;
+        int target_day = current_tm->tm_wday;
+        for (uint16_t index = 0; index < 7; index++)
+        {
+            uint16_t compare_value = get_current_day_from_value(target_day);
+            if (compare_value & trigger_day)
+            {
+                if (target_day == current_tm->tm_wday)
+                {
+                    // If the current hour is greater than the trigger hour
+                    // then it's too late
+                    if (trigger_time->hour > current_tm->tm_hour)
+                    {
+                        result = target_day;
+                        break;
+                    }
+                }
+                else
+                {
+                    result = target_day;
+                    break;
+                }
+            }
+            if (target_day == 6)
+            {
+                target_day = 0;
+            }
+            else
+            {
+                target_day++;
+            }
         }
     }
     return result;
 }
 
-static bool is_alarm_triggered_sooner(const ALARM_INFO* ai_inital, const ALARM_INFO* ai_compare, const struct tm* curr_time)
+static bool is_alarm_triggered_sooner(const ALARM_INFO* ai_initial, const ALARM_INFO* ai_compare, const struct tm* curr_time)
 {
     bool result;
     // Convert all time to current time
-    int init_val_delta = get_next_trigger_day(curr_time->tm_wday, ai_inital->trigger_days) - curr_time->tm_wday;
-    int cmp_val_delta = get_next_trigger_day(curr_time->tm_wday, ai_compare->trigger_days) - curr_time->tm_wday;
+    int init_val_delta = normalize_value(get_next_trigger_day(curr_time, ai_initial->trigger_days, &ai_initial->trigger_time) - curr_time->tm_wday);
+    int cmp_val_delta = normalize_value(get_next_trigger_day(curr_time, ai_compare->trigger_days, &ai_compare->trigger_time) - curr_time->tm_wday);
 
     if (init_val_delta < cmp_val_delta)
     {
@@ -116,23 +169,24 @@ static bool is_alarm_triggered_sooner(const ALARM_INFO* ai_inital, const ALARM_I
     else
     {
         // The days are equal, need to evaluate the hours
-        if (ai_inital->trigger_time.hour == ai_compare->trigger_time.hour)
+        if (ai_initial->trigger_time.hour == ai_compare->trigger_time.hour)
         {
             // Compare minutesTIME_INFO_PTR
-            result = ai_inital->trigger_time.min > ai_compare->trigger_time.min;
+            result = ai_initial->trigger_time.min > ai_compare->trigger_time.min;
         }
         else
         {
             if (
-                (ai_inital->trigger_time.hour > curr_time->tm_hour && ai_compare->trigger_time.hour > curr_time->tm_hour) ||
-                (ai_inital->trigger_time.hour < curr_time->tm_hour && ai_compare->trigger_time.hour < curr_time->tm_hour)
+                (ai_initial->trigger_time.hour > curr_time->tm_hour && ai_compare->trigger_time.hour > curr_time->tm_hour) ||
+                (ai_initial->trigger_time.hour < curr_time->tm_hour && ai_compare->trigger_time.hour < curr_time->tm_hour)
                )
             {
-                result = ai_inital->trigger_time.hour > ai_compare->trigger_time.hour;
+                result = ai_initial->trigger_time.hour > ai_compare->trigger_time.hour;
             }
             else
             {
-                if (ai_inital->trigger_time.hour > curr_time->tm_hour && ai_compare->trigger_time.hour < curr_time->tm_hour)
+                // If the inital hour is later than the current time (it still is coming up)
+                if (ai_initial->trigger_time.hour >= curr_time->tm_hour && ai_compare->trigger_time.hour < curr_time->tm_hour)
                 {
                     result = false;
                 }
@@ -149,7 +203,7 @@ static bool is_alarm_triggered_sooner(const ALARM_INFO* ai_inital, const ALARM_I
 static bool is_alarm_triggered(const ALARM_INFO* alarm_info, const struct tm* curr_time)
 {
     bool result = false;
-    if (alarm_info->trigger_days & get_current_day(curr_time))
+    if (alarm_info->trigger_days == 0 || alarm_info->trigger_days & get_current_day(curr_time))
     {
         if (alarm_info->trigger_time.hour == curr_time->tm_hour ||
             alarm_info->trigger_time.hour == curr_time->tm_hour - 1)
@@ -182,11 +236,6 @@ static int store_time_object(ALARM_SCHEDULER* scheduler, const ALARM_STORAGE_ITE
     }
     return result;
 }
-
-//static int play_alarm()
-//{
-//    return 0;
-//}
 
 SCHEDULER_HANDLE alarm_scheduler_create(void)
 {
@@ -264,8 +313,8 @@ int alarm_scheduler_add_alarm_info(SCHEDULER_HANDLE handle, const ALARM_INFO* al
     {
         tm_info->triggered_date = INVALID_TRIGGERED_DATE;
         tm_info->alarm_info.trigger_days = alarm_info->trigger_days;
-        tm_info->alarm_info.trigger_time.hour = alarm_info->trigger_time.hour;
-        tm_info->alarm_info.trigger_time.min = alarm_info->trigger_time.min;
+        memcpy(&tm_info->alarm_info.trigger_time, &alarm_info->trigger_time, sizeof(TIME_INFO) );
+        tm_info->alarm_info.snooze_min = alarm_info->snooze_min;
         if (alarm_info->alarm_text != NULL && clone_string(&tm_info->alarm_info.alarm_text, alarm_info->alarm_text) != 0)
         {
             log_error("Failure copying alarm text");
@@ -295,7 +344,7 @@ int alarm_scheduler_add_alarm_info(SCHEDULER_HANDLE handle, const ALARM_INFO* al
     return result;
 }
 
-int alarm_scheduler_add_alarm(SCHEDULER_HANDLE handle, const char* alarm_text, const TIME_INFO* time_info, uint32_t trigger_days, const char* sound_file)
+int alarm_scheduler_add_alarm(SCHEDULER_HANDLE handle, const char* alarm_text, const TIME_INFO* time_info, uint32_t trigger_days, const char* sound_file, uint8_t snooze_min)
 {
     int result;
     ALARM_STORAGE_ITEM* tm_info;
@@ -315,7 +364,7 @@ int alarm_scheduler_add_alarm(SCHEDULER_HANDLE handle, const char* alarm_text, c
         tm_info->alarm_info.trigger_days = trigger_days;
         tm_info->alarm_info.trigger_time.hour = time_info->hour;
         tm_info->alarm_info.trigger_time.min = time_info->min;
-
+        tm_info->alarm_info.snooze_min = snooze_min;
         if (alarm_text != NULL && clone_string(&tm_info->alarm_info.alarm_text, alarm_text) != 0)
         {
             log_error("Failure copying alarm text");
@@ -409,6 +458,35 @@ const ALARM_INFO* alarm_scheduler_get_next_alarm(SCHEDULER_HANDLE handle)
                 }
             }
         }
+    }
+    return result;
+}
+
+int alarm_scheduler_get_next_day(uint32_t trigger_day)
+{
+    struct tm* curr_time = get_time_value();
+    // We are going to trick the algorithm here.  Always make the time
+    // after the current
+    TIME_INFO time_item = { curr_time->tm_hour+1, curr_time->tm_min, 0 };
+    return get_next_trigger_day(curr_time, trigger_day, &time_item);
+}
+
+uint8_t alarm_scheduler_format_hour(int hour)
+{
+    return hour > 12 ? hour - 12 : hour;
+}
+
+int alarm_scheduler_snooze_alarm(SCHEDULER_HANDLE handle, const ALARM_INFO* alarm_info)
+{
+    int result;
+    if (handle == NULL || alarm_info == NULL)
+    {
+        log_error("Invalid argument handle is NULL");
+        result = __LINE__;
+    }
+    else
+    {
+        result = 0;
     }
     return result;
 }

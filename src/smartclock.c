@@ -40,11 +40,16 @@ typedef struct SMARTCLOCK_INFO_TAG
 
     NTP_CLIENT_HANDLE ntp_client;
     OPERATION_STATE ntp_operation;
+
     ALARM_TIMER_INFO ntp_alarm;
+    ALARM_TRIGGERED_RESULT alarm_op_state;
 
     WEATHER_CLIENT_HANDLE weather_client;
-    ALARM_TIMER_INFO weather_alarm;
+    ALARM_TIMER_INFO weather_timer;
     OPERATION_STATE weather_operation;
+
+    ALARM_TIMER_INFO max_alarm_len;
+    const ALARM_INFO* triggered_alarm;
 
     const char* weather_appid;
     char* config_path;
@@ -60,6 +65,7 @@ typedef enum ARGUEMENT_TYPE_TAG
 #define MAX_TIME_DIFFERENCE     50
 #define MAX_WEATHER_DIFF        6*60*60 // Every 6 hours
 #define MAX_TIME_OFFSET         2*60    // 2 min
+#define MAX_ALARM_RING_TIME     2*60    // 2 min
 
 //static const char* const ENV_WEATHER_APP_ID = "weather_appid";
 static const char* const CONFIG_FOLDER_NAME = "config";
@@ -68,41 +74,33 @@ static const char* OS_FILE_SEPARATOR_FMT = "%s/";
 
 static bool g_run_application = true;
 
+// Callback information
 static void ntp_result_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result, time_t current_time)
 {
-    OPERATION_STATE* op_state = (OPERATION_STATE*)user_ctx;
-    if (ntp_result == NTP_OP_RESULT_SUCCESS)
+    SMARTCLOCK_INFO* clock_info = (SMARTCLOCK_INFO*)user_ctx;
+    if (clock_info == NULL)
     {
-        time_t sys_time = time(NULL);
-        double delta = difftime(sys_time, current_time);
-        if ((delta < 0 ? delta*-1 : delta) > MAX_TIME_OFFSET)
+        log_error("Ntp callback user context is NULL");
+    }
+    else
+    {
+        if (ntp_result == NTP_OP_RESULT_SUCCESS)
         {
-            set_machine_time(&current_time);
+            time_t sys_time = time(NULL);
+            double delta = difftime(sys_time, current_time);
+            if ((delta < 0 ? delta*-1 : delta) > MAX_TIME_OFFSET)
+            {
+                set_machine_time(&current_time);
+            }
+            clock_info->ntp_operation = OPERATION_STATE_SUCCESS;
         }
-        *op_state = OPERATION_STATE_SUCCESS;
+        else
+        {
+            clock_info->ntp_operation = OPERATION_STATE_ERROR;
+            log_error("Failure retrieving NTP time %d", ntp_result);
+        }
+        (void)alarm_timer_reset(&clock_info->ntp_alarm);
     }
-    else
-    {
-        *op_state = OPERATION_STATE_ERROR;
-        log_error("Failure retrieving NTP time %d", ntp_result);
-    }
-}
-
-static int check_ntp_time(const char* ntp_address, SMARTCLOCK_INFO* clock_info)
-{
-    int result;
-    if (ntp_client_get_time(clock_info->ntp_client, ntp_address, OPERATION_TIMEOUT, ntp_result_callback, &clock_info->ntp_operation) == 0)
-    {
-        clock_info->ntp_operation = OPERATION_STATE_IN_PROCESS;
-        result = 0;
-    }
-    else
-    {
-        clock_info->ntp_operation = OPERATION_STATE_ERROR;
-        log_error("NTP get_time operation failure");
-        result = __LINE__;
-    }
-    return result;
 }
 
 static void weather_cond_callback(void* user_ctx, WEATHER_OPERATION_RESULT result, const WEATHER_CONDITIONS* cond)
@@ -116,14 +114,15 @@ static void weather_cond_callback(void* user_ctx, WEATHER_OPERATION_RESULT resul
     {
         if (result == WEATHER_OP_RESULT_SUCCESS)
         {
-            (void)printf("Icon %s\nDesc: %s\nTemp: %f\nHi: %f\nLo: %f\nHumidity: %d\nPressure: %d\n",
-                cond->weather_icon, cond->description, cond->temperature, cond->hi_temp, cond->lo_temp, cond->humidity, cond->pressure);
             gui_mgr_set_forcast(clock_info->gui_mgr, FORCAST_TODAY, cond);
+            clock_info->weather_operation = OPERATION_STATE_SUCCESS;
         }
         else
         {
+            clock_info->weather_operation = OPERATION_STATE_ERROR;
+            log_error("Failure retrieving weather infor %d", result);
         }
-        (void)alarm_timer_reset(&clock_info->weather_alarm);
+        (void)alarm_timer_reset(&clock_info->weather_timer);
     }
 }
 
@@ -131,14 +130,23 @@ static void check_weather_operation(SMARTCLOCK_INFO* clock_info)
 {
     if (clock_info->weather_operation == OPERATION_STATE_IN_PROCESS)
     {
+#if PRODUCTION
         weather_client_process(clock_info->weather_client);
+#else
+        WEATHER_CONDITIONS cond = {0};
+        cond.temperature = 43;
+        cond.weather_icon[0] = '0';
+        cond.weather_icon[1] = '9';
+        cond.weather_icon[2] = 'd';
+        weather_cond_callback(clock_info, WEATHER_OP_RESULT_SUCCESS, &cond);
+#endif
     }
     else if (clock_info->weather_operation == OPERATION_STATE_ERROR)
     {
         // todo: Need to alert the user and show config dialog
-        alarm_timer_reset(&clock_info->weather_alarm);
+        alarm_timer_reset(&clock_info->weather_timer);
     }
-    else if (alarm_timer_is_expired(&clock_info->weather_alarm))
+    else if (alarm_timer_is_expired(&clock_info->weather_timer))
     {
         const char* zipcode = config_mgr_get_zipcode(clock_info->config_mgr);
         if (zipcode == NULL)
@@ -148,32 +156,33 @@ static void check_weather_operation(SMARTCLOCK_INFO* clock_info)
             log_error("Invalid zipcode specfied");
         }
 #if PRODUCTION
-        else if (weather_client_get_by_zipcode(clock_info->weather_client, zipcode, OPERATION_TIMEOUT, weather_cond_callback, clock_info))
+        else if (weather_client_get_by_zipcode(clock_info->weather_client, zipcode, OPERATION_TIMEOUT, weather_cond_callback, clock_info) != 0)
         {
             log_error("Failure getting weather information");
+            clock_info->weather_operation = OPERATION_STATE_ERROR;
         }
-#else
-        WEATHER_CONDITIONS cond = {0};
-        cond.temperature = 43;
-        cond.weather_icon[0] = '0';
-        cond.weather_icon[1] = '9';
-        cond.weather_icon[2] = 'd';
-
-        weather_cond_callback(clock_info, WEATHER_OP_RESULT_SUCCESS, &cond);
 #endif
+        else
+        {
+            clock_info->weather_operation = OPERATION_STATE_IN_PROCESS;
+        }
     }
 }
 
-void check_ntp_operation(SMARTCLOCK_INFO* clock_info)
+static void check_ntp_operation(SMARTCLOCK_INFO* clock_info)
 {
     if (clock_info->ntp_operation == OPERATION_STATE_IN_PROCESS)
     {
+#if PRODUCTION
         ntp_client_process(clock_info->ntp_client);
+#else
+        ntp_result_callback(clock_info, NTP_OP_RESULT_SUCCESS, time(NULL));
+#endif
     }
     else if (clock_info->ntp_operation == OPERATION_STATE_ERROR)
     {
         // todo: Need to alert the user and show config dialog
-        alarm_timer_reset(&clock_info->ntp_alarm);
+        //alarm_timer_reset(&clock_info->ntp_alarm);
     }
     else if (alarm_timer_is_expired(&clock_info->ntp_alarm))
     {
@@ -185,21 +194,108 @@ void check_ntp_operation(SMARTCLOCK_INFO* clock_info)
             clock_info->ntp_operation = OPERATION_STATE_ERROR;
         }
 #if PRODUCTION
-        else if (check_ntp_time(ntp_address, clock_info) != 0)
+        else if (ntp_client_get_time(clock_info->ntp_client, ntp_address, OPERATION_TIMEOUT, ntp_result_callback, clock_info) != 0)
         {
-            log_error("Failure getting ntp information");
+            clock_info->ntp_operation = OPERATION_STATE_ERROR;
+            log_error("NTP get_time operation failure");
         }
 #endif
-        (void)alarm_timer_reset(&clock_info->ntp_alarm);
+        else
+        {
+            clock_info->ntp_operation = OPERATION_STATE_IN_PROCESS;
+        }
     }
 }
 
-void check_alarm_operation(SMARTCLOCK_INFO* clock_info, const struct tm* curr_time)
+static void configure_alarms(SMARTCLOCK_INFO* clock_info)
+{
+    (void)clock_info;
+    // Show alarm dialog on gui
+
+    // Check
+}
+
+static void gui_notification_cb(void* user_ctx, GUI_NOTIFICATION_TYPE type, void* res_value)
+{
+    SMARTCLOCK_INFO* clock_info = (SMARTCLOCK_INFO*)user_ctx;
+    if (clock_info == NULL)
+    {
+        log_error("Invalid user context specfied");
+    }
+    else
+    {
+        if (type == NOTIFICATION_ALARM_RESULT)
+        {
+            ALARM_TRIGGERED_RESULT* alarm_result = (ALARM_TRIGGERED_RESULT*)res_value;
+
+            //sound_mgr_stop(clock_info->sound_mgr);
+            if (*alarm_result == ALARM_TRIGGERED_STOPPED)
+            {
+                clock_info->alarm_op_state = ALARM_TRIGGERED_STOPPED;
+            }
+            else
+            {
+                clock_info->alarm_op_state = ALARM_TRIGGERED_SNOOZE;
+                (void)alarm_scheduler_snooze_alarm(clock_info->sched_mgr, clock_info->triggered_alarm);
+            }
+            gui_mgr_set_next_alarm(clock_info->gui_mgr, alarm_scheduler_get_next_alarm(clock_info->sched_mgr));
+            clock_info->triggered_alarm = NULL;
+        }
+        else if (type == NOTIFICATION_APPLICATION_RESULT)
+        {
+            g_run_application = false;
+        }
+        else if (type == NOTIFICATION_ALARM_DLG)
+        {
+            configure_alarms(clock_info);
+        }
+    }
+}
+
+static void play_alarm_sound(SMARTCLOCK_INFO* clock_info, const ALARM_INFO* alarm_info)
+{
+    char sound_filename[1024];
+    const char* audio_dir = config_mgr_get_audio_dir(clock_info->config_mgr);
+    if (audio_dir == NULL)
+    {
+        // todo: need to do something to tell the user
+        log_error("Invalid configuration file unable to retrieve audio directory");
+    }
+    else
+    {
+        // construct names
+        sprintf(sound_filename, "%s%s", audio_dir, alarm_info->sound_file);
+        if (sound_mgr_play(clock_info->sound_mgr, sound_filename, true) != 0)
+        {
+            // todo: need to do something to tell the user
+            log_error("Failure playing sound file for alarm: %s", alarm_info->alarm_text);
+        }
+    }
+}
+
+static void check_alarm_operation(SMARTCLOCK_INFO* clock_info, const struct tm* curr_time)
 {
     if (clock_info->last_alarm_min != curr_time->tm_min)
     {
-        log_debug("Checking if alarm should trigger %d", curr_time->tm_min);
+        const struct tm* time_value = get_time_value();
+        const ALARM_INFO* triggered = alarm_scheduler_is_triggered(clock_info->sched_mgr, time_value);
+        if (triggered != NULL)
+        {
+            gui_mgr_set_alarm_triggered(clock_info->gui_mgr, triggered);
+
+            // todo: Play the alarm sound
+            clock_info->alarm_op_state = ALARM_TRIGGERED_TRIGGERED;
+            (void)alarm_timer_start(&clock_info->max_alarm_len, MAX_ALARM_RING_TIME);
+            clock_info->triggered_alarm = triggered;
+        }
         clock_info->last_alarm_min = curr_time->tm_min;
+    }
+    if (clock_info->alarm_op_state == ALARM_TRIGGERED_TRIGGERED)
+    {
+        if (alarm_timer_is_expired(&clock_info->max_alarm_len))
+        {
+            gui_mgr_set_alarm_triggered(clock_info->gui_mgr, NULL);
+        }
     }
 }
 
@@ -219,7 +315,7 @@ static int load_alarms_cb(void* context, const CONFIG_ALARM_INFO* cfg_alarm)
         time_info.min = cfg_alarm->time_array[1];
         time_info.sec = cfg_alarm->time_array[2];
 
-        if (alarm_scheduler_add_alarm(sched_mgr, cfg_alarm->name, &time_info, cfg_alarm->frequency, cfg_alarm->sound_file) != 0)
+        if (alarm_scheduler_add_alarm(sched_mgr, cfg_alarm->name, &time_info, cfg_alarm->frequency, cfg_alarm->sound_file, cfg_alarm->snooze) != 0)
         {
             log_error("Failure adding alarm %s", cfg_alarm->name);
             result = __LINE__;
@@ -242,7 +338,6 @@ static int parse_command_line(int argc, char* argv[], SMARTCLOCK_INFO* clock_inf
         if (index == 0)
         {
             // Parse the exe line
-            // todo: Reverse through the string until you find the file separator
             const char* iterator = (const char*)argv[index];
             size_t len = strlen(iterator);
             for (size_t inner = len; inner > 0; inner--)
@@ -311,7 +406,7 @@ int initialize_data(SMARTCLOCK_INFO* clock_info)
         alarm_scheduler_destroy(clock_info->sched_mgr);
         result = __LINE__;
     }
-    else if ((clock_info->gui_mgr = gui_mgr_create()) == NULL)
+    else if ((clock_info->gui_mgr = gui_mgr_create(clock_info->config_mgr, gui_notification_cb, clock_info)) == NULL)
     {
         log_error("Failure creating gui object");
         config_mgr_destroy(clock_info->config_mgr);
@@ -340,6 +435,9 @@ int initialize_data(SMARTCLOCK_INFO* clock_info)
     }
     else
     {
+        (void)alarm_timer_init(&clock_info->weather_timer);
+        (void)alarm_timer_init(&clock_info->ntp_alarm);
+        (void)alarm_timer_init(&clock_info->max_alarm_len);
         result = 0;
     }
     return result;
@@ -348,7 +446,6 @@ int initialize_data(SMARTCLOCK_INFO* clock_info)
 int run_application(int argc, char* argv[])
 {
     SMARTCLOCK_INFO clock_info = {0};
-
     if (parse_command_line(argc, argv, &clock_info) != 0)
     {
         log_error("Failure parse command line");
@@ -364,23 +461,26 @@ int run_application(int argc, char* argv[])
         {
             log_error("Failure loading alarms from config file");
         }
-        else if (gui_create_win(clock_info.gui_mgr) != 0)
+        else if (gui_mgr_create_win(clock_info.gui_mgr) != 0)
         {
             log_error("Failure creating window");
         }
         else
         {
+            size_t refresh_time = 0;
             clock_info.ntp_operation = OPERATION_STATE_IDLE;
             clock_info.weather_operation = OPERATION_STATE_IDLE;
-            (void)alarm_timer_init(&clock_info.ntp_alarm);
-            (void)alarm_timer_init(&clock_info.weather_alarm);
 
             // Get the inital weather
             check_ntp_operation(&clock_info);
             check_weather_operation(&clock_info);
 
             (void)alarm_timer_start(&clock_info.ntp_alarm, MAX_TIME_DIFFERENCE);
-            (void)alarm_timer_start(&clock_info.weather_alarm, MAX_WEATHER_DIFF);
+            (void)alarm_timer_start(&clock_info.weather_timer, MAX_WEATHER_DIFF);
+
+            // Show the next alarm
+            gui_mgr_set_next_alarm(clock_info.gui_mgr, alarm_scheduler_get_next_alarm(clock_info.sched_mgr));
+            refresh_time = gui_mgr_get_refresh_resolution();
 
             do
             {
@@ -397,7 +497,7 @@ int run_application(int argc, char* argv[])
                 // Sleep here
                 gui_mgr_process_items(clock_info.gui_mgr);
 
-                thread_mgr_sleep(5);
+                thread_mgr_sleep(refresh_time);
             } while (g_run_application);
         }
 

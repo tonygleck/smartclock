@@ -237,7 +237,7 @@ static int validate_wav_data(unsigned char* wav_buffer, long wav_size, format_in
     return result;
 }
 
-static unsigned char* open_wav_file(const char* filename, long* wav_size)
+static unsigned char* retrieve_wav_data(const char* filename, long* wav_size)
 {
     unsigned char* result;
     FILE_MGR_HANDLE file_mgr;
@@ -389,10 +389,17 @@ int sound_mgr_play(SOUND_MGR_HANDLE handle, const char* sound_file, bool set_rep
     }
     else
     {
+        // If we're playing a wav then we need to stop playing it
+        // before we play another
+        if (handle->sound_state == SOUND_STATE_PLAYING)
+        {
+
+        }
+
         unsigned char* wav_buffer;
         format_info fmt_info = {0};
         int swapped;
-        if ((wav_buffer = open_wav_file(sound_file, (long*)&handle->wav_size)) == NULL)
+        if ((wav_buffer = retrieve_wav_data(sound_file, (long*)&handle->wav_size)) == NULL)
         {
             log_error("Failure opening wav file");
             result = __LINE__;

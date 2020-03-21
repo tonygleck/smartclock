@@ -15,14 +15,20 @@ static const char* CONFIG_JSON_FILE = "clock_config.json";
 static const char* NTP_ADDRESS_NODE = "ntpAddress";
 static const char* ZIPCODE_NODE = "zipcode";
 static const char* ALARMS_ARRAY_NODE = "alarms";
+static const char* AUDIO_DIR_NODE = "audioDirectory";
+
+#define CLOCK_HOUR_12           0x00000001
+#define CLOCK_SHOW_SECONDS      0x00000002
 
 typedef struct CONFIG_MGR_INFO_TAG
 {
     char* config_file;
+    int option;
     JSON_Value* json_root;
     JSON_Object* json_object;
     const char* ntp_address;
     const char* zipcode;
+    const char* audio_directory;
 } CONFIG_MGR_INFO;
 
 static int parse_time_value(const char* time, uint8_t time_array[3])
@@ -96,6 +102,10 @@ CONFIG_MGR_HANDLE config_mgr_create(const char* config_path)
             free(result->config_file);
             free(result);
             result = NULL;
+        }
+        else
+        {
+            result->option |= CLOCK_HOUR_12;
         }
     }
     return result;
@@ -193,6 +203,36 @@ const char* config_mgr_get_ntp_address(CONFIG_MGR_HANDLE handle)
     return result;
 }
 
+const char* config_mgr_get_audio_dir(CONFIG_MGR_HANDLE handle)
+{
+    const char* result;
+    if (handle == NULL)
+    {
+        log_error("Invalid handle value");
+        result = NULL;
+    }
+    else
+    {
+        if (handle->audio_directory == NULL)
+        {
+            if ((handle->audio_directory = json_object_get_string(handle->json_object, AUDIO_DIR_NODE)) == NULL)
+            {
+                log_error("Failure getting json object");
+                result = NULL;
+            }
+            else
+            {
+                result = handle->audio_directory;
+            }
+        }
+        else
+        {
+            result = handle->audio_directory;
+        }
+    }
+    return result;
+}
+
 int config_mgr_load_alarm(CONFIG_MGR_HANDLE handle, ON_ALARM_LOAD_CALLBACK alarm_cb, void* user_ctx)
 {
     int result;
@@ -237,6 +277,7 @@ int config_mgr_load_alarm(CONFIG_MGR_HANDLE handle, ON_ALARM_LOAD_CALLBACK alarm
                     }
                     else
                     {
+                        config_alarm.snooze = (uint8_t)json_object_get_number(alarm_item, "snooze");
                         config_alarm.frequency = (uint32_t)json_object_get_number(alarm_item, "frequency");
                         if (alarm_cb(user_ctx, &config_alarm) != 0)
                         {
@@ -247,6 +288,43 @@ int config_mgr_load_alarm(CONFIG_MGR_HANDLE handle, ON_ALARM_LOAD_CALLBACK alarm
                 }
             }
         }
+    }
+    return result;
+}
+
+uint8_t config_mgr_format_hour(CONFIG_MGR_HANDLE handle, int hour)
+{
+    uint8_t result;
+    if (handle == NULL)
+    {
+        log_error("Invalid handle specified");
+        result = 0;
+    }
+    else
+    {
+        if (handle->option & CLOCK_HOUR_12)
+        {
+            result = hour > 12 ? hour - 12 : hour;
+        }
+        else
+        {
+            result = hour;
+        }
+    }
+    return result;
+}
+
+bool config_mgr_show_seconds(CONFIG_MGR_HANDLE handle)
+{
+    bool result;
+    if (handle == NULL)
+    {
+        log_error("Invalid handle specified");
+        result = false;
+    }
+    else
+    {
+        result = (handle->option & CLOCK_SHOW_SECONDS);
     }
     return result;
 }
