@@ -732,7 +732,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         curr_time.tm_wday = 5;
         curr_time.tm_hour = 15;
         curr_time.tm_min = 30;
-        curr_time.tm_wday = 3;
+        curr_time.tm_wday = 3;  // Wed
         ALARM_INFO alarm_info1 = {0};
         ALARM_INFO alarm_info2 = {0};
         struct tm test_tm = {0};
@@ -741,7 +741,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
 
         setup_alarm_time_info(&alarm_info1, &test_tm);
-        alarm_info1.trigger_days = NoDay;
+        alarm_info1.trigger_days = Everyday;
         alarm_info1.trigger_time.hour = 12;
         alarm_info1.trigger_time.min = 0;
         alarm_info1.alarm_text = (char*)alarm_1_text;
