@@ -295,6 +295,7 @@ static void check_alarm_operation(SMARTCLOCK_INFO* clock_info, const struct tm* 
         if (alarm_timer_is_expired(&clock_info->max_alarm_len))
         {
             gui_mgr_set_alarm_triggered(clock_info->gui_mgr, NULL);
+            gui_mgr_set_next_alarm(clock_info->gui_mgr, alarm_scheduler_get_next_alarm(clock_info->sched_mgr));
         }
     }
 }

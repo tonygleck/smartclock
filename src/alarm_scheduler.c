@@ -269,9 +269,9 @@ void alarm_scheduler_destroy(SCHEDULER_HANDLE handle)
 const ALARM_INFO* alarm_scheduler_is_triggered(SCHEDULER_HANDLE handle, const struct tm* curr_time)
 {
     const ALARM_INFO* result = NULL;
-    if (handle == NULL)
+    if (handle == NULL || curr_time == NULL)
     {
-        log_error("Invalid argument handle is NULL");
+        log_error("Invalid argument handle: %p, curr_time: %p", handle, curr_time);
     }
     else
     {
@@ -462,18 +462,12 @@ const ALARM_INFO* alarm_scheduler_get_next_alarm(SCHEDULER_HANDLE handle)
     return result;
 }
 
-int alarm_scheduler_get_next_day(uint32_t trigger_day)
+int alarm_scheduler_get_next_day(const ALARM_INFO* alarm_info)
 {
     struct tm* curr_time = get_time_value();
     // We are going to trick the algorithm here.  Always make the time
     // after the current
-    TIME_INFO time_item = { curr_time->tm_hour+1, curr_time->tm_min, 0 };
-    return get_next_trigger_day(curr_time, trigger_day, &time_item);
-}
-
-uint8_t alarm_scheduler_format_hour(int hour)
-{
-    return hour > 12 ? hour - 12 : hour;
+    return get_next_trigger_day(curr_time, alarm_info->trigger_days, &alarm_info->trigger_time);
 }
 
 int alarm_scheduler_snooze_alarm(SCHEDULER_HANDLE handle, const ALARM_INFO* alarm_info)

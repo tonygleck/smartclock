@@ -7,9 +7,6 @@
 [submodule "deps/parson"]
 	path = deps/parson
 	url = https://github.com/kgabis/parson.git
-[submodule "deps/libpatchcords"]
-	path = deps/libpatchcords
-	url = https://github.com/tonygleck/libpatchcords.git
 [submodule "deps/http_client"]
 	path = deps/http_client
 	url = https://github.com/tonygleck/http_client.git
@@ -25,3 +22,6 @@
 [submodule "deps/gui/lvgl"]
 	path = deps/gui/lvgl
 	url = https://github.com/littlevgl/lvgl.git
+[submodule "deps/patchcords"]
+	path = deps/patchcords
+	url = https://github.com/tonygleck/patchcords.git

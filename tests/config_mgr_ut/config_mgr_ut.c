@@ -86,6 +86,10 @@ static JSON_Array* TEST_ARRAY_OBJECT = (JSON_Array*)0x11111119;
 static const char* TEST_NODE_STRING = "{ node: \"data\" }";
 static const char* TEST_CONFIG_PATH = "/some/path/";
 static const char* TEST_VALID_TIME_VAL = "11:59:32";
+static const char* TEST_INVALID_TIME_VAL = "11:A9:32";
+static const char* TEST_ZIPCODE = "12345";
+static const char* TEST_NTP_ADDRESS = "127.0.0.1";
+static const char* TEST_AUDIO_DIR = "/audio/directory";
 
 static int load_alarms_cb(void* context, const CONFIG_ALARM_INFO* cfg_alarm)
 {
@@ -192,9 +196,22 @@ BEGIN_TEST_SUITE(config_mgr_ut)
 
     static void setup_config_mgr_create_mocks(void)
     {
-        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(json_parse_file(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(json_value_get_object(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(malloc(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_parse_file(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_value_get_object(IGNORED_ARG));
+    }
+
+    static void setup_config_mgr_load_alarm_mocks(void)
+    {
+        STRICT_EXPECTED_CALL(json_object_get_array(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_array_get_count(IGNORED_ARG)).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_array_get_object(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "name"));
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "sound"));
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "time")).SetReturn(TEST_VALID_TIME_VAL);
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "snooze")).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "frequency")).CallCannotFail();
+        //STRICT_EXPECTED_CALL(test_alarm_load_cb(IGNORED_ARG, IGNORED_ARG));
     }
 
     TEST_FUNCTION(config_mgr_create_success)
@@ -261,9 +278,9 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(json_value_free(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_value_free(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_ARG));
 
         // act
         config_mgr_destroy(handle);
@@ -294,7 +311,7 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(json_serialize_to_file_pretty(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_serialize_to_file_pretty(IGNORED_ARG, IGNORED_ARG));
 
         // act
         bool result = config_mgr_save(handle);
@@ -316,7 +333,7 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(json_serialize_to_file_pretty(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(json_serialize_to_file_pretty(IGNORED_ARG, IGNORED_ARG));
         umock_c_negative_tests_snapshot();
         umock_c_negative_tests_fail_call(0);
 
@@ -332,27 +349,330 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         umock_c_negative_tests_deinit();
     }
 
+    TEST_FUNCTION(config_mgr_load_alarm_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        int result = config_mgr_load_alarm(NULL, load_alarms_cb, NULL);
+
+        // assert
+        ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    TEST_FUNCTION(config_mgr_load_alarm_callback_NULL_fail)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        // act
+        int result = config_mgr_load_alarm(handle, NULL, NULL);
+
+        // assert
+        ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
     TEST_FUNCTION(config_mgr_load_alarm_success)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(json_object_get_array(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(json_array_get_count(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(json_array_get_object(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG)).SetReturn(TEST_VALID_TIME_VAL);
-        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_PTR_ARG, "frequency"));
-        //STRICT_EXPECTED_CALL(test_alarm_load_cb(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        setup_config_mgr_load_alarm_mocks();
 
         // act
         int result = config_mgr_load_alarm(handle, load_alarms_cb, NULL);
 
         // assert
         ASSERT_ARE_EQUAL(int, 0, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    TEST_FUNCTION(config_mgr_load_alarm_fail)
+    {
+        // arrange
+        int negativeTestsInitResult = umock_c_negative_tests_init();
+        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        setup_config_mgr_load_alarm_mocks();
+
+        umock_c_negative_tests_snapshot();
+
+        size_t count = umock_c_negative_tests_call_count();
+        for (size_t index = 0; index < count; index++)
+        {
+            if (umock_c_negative_tests_can_call_fail(index))
+            {
+                umock_c_negative_tests_reset();
+                umock_c_negative_tests_fail_call(index);
+
+                // act
+                int result = config_mgr_load_alarm(handle, load_alarms_cb, NULL);
+
+                // assert
+                ASSERT_ARE_NOT_EQUAL(int, 0, result, "config_mgr_load_alarm failure %d/%d", (int)index, (int)count);
+            }
+        }
+
+        // cleanup
+        config_mgr_destroy(handle);
+        umock_c_negative_tests_deinit();
+    }
+
+    TEST_FUNCTION(config_mgr_load_alarm_invalid_time_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_get_array(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_array_get_count(IGNORED_ARG)).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_array_get_object(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "name"));
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "sound"));
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "time")).SetReturn(TEST_INVALID_TIME_VAL);
+
+        // act
+        int result = config_mgr_load_alarm(handle, load_alarms_cb, NULL);
+
+        // assert
+        ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    TEST_FUNCTION(config_mgr_get_zipcode_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        const char* result = config_mgr_get_zipcode(NULL);
+
+        // assert
+        ASSERT_IS_NULL(result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    TEST_FUNCTION(config_mgr_get_zipcode_fail)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "zipcode")).SetReturn(NULL);
+
+        // act
+        const char* result = config_mgr_get_zipcode(handle);
+
+        // assert
+        ASSERT_IS_NULL(result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    TEST_FUNCTION(config_mgr_get_zipcode_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "zipcode")).SetReturn(TEST_ZIPCODE);
+
+        // act
+        const char* result = config_mgr_get_zipcode(handle);
+
+        // assert
+        ASSERT_IS_NOT_NULL(result);
+        ASSERT_ARE_EQUAL(char_ptr, TEST_ZIPCODE, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    TEST_FUNCTION(config_mgr_get_zipcode_cache_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "zipcode")).SetReturn(TEST_ZIPCODE);
+        (void)config_mgr_get_zipcode(handle);
+        umock_c_reset_all_calls();
+
+        // act
+        const char* result = config_mgr_get_zipcode(handle);
+
+        // assert
+        ASSERT_IS_NOT_NULL(result);
+        // Specifically don't check the value here.  It won't be what you expect since the
+        // testing framework doesn't return a const char* ptr that is statically allocated
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    TEST_FUNCTION(config_mgr_get_ntp_address_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        const char* result = config_mgr_get_ntp_address(NULL);
+
+        // assert
+        ASSERT_IS_NULL(result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    TEST_FUNCTION(config_mgr_get_ntp_address_fail)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "ntpAddress")).SetReturn(NULL);
+
+        // act
+        const char* result = config_mgr_get_ntp_address(handle);
+
+        // assert
+        ASSERT_IS_NULL(result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    TEST_FUNCTION(config_mgr_get_ntp_address_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "ntpAddress")).SetReturn(TEST_NTP_ADDRESS);
+
+        // act
+        const char* result = config_mgr_get_ntp_address(handle);
+
+        // assert
+        ASSERT_IS_NOT_NULL(result);
+        ASSERT_ARE_EQUAL(char_ptr, TEST_NTP_ADDRESS, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    TEST_FUNCTION(config_mgr_get_ntp_address_cache_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "ntpAddress")).SetReturn(TEST_NTP_ADDRESS);
+        (void)config_mgr_get_ntp_address(handle);
+        umock_c_reset_all_calls();
+
+        // act
+        const char* result = config_mgr_get_ntp_address(handle);
+
+        // assert
+        ASSERT_IS_NOT_NULL(result);
+        // Specifically don't check the value here.  It won't be what you expect since the
+        // testing framework doesn't return a const char* ptr that is statically allocated
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    TEST_FUNCTION(config_mgr_get_audio_dir_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        const char* result = config_mgr_get_audio_dir(NULL);
+
+        // assert
+        ASSERT_IS_NULL(result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    TEST_FUNCTION(config_mgr_get_audio_dir_fail)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "audioDirectory")).SetReturn(NULL);
+
+        // act
+        const char* result = config_mgr_get_audio_dir(handle);
+
+        // assert
+        ASSERT_IS_NULL(result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    TEST_FUNCTION(config_mgr_get_audio_dir_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "audioDirectory")).SetReturn(TEST_AUDIO_DIR);
+
+        // act
+        const char* result = config_mgr_get_audio_dir(handle);
+
+        // assert
+        ASSERT_IS_NOT_NULL(result);
+        ASSERT_ARE_EQUAL(char_ptr, TEST_AUDIO_DIR, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    TEST_FUNCTION(config_mgr_get_audio_dir_cache_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "audioDirectory")).SetReturn(TEST_AUDIO_DIR);
+        (void)config_mgr_get_audio_dir(handle);
+        umock_c_reset_all_calls();
+
+        // act
+        const char* result = config_mgr_get_audio_dir(handle);
+
+        // assert
+        ASSERT_IS_NOT_NULL(result);
+        // Specifically don't check the value here.  It won't be what you expect since the
+        // testing framework doesn't return a const char* ptr that is statically allocated
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup

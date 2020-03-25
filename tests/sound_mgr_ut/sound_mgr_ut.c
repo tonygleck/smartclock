@@ -251,53 +251,53 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         STRICT_EXPECTED_CALL(alGetError());
         if (failure)
         {
-            STRICT_EXPECTED_CALL(alGetString(IGNORED_NUM_ARG));
+            STRICT_EXPECTED_CALL(alGetString(IGNORED_ARG));
         }
     }
 
     static void setup_sound_mgr_create_mocks(void)
     {
-        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(alcGetString(IGNORED_PTR_ARG, IGNORED_NUM_ARG)).CallCannotFail();
-        STRICT_EXPECTED_CALL(alcOpenDevice(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(alcCreateContext(IGNORED_PTR_ARG, NULL));
-        STRICT_EXPECTED_CALL(alcMakeContextCurrent(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(malloc(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alcGetString(IGNORED_ARG, IGNORED_ARG)).CallCannotFail();
+        STRICT_EXPECTED_CALL(alcOpenDevice(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alcCreateContext(IGNORED_ARG, NULL));
+        STRICT_EXPECTED_CALL(alcMakeContextCurrent(IGNORED_ARG));
         STRICT_EXPECTED_CALL(alGetError()).CallCannotFail();
     }
 
     static void setup_construct_data_buffer_mocks(bool failure)
     {
-        STRICT_EXPECTED_CALL(alGenBuffers(IGNORED_NUM_ARG, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(alBufferData(IGNORED_NUM_ARG, IGNORED_NUM_ARG, IGNORED_PTR_ARG, IGNORED_NUM_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(alGenBuffers(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alBufferData(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         setup_validate_al_error_mocks(failure);
-        STRICT_EXPECTED_CALL(alGenSources(IGNORED_NUM_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(alGenSources(IGNORED_ARG, IGNORED_ARG));
         setup_validate_al_error_mocks(failure);
-        STRICT_EXPECTED_CALL(alSourcei(IGNORED_NUM_ARG, IGNORED_NUM_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(alSourcei(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         setup_validate_al_error_mocks(failure);
-        STRICT_EXPECTED_CALL(alSourcefv(IGNORED_NUM_ARG, IGNORED_NUM_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(alSourcefv(IGNORED_NUM_ARG, IGNORED_NUM_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(alSourcef(IGNORED_NUM_ARG, IGNORED_NUM_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(alSourcef(IGNORED_NUM_ARG, IGNORED_NUM_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(alSourcei(IGNORED_NUM_ARG, IGNORED_NUM_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(alListenerfv(IGNORED_NUM_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(alListenerfv(IGNORED_NUM_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(alListenerfv(IGNORED_NUM_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(alSourcefv(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alSourcefv(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alSourcef(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alSourcef(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alSourcei(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alListenerfv(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alListenerfv(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alListenerfv(IGNORED_ARG, IGNORED_ARG));
     }
 
     static void setup_play_mocks(bool failure)
     {
         STRICT_EXPECTED_CALL(file_mgr_open(TEST_SOUND_FILE, "rb"));
-        STRICT_EXPECTED_CALL(file_mgr_get_length(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(file_mgr_read(IGNORED_PTR_ARG, IGNORED_PTR_ARG, IGNORED_NUM_ARG)).
+        STRICT_EXPECTED_CALL(file_mgr_get_length(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(malloc(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(file_mgr_read(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG)).
             CopyOutArgumentBuffer_buffer(TEST_WAV_FILE, sizeof(unsigned char**));
-        STRICT_EXPECTED_CALL(file_mgr_close(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(file_mgr_close(IGNORED_ARG));
 
         setup_construct_data_buffer_mocks(failure);
 
         // Construct Data buffer
-        STRICT_EXPECTED_CALL(alSourcePlay(IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(alSourcePlay(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_ARG));
     }
 
     TEST_FUNCTION(sound_mgr_create_succeed)
@@ -362,12 +362,12 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         SOUND_MGR_HANDLE handle = sound_mgr_create();
         umock_c_reset_all_calls();
 
-        //STRICT_EXPECTED_CALL(alDeleteSources(IGNORED_NUM_ARG, IGNORED_PTR_ARG));
-        //STRICT_EXPECTED_CALL(alDeleteBuffers(IGNORED_NUM_ARG, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(alcMakeContextCurrent(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(alcDestroyContext(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(alcCloseDevice(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
+        //STRICT_EXPECTED_CALL(alDeleteSources(IGNORED_ARG, IGNORED_ARG));
+        //STRICT_EXPECTED_CALL(alDeleteBuffers(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alcMakeContextCurrent(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alcDestroyContext(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alcCloseDevice(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_ARG));
 
         // act
         sound_mgr_destroy(handle);
@@ -465,9 +465,9 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         int result = sound_mgr_play(handle, TEST_SOUND_FILE, true);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(alSourceStop(IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(alDeleteSources(IGNORED_NUM_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(alDeleteBuffers(IGNORED_NUM_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(alSourceStop(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alDeleteSources(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alDeleteBuffers(IGNORED_ARG, IGNORED_ARG));
 
         // act
         result = sound_mgr_stop(handle);

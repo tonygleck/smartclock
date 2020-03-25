@@ -131,11 +131,6 @@ static const char* get_month_name(int month)
 
 static void write_line(GUI_MGR_INFO* gui_info, int x_pos, int y_pos, const char* write_line)
 {
-    /*size_t date_len = strlen(write_line);
-    for (size_t index = 0; index < date_len; index++)
-    {
-        mvwaddch(gui_info->clock_win, x_pos, y_pos++, write_line[index]);
-    }*/
     wmove(gui_info->clock_win, x_pos, y_pos);
     waddstr(gui_info->clock_win, write_line);
 
@@ -147,8 +142,9 @@ static void set_alarm_state(GUI_MGR_INFO* gui_info, ALARM_TRIGGERED_RESULT alarm
 {
     gui_info->notify_cb(gui_info->user_ctx, NOTIFICATION_ALARM_RESULT, &alarm_result);
     gui_info->alarm_state = alarm_result;
-    write_line(gui_info, ALARM_LINE_POS_X, ALARM_LINE_POS_Y, "Removing alarm");
-    wrefresh(gui_info->clock_win);
+    // Clear the line
+    wmove(gui_info->clock_win, ALARM_LINE_POS_X, ALARM_LINE_POS_Y);
+    clrtoeol();
 }
 
 GUI_MGR_HANDLE gui_mgr_create(CONFIG_MGR_HANDLE config_mgr, GUI_MGR_NOTIFICATION_CB notify_cb, void* user_ctx)
@@ -280,7 +276,7 @@ void gui_mgr_set_forcast(GUI_MGR_HANDLE handle, FORCAST_TIME timeframe, const WE
     else
     {
         char forcast_line[128];
-        sprintf(forcast_line, "%.0f f", weather_cond->temperature);
+        sprintf(forcast_line, "%.0f f %s", weather_cond->temperature, weather_cond->description);
         write_line(handle, FORCAST_POS_X, FORCAST_POS_Y, forcast_line);
     }
 }
@@ -296,7 +292,7 @@ void gui_mgr_set_next_alarm(GUI_MGR_HANDLE handle, const ALARM_INFO* next_alarm)
     {
         char alarm_line[128];
         int trigger_day;
-        if ((trigger_day = alarm_scheduler_get_next_day(next_alarm->trigger_days)) >= 0)
+        if ((trigger_day = alarm_scheduler_get_next_day(next_alarm)) >= 0)
         {
             sprintf(alarm_line, "Alarm set: %s %d:%02d %s", get_day_name(trigger_day), config_mgr_format_hour(handle->config_mgr, next_alarm->trigger_time.hour), next_alarm->trigger_time.min, next_alarm->trigger_time.hour > 12 ? "pm" : "am");
             write_line(handle, NEXT_ALARM_LINE_POS_X, NEXT_ALARM_LINE_POS_Y, alarm_line);
