@@ -107,8 +107,11 @@ static int initialize_openai(SOUND_MGR_INFO* sound_info)
 
 static void deinitialize_openai(SOUND_MGR_INFO* sound_info)
 {
+    //ALCdevice* device = alcGetContextsDevice(sound_info->alc_context);
+
     alcMakeContextCurrent(NULL);
     alcDestroyContext(sound_info->alc_context);
+    //alcCloseDevice(device);
     alcCloseDevice(sound_info->alc_open_dev);
 }
 
@@ -464,6 +467,7 @@ int sound_mgr_stop(SOUND_MGR_HANDLE handle)
     {
         //ALenum current_playing_state;
         //alGetSourcei(handle->source, AL_SOURCE_STATE, &current_playing_state);
+        //alSourcei(handle->sourceId, AL_BUFFER, AL_NONE);
         alSourceStop(handle->source);
         clean_audio_items(handle);
         handle->sound_state = SOUND_STATE_IDLE;

@@ -155,14 +155,14 @@ const char* config_mgr_get_zipcode(CONFIG_MGR_HANDLE handle)
     else if (handle->zipcode == NULL)
     {
         // Read Zipcode Option
-        if ((handle->ntp_address = json_object_get_string(handle->json_object, ZIPCODE_NODE)) == NULL)
+        if ((handle->zipcode = json_object_get_string(handle->json_object, ZIPCODE_NODE)) == NULL)
         {
             log_error("Failure getting zipcode json object");
             result = NULL;
         }
         else
         {
-            result = handle->ntp_address;
+            result = handle->zipcode;
         }
     }
     else

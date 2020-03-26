@@ -38,12 +38,14 @@ static void my_mem_shim_free(void* ptr)
 
 static ALARM_INFO g_alarm_info;
 static size_t insert_item_index = 0;
-static const void* g_insert_item[2];
+static const void* g_insert_item[3];
 
 static ITEM_LIST_DESTROY_ITEM g_list_destroy_item;
 static void* g_destroy_user_ctx;
 static const char* TEST_ALARM_TEXT = "test alarm text";
 static const char* TEST_TEST_SOUND_FILE = "test sound text";
+static const char* TEST_ALARM_1_TEXT = "alarm_1_text";
+const char* TEST_ALARM_2_TEXT = "alarm_2_text";
 static const uint8_t TEST_SNOOZE_VALUE = 1;
 
 static void set_tm_struct(struct tm* curr_time)
@@ -117,6 +119,12 @@ static void my_item_list_destroy(ITEM_LIST_HANDLE handle)
         g_insert_item[1] = NULL;
         insert_item_index--;
     }
+    if (g_insert_item[2] != NULL)
+    {
+        g_list_destroy_item(g_destroy_user_ctx, (void*)g_insert_item[2]);
+        g_insert_item[2] = NULL;
+        insert_item_index--;
+    }
     my_mem_shim_free(handle);
 }
 
@@ -128,9 +136,14 @@ static int my_item_list_add_item(ITEM_LIST_HANDLE handle, const void* item)
         g_insert_item[0] = item;
         insert_item_index++;
     }
-    else
+    else if (g_insert_item[1] == NULL)
     {
         g_insert_item[1] = item;
+        insert_item_index++;
+    }
+    else
+    {
+        g_insert_item[2] = item;
         insert_item_index++;
     }
     return 0;
@@ -230,16 +243,16 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
 
     static void setup_alarm_scheduler_create_mocks(void)
     {
-        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(item_list_create(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(malloc(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(item_list_create(IGNORED_ARG, IGNORED_ARG));
     }
 
     static void setup_alarm_scheduler_add_alarm_info_mocks(void)
     {
-        STRICT_EXPECTED_CALL(malloc(IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(clone_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(clone_string(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(item_list_add_item(IGNORED_PTR_ARG, IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(malloc(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(clone_string(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(clone_string(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(item_list_add_item(IGNORED_ARG, IGNORED_ARG));
     }
 
     TEST_FUNCTION(alarm_scheduler_create_success)
@@ -293,8 +306,8 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(item_list_destroy(IGNORED_PTR_ARG));
-        STRICT_EXPECTED_CALL(free(IGNORED_PTR_ARG));
+        STRICT_EXPECTED_CALL(item_list_destroy(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_ARG));
 
         // act
         alarm_scheduler_destroy(handle);
@@ -390,6 +403,42 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         umock_c_negative_tests_deinit();
     }
 
+    TEST_FUNCTION(alarm_scheduler_add_alarm_handle_NULL_fail)
+    {
+        // arrange
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
+        umock_c_reset_all_calls();
+
+        // act
+        TIME_INFO tm_info = { 4, 5 };
+        int result = alarm_scheduler_add_alarm(NULL, TEST_ALARM_TEXT, &tm_info, Monday|Tuesday, TEST_TEST_SOUND_FILE, TEST_SNOOZE_VALUE);
+
+        // assert
+        ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    TEST_FUNCTION(alarm_scheduler_add_alarm_time_info_NULL_fail)
+    {
+        // arrange
+        SCHEDULER_HANDLE handle = alarm_scheduler_create();
+        umock_c_reset_all_calls();
+
+        // act
+        TIME_INFO tm_info = { 4, 5 };
+        int result = alarm_scheduler_add_alarm(handle, TEST_ALARM_TEXT, NULL, Monday|Tuesday, TEST_TEST_SOUND_FILE, TEST_SNOOZE_VALUE);
+
+        // assert
+        ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        alarm_scheduler_destroy(handle);
+    }
+
     TEST_FUNCTION(alarm_scheduler_add_alarm_success)
     {
         // arrange
@@ -450,6 +499,40 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         umock_c_negative_tests_deinit();
     }
 
+    TEST_FUNCTION(alarm_scheduler_is_triggered_handle_NULL_fail)
+    {
+        // arrange
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
+        umock_c_reset_all_calls();
+
+        // act
+        const ALARM_INFO* alarm_info = alarm_scheduler_is_triggered(NULL, &test_tm);
+
+        // assert
+        ASSERT_IS_NULL(alarm_info);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    TEST_FUNCTION(alarm_scheduler_is_triggered_current_time_NULL_fail)
+    {
+        // arrange
+        SCHEDULER_HANDLE handle = alarm_scheduler_create();
+        umock_c_reset_all_calls();
+
+        // act
+        const ALARM_INFO* alarm_info = alarm_scheduler_is_triggered(handle, NULL);
+
+        // assert
+        ASSERT_IS_NULL(alarm_info);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        alarm_scheduler_destroy(handle);
+    }
+
     TEST_FUNCTION(alarm_scheduler_is_triggered_alert_1_success)
     {
         // arrange
@@ -460,8 +543,8 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         (void)alarm_scheduler_add_alarm_info(handle, &g_alarm_info);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_PTR_ARG)).SetReturn(1);
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(1);
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
 
         // act
         const ALARM_INFO* alarm_info = alarm_scheduler_is_triggered(handle, &test_tm);
@@ -478,8 +561,6 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
     TEST_FUNCTION(alarm_scheduler_is_triggered_alert_2_success)
     {
         // arrange
-        const char* alarm_1_text = "alarm_1_text";
-        const char* alarm_2_text = "alarm_2_text";
         ALARM_INFO alarm_info1 = {0};
         ALARM_INFO alarm_info2 = {0};
 
@@ -490,20 +571,20 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         alarm_info1.trigger_days = Monday|Wednesday|Friday;
         alarm_info1.trigger_time.hour = 4;
         alarm_info1.trigger_time.min = 50;
-        alarm_info1.alarm_text = (char*)alarm_1_text;;
+        alarm_info1.alarm_text = (char*)TEST_ALARM_1_TEXT;;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info1);
 
         setup_alarm_time_info(&alarm_info2, &test_tm);
         alarm_info2.trigger_days = NoDay;
         alarm_info2.trigger_time.hour = 7;
         alarm_info2.trigger_time.min = 8;
-        alarm_info2.alarm_text = (char*)alarm_2_text;
+        alarm_info2.alarm_text = (char*)TEST_ALARM_2_TEXT;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info2);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_PTR_ARG)).SetReturn(2);
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(2);
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
 
         // act
         test_tm.tm_hour = 7;
@@ -513,7 +594,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
 
         // assert
         ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, alarm_2_text, alarm_info->alarm_text);
+        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_2_TEXT, alarm_info->alarm_text);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
@@ -544,7 +625,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         (void)alarm_scheduler_add_alarm_info(handle, &g_alarm_info);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_PTR_ARG)).SetReturn(0);
+        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(0);
 
         // act
         int result = alarm_scheduler_remove_alarm(handle, TEST_ALARM_TEXT);
@@ -567,9 +648,9 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         (void)alarm_scheduler_add_alarm_info(handle, &g_alarm_info);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_PTR_ARG)).SetReturn(1);
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(item_list_remove_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(1);
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(item_list_remove_item(IGNORED_ARG, IGNORED_ARG));
 
         // act
         int result = alarm_scheduler_remove_alarm(handle, TEST_ALARM_TEXT);
@@ -582,11 +663,23 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         alarm_scheduler_destroy(handle);
     }
 
+    TEST_FUNCTION(alarm_scheduler_get_next_alarm_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(NULL);
+
+        // assert
+        ASSERT_IS_NULL(alarm_info);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
     TEST_FUNCTION(alarm_scheduler_get_next_alarm_1_success)
     {
         // arrange
-        const char* alarm_1_text = "alarm_1_text";
-        const char* alarm_2_text = "alarm_2_text";
         struct tm curr_time = {0};
         curr_time.tm_hour = 15;
         curr_time.tm_min = 30;
@@ -600,28 +693,28 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         setup_alarm_time_info(&alarm_info1, &test_tm);
         alarm_info1.trigger_days = Wednesday;
         alarm_info1.trigger_time.hour = 12;
-        alarm_info1.alarm_text = (char*)alarm_1_text;
+        alarm_info1.alarm_text = (char*)TEST_ALARM_1_TEXT;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info1);
 
         setup_alarm_time_info(&alarm_info2, &test_tm);
         alarm_info2.trigger_days = Thursday;
         alarm_info2.trigger_time.hour = 13;
-        alarm_info2.alarm_text = (char*)alarm_2_text;
+        alarm_info2.alarm_text = (char*)TEST_ALARM_2_TEXT;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info2);
 
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(get_time_value()).SetReturn(&curr_time);
-        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_PTR_ARG)).SetReturn(2);
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(2);
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
 
         // act
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
         ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, alarm_2_text, alarm_info->alarm_text);
+        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_2_TEXT, alarm_info->alarm_text);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
@@ -631,8 +724,6 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
     TEST_FUNCTION(alarm_scheduler_get_next_alarm_2_success)
     {
         // arrange
-        const char* alarm_1_text = "alarm_1_text";
-        const char* alarm_2_text = "alarm_2_text";
         struct tm curr_time = {0};
         curr_time.tm_wday = 6;
         curr_time.tm_hour = 15;
@@ -647,28 +738,28 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         setup_alarm_time_info(&alarm_info1, &test_tm);
         alarm_info1.trigger_days = Wednesday;
         alarm_info1.trigger_time.hour = 12;
-        alarm_info1.alarm_text = (char*)alarm_1_text;;
+        alarm_info1.alarm_text = (char*)TEST_ALARM_1_TEXT;;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info1);
 
         setup_alarm_time_info(&alarm_info2, &test_tm);
         alarm_info2.trigger_days = Wednesday;
         alarm_info2.trigger_time.hour = 13;
-        alarm_info2.alarm_text = (char*)alarm_2_text;
+        alarm_info2.alarm_text = (char*)TEST_ALARM_2_TEXT;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info2);
 
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(get_time_value()).SetReturn(&curr_time);
-        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_PTR_ARG)).SetReturn(2);
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(2);
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
 
         // act
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
         ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, alarm_1_text, alarm_info->alarm_text);
+        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
@@ -678,8 +769,6 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
     TEST_FUNCTION(alarm_scheduler_get_next_alarm_3_success)
     {
         // arrange
-        const char* alarm_1_text = "alarm_1_text";
-        const char* alarm_2_text = "alarm_2_text";
         struct tm curr_time = {0};
         curr_time.tm_wday = 5;
         curr_time.tm_hour = 15;
@@ -695,28 +784,28 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         alarm_info1.trigger_days = Friday;
         alarm_info1.trigger_time.hour = 12;
         alarm_info1.trigger_time.min = 0;
-        alarm_info1.alarm_text = (char*)alarm_1_text;
+        alarm_info1.alarm_text = (char*)TEST_ALARM_1_TEXT;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info1);
 
         setup_alarm_time_info(&alarm_info2, &test_tm);
         alarm_info2.trigger_days = Thursday;
         alarm_info2.trigger_time.hour = 13;
-        alarm_info2.alarm_text = (char*)alarm_2_text;
+        alarm_info2.alarm_text = (char*)TEST_ALARM_2_TEXT;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info2);
 
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(get_time_value()).SetReturn(&curr_time);
-        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_PTR_ARG)).SetReturn(2);
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(2);
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
 
         // act
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
         ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, alarm_2_text, alarm_info->alarm_text);
+        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_2_TEXT, alarm_info->alarm_text);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
@@ -726,8 +815,6 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
     TEST_FUNCTION(alarm_scheduler_get_next_alarm_4_success)
     {
         // arrange
-        const char* alarm_1_text = "alarm_1_text";
-        const char* alarm_2_text = "alarm_2_text";
         struct tm curr_time = {0};
         curr_time.tm_wday = 5;
         curr_time.tm_hour = 15;
@@ -744,28 +831,28 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         alarm_info1.trigger_days = Everyday;
         alarm_info1.trigger_time.hour = 12;
         alarm_info1.trigger_time.min = 0;
-        alarm_info1.alarm_text = (char*)alarm_1_text;
+        alarm_info1.alarm_text = (char*)TEST_ALARM_1_TEXT;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info1);
 
         setup_alarm_time_info(&alarm_info2, &test_tm);
         alarm_info2.trigger_days = Thursday;
         alarm_info2.trigger_time.hour = 13;
-        alarm_info2.alarm_text = (char*)alarm_2_text;
+        alarm_info2.alarm_text = (char*)TEST_ALARM_2_TEXT;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info2);
 
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(get_time_value()).SetReturn(&curr_time);
-        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_PTR_ARG)).SetReturn(2);
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(2);
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
 
         // act
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
         ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, alarm_1_text, alarm_info->alarm_text);
+        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
@@ -775,8 +862,6 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
     TEST_FUNCTION(alarm_scheduler_get_next_alarm_5_success)
     {
         // arrange
-        const char* alarm_1_text = "alarm_1_text";
-        const char* alarm_2_text = "alarm_2_text";
         struct tm curr_time = {0};
         curr_time.tm_hour = 11;
         curr_time.tm_min = 30;
@@ -790,28 +875,230 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         setup_alarm_time_info(&alarm_info1, &test_tm);
         alarm_info1.trigger_days = Wednesday;
         alarm_info1.trigger_time.hour = 12;
-        alarm_info1.alarm_text = (char*)alarm_1_text;;
+        alarm_info1.alarm_text = (char*)TEST_ALARM_1_TEXT;;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info1);
 
         setup_alarm_time_info(&alarm_info2, &test_tm);
         alarm_info2.trigger_days = Tuesday;
         alarm_info2.trigger_time.hour = 13;
-        alarm_info2.alarm_text = (char*)alarm_2_text;
+        alarm_info2.alarm_text = (char*)TEST_ALARM_2_TEXT;
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info2);
 
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(get_time_value()).SetReturn(&curr_time);
-        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_PTR_ARG)).SetReturn(2);
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_PTR_ARG, IGNORED_NUM_ARG));
+        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(2);
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
 
         // act
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
         ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, alarm_1_text, alarm_info->alarm_text);
+        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        alarm_scheduler_destroy(handle);
+    }
+
+    TEST_FUNCTION(alarm_scheduler_get_next_alarm_6_success)
+    {
+        // arrange
+        struct tm curr_time = {0};
+        curr_time.tm_hour = 11;
+        curr_time.tm_min = 30;
+        curr_time.tm_wday = 3;
+        ALARM_INFO alarm_info1 = {0};
+        ALARM_INFO alarm_info2 = {0};
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
+
+        SCHEDULER_HANDLE handle = alarm_scheduler_create();
+        setup_alarm_time_info(&alarm_info1, &test_tm);
+        alarm_info1.trigger_days = Everyday;
+        alarm_info1.trigger_time.hour = 9;
+        alarm_info1.alarm_text = (char*)TEST_ALARM_1_TEXT;;
+        (void)alarm_scheduler_add_alarm_info(handle, &alarm_info1);
+
+        setup_alarm_time_info(&alarm_info2, &test_tm);
+        alarm_info2.trigger_days = Everyday;
+        alarm_info2.trigger_time.hour = 10;
+        alarm_info2.alarm_text = (char*)TEST_ALARM_2_TEXT;
+        (void)alarm_scheduler_add_alarm_info(handle, &alarm_info2);
+
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(get_time_value()).SetReturn(&curr_time);
+        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(2);
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+
+        // act
+        const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
+
+        // assert
+        ASSERT_IS_NOT_NULL(alarm_info);
+        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        alarm_scheduler_destroy(handle);
+    }
+
+    TEST_FUNCTION(alarm_scheduler_get_next_alarm_7_success)
+    {
+        // arrange
+        struct tm curr_time = {0};
+        curr_time.tm_hour = 9;
+        curr_time.tm_min = 30;
+        curr_time.tm_wday = 3;
+        ALARM_INFO alarm_info1 = {0};
+        ALARM_INFO alarm_info2 = {0};
+        ALARM_INFO alarm_info3 = {0};
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
+
+        SCHEDULER_HANDLE handle = alarm_scheduler_create();
+        setup_alarm_time_info(&alarm_info1, &test_tm);
+        alarm_info1.trigger_days = Thursday;
+        alarm_info1.trigger_time.hour = 4;
+        alarm_info1.alarm_text = (char*)TEST_ALARM_1_TEXT;
+        (void)alarm_scheduler_add_alarm_info(handle, &alarm_info1);
+
+        setup_alarm_time_info(&alarm_info2, &test_tm);
+        alarm_info2.trigger_days = Everyday;
+        alarm_info2.trigger_time.hour = 8;
+        alarm_info2.alarm_text = (char*)TEST_ALARM_2_TEXT;
+        (void)alarm_scheduler_add_alarm_info(handle, &alarm_info2);
+
+        setup_alarm_time_info(&alarm_info3, &test_tm);
+        alarm_info3.trigger_days = Everyday;
+        alarm_info3.trigger_time.hour = 7;
+        alarm_info3.trigger_time.min = 18;
+        alarm_info3.alarm_text = (char*)"alarm_3_test";
+        (void)alarm_scheduler_add_alarm_info(handle, &alarm_info3);
+
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(get_time_value()).SetReturn(&curr_time);
+        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(3);
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+
+        // act
+        const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
+
+        // assert
+        ASSERT_IS_NOT_NULL(alarm_info);
+        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        alarm_scheduler_destroy(handle);
+    }
+
+    TEST_FUNCTION(alarm_scheduler_get_next_day_success)
+    {
+        // arrange
+        struct tm test_tm = {0};
+        ALARM_INFO alarm_info1 = {0};
+
+        set_tm_struct(&test_tm);
+        test_tm.tm_wday = 2;
+
+        setup_alarm_time_info(&alarm_info1, &test_tm);
+        alarm_info1.trigger_days = Tuesday|Thursday;
+        alarm_info1.trigger_time.hour = 9;
+        alarm_info1.alarm_text = (char*)TEST_ALARM_1_TEXT;;
+
+        STRICT_EXPECTED_CALL(get_time_value()).SetReturn(&test_tm);
+
+        // act
+        int result = alarm_scheduler_get_next_day(&alarm_info1);
+
+        // assert
+        ASSERT_ARE_EQUAL(int, 4, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    TEST_FUNCTION(alarm_scheduler_get_next_day_2_success)
+    {
+        // arrange
+        struct tm test_tm = {0};
+        ALARM_INFO alarm_info1 = {0};
+
+        set_tm_struct(&test_tm);
+        test_tm.tm_wday = 2;
+        test_tm.tm_hour = 10;
+
+        setup_alarm_time_info(&alarm_info1, &test_tm);
+        alarm_info1.trigger_days = Everyday;
+        alarm_info1.trigger_time.hour = 9;
+        alarm_info1.alarm_text = (char*)TEST_ALARM_1_TEXT;;
+
+        STRICT_EXPECTED_CALL(get_time_value()).SetReturn(&test_tm);
+
+        // act
+        int result = alarm_scheduler_get_next_day(&alarm_info1);
+
+        // assert
+        ASSERT_ARE_EQUAL(int, 3, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    TEST_FUNCTION(alarm_scheduler_get_next_day_everyday_success)
+    {
+        // arrange
+        struct tm test_tm = {0};
+        ALARM_INFO alarm_info1 = {0};
+
+        set_tm_struct(&test_tm);
+        test_tm.tm_hour = 8;
+
+        setup_alarm_time_info(&alarm_info1, &test_tm);
+        alarm_info1.trigger_days = Everyday;
+        alarm_info1.trigger_time.hour = 9;
+        alarm_info1.alarm_text = (char*)TEST_ALARM_1_TEXT;;
+
+        for (size_t index = 0; index < 7; index++)
+        {
+            test_tm.tm_wday = index;
+
+            STRICT_EXPECTED_CALL(get_time_value()).SetReturn(&test_tm);
+
+            // act
+            int result = alarm_scheduler_get_next_day(&alarm_info1);
+
+            // assert
+            ASSERT_ARE_EQUAL(int, index, result);
+
+            umock_c_reset_all_calls();
+        }
+
+        // cleanup
+    }
+
+    TEST_FUNCTION(alarm_scheduler_snooze_alarm_success)
+    {
+        // arrange
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
+        SCHEDULER_HANDLE handle = alarm_scheduler_create();
+        setup_alarm_time_info(&g_alarm_info, &test_tm);
+        umock_c_reset_all_calls();
+
+        // act
+        int result = alarm_scheduler_snooze_alarm(handle, &g_alarm_info);
+
+        // assert
+        ASSERT_ARE_EQUAL(int, 0, result);
         ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup

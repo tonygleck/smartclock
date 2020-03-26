@@ -61,7 +61,7 @@ MOCKABLE_FUNCTION(, int, alarm_scheduler_remove_alarm, SCHEDULER_HANDLE, handle,
 MOCKABLE_FUNCTION(, const ALARM_INFO*, alarm_scheduler_get_next_alarm, SCHEDULER_HANDLE, handle);
 MOCKABLE_FUNCTION(, const ALARM_INFO*, alarm_scheduler_is_triggered, SCHEDULER_HANDLE, handle, const struct tm*, curr_time);
 MOCKABLE_FUNCTION(, int, alarm_scheduler_snooze_alarm, SCHEDULER_HANDLE, handle, const ALARM_INFO*, alarm_info);
-MOCKABLE_FUNCTION(, int, alarm_scheduler_get_next_day, uint32_t, trigger_day);
+MOCKABLE_FUNCTION(, int, alarm_scheduler_get_next_day, const ALARM_INFO*, alarm_info);
 
 #ifdef __cplusplus
 }
