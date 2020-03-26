@@ -122,14 +122,14 @@ compileTargetAsC99(clock_util)
 
 add_executable(smartclock_exe ${smartclock_src_files})
 target_include_directories(smartclock_exe PUBLIC ${PROJECT_SOURCE_DIR}/deps/parson)
-target_link_libraries(smartclock_exe clock_util lib-util-c asound patchcords)
+target_link_libraries(smartclock_exe clock_util lib-util-c patchcords)
 
 if (WIN32)
 elseif(STM32)
-    target_link_libraries(smartclock_exe lvgl)
+    target_link_libraries(smartclock_exe lvgl SDL2)
 else() # Linux
     target_link_libraries(smartclock_exe ncurses)
-    target_link_libraries(smartclock_exe SDL2 m)
+    target_link_libraries(smartclock_exe m)
 endif()
 
 target_include_directories(smartclock_exe PRIVATE ./deps/parson)
