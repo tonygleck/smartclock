@@ -9,12 +9,12 @@ Clock that knows
 May not be necessary
 sudo apt-get install libasound2-dev
 
-sudo apt-get install libopenal-dev
+sudo apt-get install libopenal-dev  libalut-dev
 
 ### production
 
 sudo apt-get install libasound2
-sudo apt-get install libopenal0a ?
+sudo apt-get install libopenal0a libalut0
 
 ### Adjusting the RPI screen
 
