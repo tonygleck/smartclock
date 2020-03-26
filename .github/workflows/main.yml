@@ -25,7 +25,7 @@ jobs:
         submodules: 'true'
 
     - name: valgrind
-      run: sudo apt-get install -y gcc valgrind cmake libopenal-dev libalut-dev
+      run: sudo apt-get install -y gcc valgrind cmake libopenal-dev libalut-dev libncurses-dev
 
     # Runs a single command using the runners shell
     - name: Run build coverage script
