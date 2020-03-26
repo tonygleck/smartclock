@@ -10,6 +10,7 @@ set(PROJECT_INC_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/inc)
 #option(use_opengl "set the smartclock to run on opengl (default is OFF)" OFF)
 option(smartclock_ut "Include unittest in build" OFF)
 option(set_demo_mode "Set up demo mode" OFF)
+option(set_gui_mode "Set up demo mode" OFF)
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT WIN32)
     set(DEBUG_CONFIG ON)
@@ -46,9 +47,11 @@ if (NOT TARGET http_client)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/http_client)
     include_directories(${PROJECT_SOURCE_DIR}/deps/http_client/inc)
 endif()
-if (NOT TARGET lvgl)
-    add_subdirectory(${PROJECT_SOURCE_DIR}/deps/gui)
-    include_directories(${PROJECT_SOURCE_DIR}/deps/gui)
+if (${set_gui_mode})
+    if (NOT TARGET lvgl)
+        add_subdirectory(${PROJECT_SOURCE_DIR}/deps/gui)
+        include_directories(${PROJECT_SOURCE_DIR}/deps/gui)
+    endif()
 endif()
 
 set(smartclock_include_files
@@ -82,7 +85,7 @@ set(clockutil_h_files
 )
 
 if (WIN32)
-elseif(STM32)
+elseif(${set_gui_mode})
     set(smartclock_src_files
         ${smartclock_src_files}
         ${PROJECT_SOURCE_DIR}/src/gui_mgr_sdl2.c
@@ -108,7 +111,7 @@ target_link_libraries(clock_util patchcords)
 target_link_libraries(clock_util http_client)
 
 if (WIN32)
-elseif(STM32)
+elseif(${set_gui_mode})
 else() # Linux
     target_link_libraries(clock_util openal)
     target_link_libraries(clock_util cord_berkley)
