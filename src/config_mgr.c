@@ -17,6 +17,12 @@ static const char* ZIPCODE_NODE = "zipcode";
 static const char* ALARMS_ARRAY_NODE = "alarms";
 static const char* AUDIO_DIR_NODE = "audioDirectory";
 
+static const char* ALARM_NODE_NAME = "name";
+static const char* ALARM_NODE_TIME = "time";
+static const char* ALARM_NODE_FREQUENCY = "frequency";
+static const char* ALARM_NODE_SOUND = "sound";
+static const char* ALARM_NODE_SNOOZE = "snooze";
+
 #define CLOCK_HOUR_12           0x00000001
 #define CLOCK_SHOW_SECONDS      0x00000002
 
@@ -286,6 +292,83 @@ int config_mgr_load_alarm(CONFIG_MGR_HANDLE handle, ON_ALARM_LOAD_CALLBACK alarm
                         result = 0;
                     }
                 }
+            }
+        }
+    }
+    return result;
+}
+
+int config_mgr_store_alarm(CONFIG_MGR_HANDLE handle, const char* name, const uint8_t time_array[3], const char* sound_file, uint32_t frequency, uint8_t snooze)
+{
+    int result;
+    if (handle == NULL)
+    {
+        log_error("Invalid handle value");
+        result = __LINE__;
+    }
+    // validate time
+    else if (time_array[0] > 23 || time_array[1] > 59 || time_array[2] > 59)
+    {
+        log_error("Invalid time value specified");
+        result = __LINE__;
+    }
+    else
+    {
+        JSON_Array* alarms;
+        JSON_Object* alarm_object;
+        JSON_Value* alarm_node;
+        if ((alarms = json_object_get_array(handle->json_object, ALARMS_ARRAY_NODE)) == NULL)
+        {
+            log_error("Failure getting alarm arrays");
+            result = __LINE__;
+        }
+        else if ((alarm_node = json_value_init_object()) == NULL)
+        {
+            log_error("Failure initializing alarm arrays");
+            result = __LINE__;
+        }
+        else if ((alarm_object = json_value_get_object(alarm_node)) == NULL)
+        {
+            log_error("Failure getting alarm object");
+            result = __LINE__;
+        }
+        else
+        {
+            char time_string[16];
+            sprintf(time_string, "%d:%02d:%02d", time_array[0], time_array[1], time_array[2]);
+            if (json_object_set_string(alarm_object, ALARM_NODE_NAME, name == NULL ? "" : name) != JSONSuccess)
+            {
+                log_error("Failure constructing alarm name");
+                result = __LINE__;
+            }
+            else if (json_object_set_string(alarm_object, ALARM_NODE_TIME, time_string) != JSONSuccess)
+            {
+                log_error("Failure constructing alarm time");
+                result = __LINE__;
+            }
+            else if (json_object_set_number(alarm_object, ALARM_NODE_FREQUENCY, frequency) != JSONSuccess)
+            {
+                log_error("Failure constructing alarm frequency");
+                result = __LINE__;
+            }
+            else if (json_object_set_string(alarm_object, ALARM_NODE_SOUND, sound_file ? "" : sound_file) != JSONSuccess)
+            {
+                log_error("Failure constructing alarm time");
+                result = __LINE__;
+            }
+            else if (json_object_set_number(alarm_object, ALARM_NODE_SNOOZE, snooze) != JSONSuccess)
+            {
+                log_error("Failure constructing alarm snooze");
+                result = __LINE__;
+            }
+            else if (json_array_append_value(alarms, alarm_node))
+            {
+                log_error("Failure appending json array");
+                result = __LINE__;
+            }
+            else
+            {
+                result = 0;
             }
         }
     }

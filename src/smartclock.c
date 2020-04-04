@@ -135,6 +135,7 @@ static void check_weather_operation(SMARTCLOCK_INFO* clock_info)
 #else
         WEATHER_CONDITIONS cond = {0};
         cond.temperature = 43;
+        cond.description = "Partly Sunny";
         cond.weather_icon[0] = '0';
         cond.weather_icon[1] = '9';
         cond.weather_icon[2] = 'd';
@@ -212,6 +213,7 @@ static void configure_alarms(SMARTCLOCK_INFO* clock_info)
     (void)clock_info;
     // Show alarm dialog on gui
 
+
     // Check
 }
 
@@ -283,7 +285,8 @@ static void check_alarm_operation(SMARTCLOCK_INFO* clock_info, const struct tm* 
         {
             gui_mgr_set_alarm_triggered(clock_info->gui_mgr, triggered);
 
-            // todo: Play the alarm sound
+            play_alarm_sound(clock_info, triggered);
+
             clock_info->alarm_op_state = ALARM_TRIGGERED_TRIGGERED;
             (void)alarm_timer_start(&clock_info->max_alarm_len, MAX_ALARM_RING_TIME);
             clock_info->triggered_alarm = triggered;

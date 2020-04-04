@@ -49,6 +49,11 @@ MOCKABLE_FUNCTION(, void, json_value_free, JSON_Value*, value);
 MOCKABLE_FUNCTION(, double, json_value_get_number, const JSON_Value*, value);
 MOCKABLE_FUNCTION(, JSON_Status, json_serialize_to_file_pretty, const JSON_Value*, value, const char*, filename);
 MOCKABLE_FUNCTION(, JSON_Object*, json_array_get_object, const JSON_Array*, array, size_t, index);
+MOCKABLE_FUNCTION(, JSON_Status, json_object_set_string, JSON_Object*, object, const char*, name, const char*, string);
+MOCKABLE_FUNCTION(, JSON_Status, json_object_set_number, JSON_Object*, object, const char*, name, double,  number);
+MOCKABLE_FUNCTION(, JSON_Status, json_object_set_value, JSON_Object*, object, const char*, name, JSON_Value*, value);
+MOCKABLE_FUNCTION(, JSON_Value*, json_value_init_object);
+MOCKABLE_FUNCTION(, JSON_Status, json_array_append_value, JSON_Array*, array, JSON_Value*, value);
 
 #undef ENABLE_MOCKS
 
@@ -90,6 +95,12 @@ static const char* TEST_INVALID_TIME_VAL = "11:A9:32";
 static const char* TEST_ZIPCODE = "12345";
 static const char* TEST_NTP_ADDRESS = "127.0.0.1";
 static const char* TEST_AUDIO_DIR = "/audio/directory";
+
+static const char* TEST_ALARM_NAME = "alarm text 1";
+static uint8_t TEST_SNOOZE_MIN = 15;
+static const char* TEST_ALARM_SOUND = "alarm_sound1.mp3";
+static uint8_t TEST_ALARM_FREQUENCY = 127;
+static uint8_t TEST_ALARM_ARRAY[3] = { 12, 30, 0 };
 
 static int load_alarms_cb(void* context, const CONFIG_ALARM_INFO* cfg_alarm)
 {
@@ -170,6 +181,19 @@ BEGIN_TEST_SUITE(config_mgr_ut)
 
         REGISTER_GLOBAL_MOCK_RETURN(json_array_get_value, TEST_JSON_VALUE);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_array_get_value, NULL);
+
+        REGISTER_GLOBAL_MOCK_RETURN(json_array_get_object, TEST_JSON_OBJECT);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_array_get_object, NULL);
+        REGISTER_GLOBAL_MOCK_RETURN(json_object_set_string, JSONSuccess);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_object_set_string, JSONFailure);
+        REGISTER_GLOBAL_MOCK_RETURN(json_object_set_number, JSONSuccess);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_object_set_number, JSONFailure);
+        REGISTER_GLOBAL_MOCK_RETURN(json_object_set_value, JSONSuccess);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_object_set_value, JSONFailure);
+        REGISTER_GLOBAL_MOCK_RETURN(json_value_init_object, TEST_JSON_VALUE);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_value_init_object, NULL);
+        REGISTER_GLOBAL_MOCK_RETURN(json_array_append_value, JSONSuccess);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_array_append_value, JSONFailure);
     }
 
     TEST_SUITE_CLEANUP(suite_cleanup)
@@ -212,6 +236,19 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "snooze")).CallCannotFail();
         STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "frequency")).CallCannotFail();
         //STRICT_EXPECTED_CALL(test_alarm_load_cb(IGNORED_ARG, IGNORED_ARG));
+    }
+
+    static void setup_config_mgr_store_alarm_mocks(void)
+    {
+        STRICT_EXPECTED_CALL(json_object_get_array(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_value_init_object());
+        STRICT_EXPECTED_CALL(json_value_get_object(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_object_set_string(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_object_set_string(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_object_set_number(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_object_set_string(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_object_set_number(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_array_append_value(IGNORED_ARG, IGNORED_ARG));
     }
 
     TEST_FUNCTION(config_mgr_create_success)
@@ -455,6 +492,58 @@ BEGIN_TEST_SUITE(config_mgr_ut)
 
         // cleanup
         config_mgr_destroy(handle);
+    }
+
+    TEST_FUNCTION(config_mgr_store_alarm_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        setup_config_mgr_store_alarm_mocks();
+
+        // act
+        int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN);
+
+        // assert
+        ASSERT_ARE_EQUAL(int, 0, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    TEST_FUNCTION(config_mgr_store_alarm_fail)
+    {
+        // arrange
+        int negativeTestsInitResult = umock_c_negative_tests_init();
+        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        setup_config_mgr_store_alarm_mocks();
+
+        umock_c_negative_tests_snapshot();
+
+        size_t count = umock_c_negative_tests_call_count();
+        for (size_t index = 0; index < count; index++)
+        {
+            if (umock_c_negative_tests_can_call_fail(index))
+            {
+                umock_c_negative_tests_reset();
+                umock_c_negative_tests_fail_call(index);
+
+                // act
+                int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN);
+
+                // assert
+                ASSERT_ARE_NOT_EQUAL(int, 0, result);
+            }
+        }
+        // cleanup
+        config_mgr_destroy(handle);
+        umock_c_negative_tests_deinit();
     }
 
     TEST_FUNCTION(config_mgr_get_zipcode_handle_NULL_fail)

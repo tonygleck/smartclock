@@ -84,8 +84,17 @@ set(clockutil_h_files
     ${PROJECT_SOURCE_DIR}/inc/weather_client.h
 )
 
+
 if (WIN32)
-elseif(${set_gui_mode})
+else()
+    set(clockutil_src_files
+        ${clockutil_src_files}
+            #${PROJECT_SOURCE_DIR}/src/system_config.c
+            ${PROJECT_SOURCE_DIR}/src/pal/linux/time_mgr_linux.c
+        )
+endif()
+
+if(${set_gui_mode})
     set(smartclock_src_files
         ${smartclock_src_files}
         ${PROJECT_SOURCE_DIR}/src/gui_mgr_sdl2.c
@@ -95,26 +104,19 @@ else()
         ${smartclock_src_files}
         ${PROJECT_SOURCE_DIR}/src/gui_mgr_cmd.c
     )
-    set(clockutil_src_files
-        ${clockutil_src_files}
-        #${PROJECT_SOURCE_DIR}/src/system_config.c
-        ${PROJECT_SOURCE_DIR}/src/pal/linux/time_mgr_linux.c
-    )
 endif()
 
 add_library(clock_util SHARED ${clockutil_src_files} ${clockutil_h_files})
 target_include_directories(clock_util PRIVATE ./deps/parson)
 target_include_directories(clock_util PUBLIC ${PROJECT_SOURCE_DIR}/inc)
 
-target_link_libraries(clock_util lib-util-c)
-target_link_libraries(clock_util patchcords)
-target_link_libraries(clock_util http_client)
+target_link_libraries(clock_util
+    PUBLIC lib-util-c patchcords http_client)
 
 if (WIN32)
-elseif(${set_gui_mode})
 else() # Linux
-    target_link_libraries(clock_util openal)
-    target_link_libraries(clock_util cord_berkley)
+    target_link_libraries(clock_util
+        PUBLIC openal cord_berkley)
 endif()
 
 smartclock_addCompileSettings(clock_util)
@@ -124,8 +126,7 @@ add_executable(smartclock_exe ${smartclock_src_files})
 target_include_directories(smartclock_exe PUBLIC ${PROJECT_SOURCE_DIR}/deps/parson)
 target_link_libraries(smartclock_exe clock_util lib-util-c patchcords)
 
-if (WIN32)
-elseif(STM32)
+if(${set_gui_mode})
     target_link_libraries(smartclock_exe lvgl SDL2)
 else() # Linux
     target_link_libraries(smartclock_exe ncurses)

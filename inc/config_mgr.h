@@ -37,6 +37,8 @@ MOCKABLE_FUNCTION(, const char*, config_mgr_get_zipcode, CONFIG_MGR_HANDLE, hand
 MOCKABLE_FUNCTION(, const char*, config_mgr_get_audio_dir, CONFIG_MGR_HANDLE, handle);
 
 MOCKABLE_FUNCTION(, int, config_mgr_load_alarm, CONFIG_MGR_HANDLE, handle, ON_ALARM_LOAD_CALLBACK, alarm_cb, void*, user_ctx);
+MOCKABLE_FUNCTION(, int, config_mgr_store_alarm, CONFIG_MGR_HANDLE, handle, const char*, name, const uint8_t, time_array[3], const char*, sound_file, uint32_t, frequency, uint8_t, snooze);
+
 
 MOCKABLE_FUNCTION(, uint8_t, config_mgr_format_hour, CONFIG_MGR_HANDLE, handle, int, hour);
 MOCKABLE_FUNCTION(, bool, config_mgr_show_seconds, CONFIG_MGR_HANDLE, handle);
