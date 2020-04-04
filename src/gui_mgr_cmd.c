@@ -38,6 +38,9 @@
 #define CURSOR_REST_POS_X       5
 #define CURSOR_REST_POS_Y       0
 
+#define CLOCK_WINDOW_X          6
+#define ALARM_DLG_X             20
+#define CLOCK_POS_Y             64
 
 #define SNOOZE_ALARM_KEY        's'
 #define KILL_ALARM_KEY          'k'
@@ -47,11 +50,11 @@
 typedef struct GUI_MGR_INFO_TAG
 {
     WINDOW* clock_win;
+    WINDOW* alarm_dlg;
     GUI_MGR_NOTIFICATION_CB notify_cb;
     void* user_ctx;
     ALARM_TRIGGERED_RESULT alarm_state;
     CONFIG_MGR_HANDLE config_mgr;
-
 } GUI_MGR_INFO;
 
 static const char* get_day_name(int day)
@@ -91,9 +94,6 @@ static const char* get_month_name(int month)
     {
         case 0:
             result = "January";
-            break;
-        case 1:
-            result = "February";
             break;
         case 2:
             result = "March";
@@ -169,7 +169,6 @@ GUI_MGR_HANDLE gui_mgr_create(CONFIG_MGR_HANDLE config_mgr, GUI_MGR_NOTIFICATION
         result->config_mgr = config_mgr;
         result->notify_cb = notify_cb;
         result->user_ctx = user_ctx;
-        result->clock_win = stdscr;
     }
     return result;
 }
@@ -190,8 +189,27 @@ size_t gui_mgr_get_refresh_resolution(void)
 
 int gui_mgr_create_win(GUI_MGR_HANDLE handle)
 {
-    (void)handle;
-    return 0;
+    int result;
+    if (handle == NULL)
+    {
+        log_error("Invalid parameter handle: NULL");
+        result = __LINE__;
+    }
+    else if ((handle->clock_win = newwin(CLOCK_WINDOW_X, CLOCK_POS_Y, 0, 0)) == NULL)
+    {
+        log_error("Failure creating clock window");
+        result = __LINE__;
+    }
+    else if ((handle->alarm_dlg = newwin(ALARM_DLG_X, CLOCK_POS_Y, 0, 0)) == NULL)
+    {
+        log_error("Failure creating Alarm dlg window");
+        result = __LINE__;
+    }
+    else
+    {
+        result = 0;
+    }
+    return result;
 }
 
 void gui_mgr_set_time_item(GUI_MGR_HANDLE handle, const struct tm* curr_time)
@@ -364,5 +382,29 @@ void gui_mgr_process_items(GUI_MGR_HANDLE handle)
             handle->notify_cb(handle->user_ctx, NOTIFICATION_ALARM_DLG, NULL);
         }
     }
-    refresh();
+    wrefresh(handle->clock_win);
+}
+
+void gui_mgr_show_alarm_dlg(GUI_MGR_HANDLE handle, SCHEDULER_HANDLE sched_handle)
+{
+    if (handle != NULL && sched_handle != NULL)
+    {
+        ALARM_INFO alarm_info = {0};
+        alarm_info.alarm_text = "alarm text 1";
+        alarm_info.snooze_min = 15;
+        alarm_info.sound_file = "alarm_sound1.mp3";
+        alarm_info.trigger_days = 127;
+        alarm_info.trigger_time.hour = 12;
+        alarm_info.trigger_time.min = 30;
+
+        // List the alarms items
+        if (alarm_scheduler_add_alarm_info(sched_handle, &alarm_info) != 0)
+        {
+
+        }
+        else
+        {
+
+        }
+    }
 }

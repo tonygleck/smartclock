@@ -915,6 +915,7 @@ BEGIN_TEST_SUITE(weather_client_ut)
         STRICT_EXPECTED_CALL(alarm_timer_is_expired(IGNORED_ARG)).SetReturn(true);
         STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
         //STRICT_EXPECTED_CALL(condition_callback(IGNORED_ARG, WEATHER_OP_RESULT_TIMEOUT, NULL));
+        STRICT_EXPECTED_CALL(free(IGNORED_ARG));
 
         weather_client_process(client_handle);
         weather_client_process(client_handle);
@@ -1067,7 +1068,6 @@ BEGIN_TEST_SUITE(weather_client_ut)
         {
             if (umock_c_negative_tests_can_call_fail(index))
             {
-                weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
                 weather_client_process(client_handle);
                 g_on_request_callback(g_on_request_context, HTTP_CLIENT_OK, TEST_ACTUAL_WEATHER, len, 200, TEST_HTTP_HEADER);
 
@@ -1082,6 +1082,8 @@ BEGIN_TEST_SUITE(weather_client_ut)
 
                 // assert
                 ASSERT_IS_TRUE(g_error_condition_called);
+
+                weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
             }
         }
 

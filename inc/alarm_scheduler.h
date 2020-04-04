@@ -37,7 +37,7 @@ typedef enum DayOfTheWeek_TAG
     Friday = 0x10,
     Saturday = 0x20,
     Sunday = 0x40,
-    Everyday = 0x127
+    Everyday = 0x7F
 } DayOfTheWeek;
 
 typedef struct ALARM_INFO_TAG

@@ -498,12 +498,12 @@ void weather_client_destroy(WEATHER_CLIENT_HANDLE handle)
     {
         close_http_connection(handle);
 
-        free(handle->api_key);
-        free(handle->weather_data);
-        if (handle->query_type == QUERY_TYPE_NAME || handle->query_type == QUERY_TYPE_ZIP_CODE)
+        if ((handle->query_type == QUERY_TYPE_NAME || handle->query_type == QUERY_TYPE_ZIP_CODE) && handle->weather_query.value != NULL)
         {
             free(handle->weather_query.value);
         }
+        free(handle->api_key);
+        free(handle->weather_data);
         free(handle);
     }
 }
@@ -719,6 +719,10 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
             case WEATHER_CLIENT_STATE_CALLBACK:
                 handle->conditions_callback(handle->condition_ctx, handle->op_result, NULL);
                 handle->state = WEATHER_CLIENT_STATE_IDLE;
+                if (handle->query_type == QUERY_TYPE_NAME || handle->query_type == QUERY_TYPE_ZIP_CODE)
+                {
+                    free(handle->weather_query.value);
+                }
                 break;
         }
 #endif
