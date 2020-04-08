@@ -31,6 +31,14 @@ typedef struct GUI_MGR_INFO_TAG
     CONFIG_MGR_HANDLE config_mgr;
 } GUI_MGR_INFO;
 
+static void gui_custom_logger(lv_log_level_t level, const char* filepath, uint32_t log_line, const char* description)
+{
+    (void)level;
+    (void)filepath;
+    (void)log_line;
+    (void)description;
+}
+
 static int tick_thread(void * data)
 {
     (void)data;
