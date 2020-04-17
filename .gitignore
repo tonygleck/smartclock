@@ -99,3 +99,5 @@ deps/
 
 # node
 package-lock.json
+
+media/img/working/*.png
