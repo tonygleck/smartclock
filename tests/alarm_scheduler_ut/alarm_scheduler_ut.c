@@ -1321,6 +1321,70 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         // cleanup
     }
 
+    TEST_FUNCTION(alarm_scheduler_get_alarm_count_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        size_t result = alarm_scheduler_get_alarm_count(NULL);
+
+        // assert
+        ASSERT_ARE_EQUAL(int, 0, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    TEST_FUNCTION(alarm_scheduler_get_alarm_count_success)
+    {
+        // arrange
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
+        SCHEDULER_HANDLE handle = alarm_scheduler_create();
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(1);
+
+        // act
+        size_t result = alarm_scheduler_get_alarm_count(handle);
+
+        // assert
+        ASSERT_ARE_EQUAL(int, 1, result);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        alarm_scheduler_destroy(handle);
+    }
+
+    TEST_FUNCTION(alarm_scheduler_get_alarm_success)
+    {
+        // arrange
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
+        ALARM_INFO alarm_info1 = {0};
+
+        SCHEDULER_HANDLE handle = alarm_scheduler_create();
+        setup_alarm_time_info(&alarm_info1, &test_tm);
+        alarm_info1.trigger_days = NoDay;
+        alarm_info1.trigger_time.hour = 4;
+        alarm_info1.alarm_text = (char*)TEST_ALARM_1_TEXT;
+        (void)alarm_scheduler_add_alarm_info(handle, &alarm_info1);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+
+        // act
+        const ALARM_INFO* result = alarm_scheduler_get_alarm(handle, 0);
+
+        // assert
+        ASSERT_IS_NOT_NULL(result);
+        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, result->alarm_text);
+        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        alarm_scheduler_destroy(handle);
+    }
+
     TEST_FUNCTION(alarm_scheduler_snooze_alarm_success)
     {
         // arrange

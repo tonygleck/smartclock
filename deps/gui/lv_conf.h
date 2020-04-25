@@ -20,8 +20,10 @@
  *====================*/
 
 /* Maximal horizontal and vertical resolution to support by the library.*/
-#define LV_HOR_RES_MAX          (480)
-#define LV_VER_RES_MAX          (320)
+#define LV_HOR_RES_MAX          (800)
+#define LV_VER_RES_MAX          (480)
+
+#define WINDOWS_TITLE           "Smartclock"
 
 /* Color depth:
  * - 1:  1 byte per pixel
@@ -155,7 +157,7 @@ typedef void * lv_fs_drv_user_data_t;
 #endif
 
 /*1: Add a `user_data` to drivers and objects*/
-#define LV_USE_USER_DATA        0
+#define LV_USE_USER_DATA        1
 
 /*========================
  * Image decoder and cache
@@ -224,7 +226,7 @@ typedef void * lv_indev_drv_user_data_t;            /*Type of user data in the i
  *===============*/
 
 /*1: Enable the log module*/
-#define LV_USE_LOG      0
+#define LV_USE_LOG      1
 #if LV_USE_LOG
 /* How important log should be added:
  * LV_LOG_LEVEL_TRACE       A lot of logs to give detailed information
@@ -237,7 +239,7 @@ typedef void * lv_indev_drv_user_data_t;            /*Type of user data in the i
 
 /* 1: Print the log with 'printf';
  * 0: user need to register a callback with `lv_log_register_print_cb`*/
-#  define LV_LOG_PRINTF   0
+#  define LV_LOG_PRINTF   1
 #endif  /*LV_USE_LOG*/
 
 /*=================
@@ -284,7 +286,7 @@ typedef void * lv_indev_drv_user_data_t;            /*Type of user data in the i
 #define LV_USE_THEME_TEMPL      0   /*Just for test*/
 #define LV_USE_THEME_DEFAULT    0   /*Built mainly from the built-in styles. Consumes very few RAM*/
 #define LV_USE_THEME_ALIEN      0   /*Dark futuristic theme*/
-#define LV_USE_THEME_NIGHT      0   /*Dark elegant theme*/
+#define LV_USE_THEME_NIGHT      1   /*Dark elegant theme*/
 #define LV_USE_THEME_MONO       0   /*Mono color theme for monochrome displays*/
 #define LV_USE_THEME_MATERIAL   0   /*Flat theme with bold colors and light shadows*/
 #define LV_USE_THEME_ZEN        0   /*Peaceful, mainly light theme */

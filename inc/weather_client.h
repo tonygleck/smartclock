@@ -36,6 +36,7 @@ typedef enum _tag_TEMPERATURE_UNITS
 
 typedef struct WEATHER_CONDITIONS_TAG
 {
+    struct tm* forcast_date;
     double temperature;
     double hi_temp;
     double lo_temp;

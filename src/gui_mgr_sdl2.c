@@ -27,7 +27,7 @@ typedef struct GUI_MGR_INFO_TAG
     lv_obj_t* main_win;
     GUI_MGR_NOTIFICATION_CB notify_cb;
     void* user_ctx;
-    ALARM_TRIGGERED_RESULT alarm_state;
+    ALARM_STATE_RESULT alarm_state;
     CONFIG_MGR_HANDLE config_mgr;
 } GUI_MGR_INFO;
 

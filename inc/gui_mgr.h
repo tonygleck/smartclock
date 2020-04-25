@@ -33,7 +33,7 @@ typedef enum GUI_NOTIFICATION_TYPE_TAG
 
 typedef struct GUI_MGR_INFO_TAG* GUI_MGR_HANDLE;
 
-//typedef void(*ALARM_RESULT_CB)(void* user_ctx, ALARM_TRIGGERED_RESULT alarm_result);
+//typedef void(*ALARM_RESULT_CB)(void* user_ctx, ALARM_STATE_RESULT alarm_result);
 typedef void(*GUI_MGR_NOTIFICATION_CB)(void* user_ctx, GUI_NOTIFICATION_TYPE type, void* res_value);
 
 MOCKABLE_FUNCTION(, GUI_MGR_HANDLE, gui_mgr_create, CONFIG_MGR_HANDLE, config_mgr, GUI_MGR_NOTIFICATION_CB, notify_cb, void*, user_ctx);

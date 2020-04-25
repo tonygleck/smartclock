@@ -11,8 +11,9 @@
 #include "lib-util-c/sys_debug_shim.h"
 #include "lib-util-c/app_logging.h"
 
-#include "gui_mgr.h"
 #include "config_mgr.h"
+#include "alarm_scheduler.h"
+#include "gui_mgr.h"
 
 #define ASCII_ZERO_VALUE        48
 #define SHOW_SEC_VALUE          5
@@ -53,7 +54,7 @@ typedef struct GUI_MGR_INFO_TAG
     WINDOW* alarm_dlg;
     GUI_MGR_NOTIFICATION_CB notify_cb;
     void* user_ctx;
-    ALARM_TRIGGERED_RESULT alarm_state;
+    ALARM_STATE_RESULT alarm_state;
     CONFIG_MGR_HANDLE config_mgr;
 } GUI_MGR_INFO;
 
@@ -138,7 +139,7 @@ static void write_line(GUI_MGR_INFO* gui_info, int x_pos, int y_pos, const char*
     wmove(gui_info->clock_win, CURSOR_REST_POS_X, CURSOR_REST_POS_Y);
 }
 
-static void set_alarm_state(GUI_MGR_INFO* gui_info, ALARM_TRIGGERED_RESULT alarm_result)
+static void set_alarm_state(GUI_MGR_INFO* gui_info, ALARM_STATE_RESULT alarm_result)
 {
     gui_info->notify_cb(gui_info->user_ctx, NOTIFICATION_ALARM_RESULT, &alarm_result);
     gui_info->alarm_state = alarm_result;
@@ -330,7 +331,7 @@ int gui_mgr_set_alarm_triggered(GUI_MGR_HANDLE handle, const ALARM_INFO* alarm_t
     {
         if (alarm_triggered == NULL)
         {
-            set_alarm_state(handle, ALARM_TRIGGERED_STOPPED);
+            set_alarm_state(handle, ALARM_STATE_STOPPED);
         }
         else
         {
@@ -338,7 +339,7 @@ int gui_mgr_set_alarm_triggered(GUI_MGR_HANDLE handle, const ALARM_INFO* alarm_t
             sprintf(alarm_line, "Alarm Alert: %d:%02d %s (Snooze (%c) - Stop (%c)", config_mgr_format_hour(handle->config_mgr, alarm_triggered->trigger_time.hour), alarm_triggered->trigger_time.min,
                 alarm_triggered->alarm_text, SNOOZE_ALARM_KEY, KILL_ALARM_KEY);
             write_line(handle, ALARM_LINE_POS_X, ALARM_LINE_POS_Y, alarm_line);
-            handle->alarm_state = ALARM_TRIGGERED_TRIGGERED;
+            handle->alarm_state = ALARM_STATE_TRIGGERED;
         }
         result = 0;
     }
@@ -352,23 +353,23 @@ void gui_mgr_process_items(GUI_MGR_HANDLE handle)
 
     if ((response_ch = getch()) != ERR)
     {
-        if (handle->alarm_state == ALARM_TRIGGERED_TRIGGERED)
+        if (handle->alarm_state == ALARM_STATE_TRIGGERED)
         {
             switch (response_ch)
             {
                 case SNOOZE_ALARM_KEY:
-                    set_alarm_state(handle, ALARM_TRIGGERED_SNOOZE);
+                    set_alarm_state(handle, ALARM_STATE_SNOOZE);
                     break;
                 case KILL_ALARM_KEY:
-                    set_alarm_state(handle, ALARM_TRIGGERED_STOPPED);
+                    set_alarm_state(handle, ALARM_STATE_STOPPED);
                     break;
             }
         }
-        else if (handle->alarm_state == ALARM_TRIGGERED_SNOOZE)
+        else if (handle->alarm_state == ALARM_STATE_SNOOZE)
         {
             if (response_ch == KILL_ALARM_KEY)
             {
-                set_alarm_state(handle, ALARM_TRIGGERED_STOPPED);
+                set_alarm_state(handle, ALARM_STATE_STOPPED);
             }
         }
         else if (response_ch == QUIT_APP_KEY)

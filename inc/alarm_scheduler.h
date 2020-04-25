@@ -20,12 +20,12 @@ typedef struct TIME_INFO_TAG
     uint8_t sec;
 } TIME_INFO;
 
-typedef enum ALARM_TRIGGERED_RESULT_TAG
+typedef enum ALARM_STATE_RESULT_TAG
 {
-    ALARM_TRIGGERED_STOPPED,
-    ALARM_TRIGGERED_TRIGGERED,
-    ALARM_TRIGGERED_SNOOZE
-} ALARM_TRIGGERED_RESULT;
+    ALARM_STATE_STOPPED,
+    ALARM_STATE_TRIGGERED,
+    ALARM_STATE_SNOOZE
+} ALARM_STATE_RESULT;
 
 typedef enum DayOfTheWeek_TAG
 {
@@ -57,6 +57,9 @@ MOCKABLE_FUNCTION(, void, alarm_scheduler_destroy, SCHEDULER_HANDLE, handle);
 MOCKABLE_FUNCTION(, int, alarm_scheduler_add_alarm, SCHEDULER_HANDLE, handle, const char*, alarm_text, const TIME_INFO*, time, uint32_t, trigger_days, const char*, sound_file, uint8_t, snooze_min);
 MOCKABLE_FUNCTION(, int, alarm_scheduler_add_alarm_info, SCHEDULER_HANDLE, handle, const ALARM_INFO*, alarm_info);
 MOCKABLE_FUNCTION(, int, alarm_scheduler_remove_alarm, SCHEDULER_HANDLE, handle, const char*, alarm_text);
+
+MOCKABLE_FUNCTION(, size_t, alarm_scheduler_get_alarm_count, SCHEDULER_HANDLE, handle);
+MOCKABLE_FUNCTION(, const ALARM_INFO*, alarm_scheduler_get_alarm, SCHEDULER_HANDLE, handle, size_t, index);
 
 MOCKABLE_FUNCTION(, const ALARM_INFO*, alarm_scheduler_get_next_alarm, SCHEDULER_HANDLE, handle);
 MOCKABLE_FUNCTION(, const ALARM_INFO*, alarm_scheduler_is_triggered, SCHEDULER_HANDLE, handle, const struct tm*, curr_time);

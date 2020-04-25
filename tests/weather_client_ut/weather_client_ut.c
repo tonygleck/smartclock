@@ -958,6 +958,8 @@ BEGIN_TEST_SUITE(weather_client_ut)
         STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "temp_min")).CallCannotFail();
         STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "temp_max")).CallCannotFail();
 
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "dt"));
+
         STRICT_EXPECTED_CALL(json_value_free(IGNORED_ARG));
 
         //STRICT_EXPECTED_CALL(condition_callback(IGNORED_ARG, WEATHER_OP_RESULT_SUCCESS, IGNORED_ARG));
