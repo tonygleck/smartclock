@@ -61,7 +61,7 @@ MOCKABLE_FUNCTION(, ALenum, alGetError);
 /**
  * Include the test tools.
  */
-#include "testrunnerswitcher.h"
+#include "ctest.h"
 #include "umock_c/umock_c.h"
 
 #include "umock_c/umocktypes_charptr.h"
@@ -162,18 +162,14 @@ static size_t my_file_mgr_read(FILE_MGR_HANDLE handle, unsigned char* buffer, si
 MU_DEFINE_ENUM_STRINGS(UMOCK_C_ERROR_CODE, UMOCK_C_ERROR_CODE_VALUES)
 static void on_umock_c_error(UMOCK_C_ERROR_CODE error_code)
 {
-    ASSERT_FAIL("umock_c reported error :%s", MU_ENUM_TO_STRING(UMOCK_C_ERROR_CODE, error_code));
+    CTEST_ASSERT_FAIL("umock_c reported error :%s", MU_ENUM_TO_STRING(UMOCK_C_ERROR_CODE, error_code));
 }
 
-static TEST_MUTEX_HANDLE g_testByTest;
+CTEST_BEGIN_TEST_SUITE(sound_mgr_ut)
 
-BEGIN_TEST_SUITE(sound_mgr_ut)
-
-    TEST_SUITE_INITIALIZE(suite_init)
+    CTEST_SUITE_INITIALIZE()
     {
         int result;
-        g_testByTest = TEST_MUTEX_CREATE();
-        ASSERT_IS_NOT_NULL(g_testByTest);
 
         (void)umock_c_init(on_umock_c_error);
 
@@ -219,31 +215,23 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(file_mgr_read, __LINE__);
 
         result = umocktypes_charptr_register_types();
-        ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
     }
 
-    TEST_SUITE_CLEANUP(suite_cleanup)
+    CTEST_SUITE_CLEANUP()
     {
         umock_c_deinit();
-
-        TEST_MUTEX_DESTROY(g_testByTest);
     }
 
-    TEST_FUNCTION_INITIALIZE(function_init)
+    CTEST_FUNCTION_INITIALIZE()
     {
-        if (TEST_MUTEX_ACQUIRE(g_testByTest))
-        {
-            ASSERT_FAIL("Could not acquire test serialization mutex.");
-        }
-
         umock_c_reset_all_calls();
         g_buffer_values = 0;
         g_source_values = 0;
     }
 
-    TEST_FUNCTION_CLEANUP(function_cleanup)
+    CTEST_FUNCTION_CLEANUP()
     {
-        TEST_MUTEX_RELEASE(g_testByTest);
     }
 
     static void setup_validate_al_error_mocks(bool failure)
@@ -300,7 +288,7 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         STRICT_EXPECTED_CALL(free(IGNORED_ARG));
     }
 
-    TEST_FUNCTION(sound_mgr_create_succeed)
+    CTEST_FUNCTION(sound_mgr_create_succeed)
     {
         // arrange
         setup_sound_mgr_create_mocks();
@@ -309,18 +297,18 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         SOUND_MGR_HANDLE handle = sound_mgr_create();
 
         // assert
-        ASSERT_IS_NOT_NULL(handle);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(handle);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         sound_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(sound_mgr_create_fail)
+    CTEST_FUNCTION(sound_mgr_create_fail)
     {
         // arrange
         int negativeTestsInitResult = umock_c_negative_tests_init();
-        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
 
         setup_sound_mgr_create_mocks();
         umock_c_negative_tests_snapshot();
@@ -336,14 +324,14 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
                 SOUND_MGR_HANDLE handle = sound_mgr_create();
 
                 // assert
-                ASSERT_IS_NULL(handle, "sound_mgr_create failure %zu/%zu", index, count);
+                CTEST_ASSERT_IS_NULL(handle, "sound_mgr_create failure %zu/%zu", index, count);
             }
         }
         // cleanup
         umock_c_negative_tests_deinit();
     }
 
-    TEST_FUNCTION(sound_mgr_destroy_handle_NULL_succeed)
+    CTEST_FUNCTION(sound_mgr_destroy_handle_NULL_succeed)
     {
         // arrange
 
@@ -351,12 +339,12 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         sound_mgr_destroy(NULL);
 
         // assert
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(sound_mgr_destroy_succeed)
+    CTEST_FUNCTION(sound_mgr_destroy_succeed)
     {
         // arrange
         SOUND_MGR_HANDLE handle = sound_mgr_create();
@@ -373,12 +361,12 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         sound_mgr_destroy(handle);
 
         // assert
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(sound_mgr_play_handle_NULL_fail)
+    CTEST_FUNCTION(sound_mgr_play_handle_NULL_fail)
     {
         // arrange
 
@@ -386,13 +374,13 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         int result = sound_mgr_play(NULL, TEST_SOUND_FILE, true);
 
         // assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(sound_mgr_play_succeed)
+    CTEST_FUNCTION(sound_mgr_play_succeed)
     {
         // arrange
         SOUND_MGR_HANDLE handle = sound_mgr_create();
@@ -404,22 +392,22 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         int result = sound_mgr_play(handle, TEST_SOUND_FILE, true);
 
         // assert
-        ASSERT_ARE_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         sound_mgr_stop(handle);
         sound_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(sound_mgr_play_fail)
+    CTEST_FUNCTION(sound_mgr_play_fail)
     {
         // arrange
         SOUND_MGR_HANDLE handle = sound_mgr_create();
         umock_c_reset_all_calls();
 
         int negativeTestsInitResult = umock_c_negative_tests_init();
-        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
 
         setup_play_mocks(false);
         umock_c_negative_tests_snapshot();
@@ -436,7 +424,7 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
                 int result = sound_mgr_play(handle, TEST_SOUND_FILE, true);
 
                 // assert
-                ASSERT_ARE_NOT_EQUAL(int, 0, result, "sound_mgr_play failure %d/%d", (int)index, (int)count);
+                CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result, "sound_mgr_play failure %d/%d", (int)index, (int)count);
             }
         }
         // cleanup
@@ -444,7 +432,7 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         umock_c_negative_tests_deinit();
     }
 
-    TEST_FUNCTION(sound_mgr_stop_handle_NULL_fail)
+    CTEST_FUNCTION(sound_mgr_stop_handle_NULL_fail)
     {
         // arrange
 
@@ -452,13 +440,13 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         int result = sound_mgr_stop(NULL);
 
         // assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(sound_mgr_stop_succeed)
+    CTEST_FUNCTION(sound_mgr_stop_succeed)
     {
         // arrange
         SOUND_MGR_HANDLE handle = sound_mgr_create();
@@ -473,14 +461,14 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         result = sound_mgr_stop(handle);
 
         // assert
-        ASSERT_ARE_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         sound_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(sound_mgr_stop_not_playing_fail)
+    CTEST_FUNCTION(sound_mgr_stop_not_playing_fail)
     {
         // arrange
         SOUND_MGR_HANDLE handle = sound_mgr_create();
@@ -490,14 +478,14 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         int result = sound_mgr_stop(handle);
 
         // assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         sound_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(sound_mgr_get_current_state_succeed)
+    CTEST_FUNCTION(sound_mgr_get_current_state_succeed)
     {
         // arrange
         SOUND_MGR_HANDLE handle = sound_mgr_create();
@@ -508,15 +496,15 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         SOUND_MGR_STATE state = sound_mgr_get_current_state(handle);
 
         // assert
-        ASSERT_ARE_EQUAL(int, SOUND_STATE_PLAYING, state);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, SOUND_STATE_PLAYING, state);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         sound_mgr_stop(handle);
         sound_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(sound_mgr_get_current_state_not_playing_succeed)
+    CTEST_FUNCTION(sound_mgr_get_current_state_not_playing_succeed)
     {
         // arrange
         SOUND_MGR_HANDLE handle = sound_mgr_create();
@@ -526,14 +514,14 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         SOUND_MGR_STATE state = sound_mgr_get_current_state(handle);
 
         // assert
-        ASSERT_ARE_EQUAL(int, SOUND_STATE_IDLE, state);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, SOUND_STATE_IDLE, state);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         sound_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(sound_mgr_get_current_state_stopped_succeed)
+    CTEST_FUNCTION(sound_mgr_get_current_state_stopped_succeed)
     {
         // arrange
         SOUND_MGR_HANDLE handle = sound_mgr_create();
@@ -545,11 +533,11 @@ BEGIN_TEST_SUITE(sound_mgr_ut)
         SOUND_MGR_STATE state = sound_mgr_get_current_state(handle);
 
         // assert
-        ASSERT_ARE_EQUAL(int, SOUND_STATE_IDLE, state);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, SOUND_STATE_IDLE, state);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         sound_mgr_destroy(handle);
     }
 
-END_TEST_SUITE(sound_mgr_ut)
+CTEST_END_TEST_SUITE(sound_mgr_ut)
