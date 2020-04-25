@@ -42,7 +42,7 @@ typedef struct SMARTCLOCK_INFO_TAG
     OPERATION_STATE ntp_operation;
 
     ALARM_TIMER_INFO ntp_alarm;
-    ALARM_TRIGGERED_RESULT alarm_op_state;
+    ALARM_STATE_RESULT alarm_op_state;
 
     WEATHER_CLIENT_HANDLE weather_client;
     ALARM_TIMER_INFO weather_timer;
@@ -134,7 +134,10 @@ static void check_weather_operation(SMARTCLOCK_INFO* clock_info)
         weather_client_process(clock_info->weather_client);
 #else
         WEATHER_CONDITIONS cond = {0};
-        cond.temperature = 43;
+        cond.forcast_date = get_time_value();
+        cond.temperature = 57;
+        cond.lo_temp = 47;
+        cond.hi_temp = 67;
         cond.description = "Partly Sunny";
         cond.weather_icon[0] = '0';
         cond.weather_icon[1] = '9';
@@ -210,9 +213,8 @@ static void check_ntp_operation(SMARTCLOCK_INFO* clock_info)
 
 static void configure_alarms(SMARTCLOCK_INFO* clock_info)
 {
-    (void)clock_info;
     // Show alarm dialog on gui
-
+    gui_mgr_show_alarm_dlg(clock_info->gui_mgr, clock_info->sched_mgr);
 
     // Check
 }
@@ -228,16 +230,16 @@ static void gui_notification_cb(void* user_ctx, GUI_NOTIFICATION_TYPE type, void
     {
         if (type == NOTIFICATION_ALARM_RESULT)
         {
-            ALARM_TRIGGERED_RESULT* alarm_result = (ALARM_TRIGGERED_RESULT*)res_value;
+            ALARM_STATE_RESULT* alarm_result = (ALARM_STATE_RESULT*)res_value;
 
             //sound_mgr_stop(clock_info->sound_mgr);
-            if (*alarm_result == ALARM_TRIGGERED_STOPPED)
+            if (*alarm_result == ALARM_STATE_STOPPED)
             {
-                clock_info->alarm_op_state = ALARM_TRIGGERED_STOPPED;
+                clock_info->alarm_op_state = ALARM_STATE_STOPPED;
             }
             else
             {
-                clock_info->alarm_op_state = ALARM_TRIGGERED_SNOOZE;
+                clock_info->alarm_op_state = ALARM_STATE_SNOOZE;
                 (void)alarm_scheduler_snooze_alarm(clock_info->sched_mgr, clock_info->triggered_alarm);
             }
             gui_mgr_set_next_alarm(clock_info->gui_mgr, alarm_scheduler_get_next_alarm(clock_info->sched_mgr));
@@ -287,13 +289,13 @@ static void check_alarm_operation(SMARTCLOCK_INFO* clock_info, const struct tm* 
 
             play_alarm_sound(clock_info, triggered);
 
-            clock_info->alarm_op_state = ALARM_TRIGGERED_TRIGGERED;
+            clock_info->alarm_op_state = ALARM_STATE_TRIGGERED;
             (void)alarm_timer_start(&clock_info->max_alarm_len, MAX_ALARM_RING_TIME);
             clock_info->triggered_alarm = triggered;
         }
         clock_info->last_alarm_min = curr_time->tm_min;
     }
-    if (clock_info->alarm_op_state == ALARM_TRIGGERED_TRIGGERED)
+    if (clock_info->alarm_op_state == ALARM_STATE_TRIGGERED)
     {
         if (alarm_timer_is_expired(&clock_info->max_alarm_len))
         {

@@ -16,6 +16,7 @@ static const char* NTP_ADDRESS_NODE = "ntpAddress";
 static const char* ZIPCODE_NODE = "zipcode";
 static const char* ALARMS_ARRAY_NODE = "alarms";
 static const char* AUDIO_DIR_NODE = "audioDirectory";
+static const char* DIGIT_COLOR_NODE = "digitColor";
 
 static const char* ALARM_NODE_NAME = "name";
 static const char* ALARM_NODE_TIME = "time";
@@ -25,11 +26,13 @@ static const char* ALARM_NODE_SNOOZE = "snooze";
 
 #define CLOCK_HOUR_12           0x00000001
 #define CLOCK_SHOW_SECONDS      0x00000002
+#define DEFAULT_DIGIT_COLOR      128
 
 typedef struct CONFIG_MGR_INFO_TAG
 {
     char* config_file;
     int option;
+    uint32_t digit_color;
     JSON_Value* json_root;
     JSON_Object* json_object;
     const char* ntp_address;
@@ -235,6 +238,51 @@ const char* config_mgr_get_audio_dir(CONFIG_MGR_HANDLE handle)
         {
             result = handle->audio_directory;
         }
+    }
+    return result;
+}
+
+uint32_t config_mgr_get_digit_color(CONFIG_MGR_HANDLE handle)
+{
+    uint32_t result;
+    if (handle == NULL)
+    {
+        log_error("Invalid handle value");
+        result = DEFAULT_DIGIT_COLOR;
+    }
+    else
+    {
+        if (handle->digit_color == 0)
+        {
+            if ((handle->audio_directory = json_object_get_string(handle->json_object, DIGIT_COLOR_NODE)) == NULL)
+            {
+                log_error("Failure getting json object");
+                result = DEFAULT_DIGIT_COLOR;
+            }
+            else
+            {
+                result = handle->digit_color;
+            }
+        }
+        else
+        {
+            result = handle->digit_color;
+        }
+    }
+    return result;
+}
+
+int config_mgr_set_digit_color(CONFIG_MGR_HANDLE handle, uint32_t digit_color)
+{
+    int result;
+    if (handle == NULL)
+    {
+        log_error("Invalid handle value");
+        result = __LINE__;
+    }
+    else
+    {
+        handle->digit_color = digit_color;
     }
     return result;
 }

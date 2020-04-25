@@ -112,7 +112,10 @@ static void deinitialize_openai(SOUND_MGR_INFO* sound_info)
     alcMakeContextCurrent(NULL);
     alcDestroyContext(sound_info->alc_context);
     //alcCloseDevice(device);
-    alcCloseDevice(sound_info->alc_open_dev);
+    if (alcCloseDevice(sound_info->alc_open_dev) != ALC_TRUE)
+    {
+
+    }
 }
 
 // This utility returns the start of data for a chunk given a range of bytes it might be within.  Pass 1 for

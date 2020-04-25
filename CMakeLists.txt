@@ -10,7 +10,7 @@ set(PROJECT_INC_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/inc)
 #option(use_opengl "set the smartclock to run on opengl (default is OFF)" OFF)
 option(smartclock_ut "Include unittest in build" OFF)
 option(set_demo_mode "Set up demo mode" OFF)
-option(set_gui_mode "Set up demo mode" OFF)
+option(set_gui_mode "Set the application to run with a gui" OFF)
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT WIN32)
     set(DEBUG_CONFIG ON)
@@ -97,7 +97,32 @@ endif()
 if(${set_gui_mode})
     set(smartclock_src_files
         ${smartclock_src_files}
-        ${PROJECT_SOURCE_DIR}/src/gui_mgr_sdl2.c
+        ${PROJECT_SOURCE_DIR}/src/gui_mgr_lvgl.c
+
+        # Add the Font files
+        ${PROJECT_SOURCE_DIR}/fonts/arial_20.c
+
+        ${PROJECT_SOURCE_DIR}/media/img/alarm_img.c
+
+        # Add the Image files
+        ${PROJECT_SOURCE_DIR}/media/img/zero_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/one_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/two_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/three_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/four_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/five_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/six_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/seven_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/eight_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/nine_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/ellipse_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/blank_img.c
+
+        ${PROJECT_SOURCE_DIR}/media/img/cloudy_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/light_rain_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/partly_sunny_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/rain_showers_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/sunny_img.c
     )
 else()
     set(smartclock_src_files

@@ -176,6 +176,24 @@ static int get_weather_description(JSON_Object* root_obj, WEATHER_CONDITIONS* co
     return result;
 }
 
+static int get_forcast_date(JSON_Object* root_obj, WEATHER_CONDITIONS* conditions)
+{
+    int result;
+
+    time_t forcast_time = json_object_get_number(root_obj, "dt");
+    if (forcast_time == 0)
+    {
+        log_error("Failure unable to get forcast date from weather object");
+        result = __LINE__;
+    }
+    else
+    {
+        conditions->forcast_date = localtime(&forcast_time);
+        result = 0;
+    }
+    return result;
+}
+
 static int get_main_weather_info(JSON_Object* root_obj, WEATHER_CONDITIONS* conditions)
 {
     int result;
@@ -223,7 +241,16 @@ static int parse_weather_data(WEATHER_CLIENT_INFO* client_info, WEATHER_CONDITIO
         {
             // Remove items
             free(conditions->description);
+            conditions->description = NULL;
             log_error("Failure parsing main weather info");
+            result = __LINE__;
+        }
+        else if (get_forcast_date(root_obj, conditions) )
+        {
+            // Remove items
+            free(conditions->description);
+            conditions->description = NULL;
+            log_error("Failure parsing forcast date info");
             result = __LINE__;
         }
         else
@@ -349,7 +376,7 @@ static int send_weather_data(WEATHER_CLIENT_INFO* client_info)
 {
     int result = 0;
 #ifndef DEMO_MODE
-    char weather_api_path[128];
+    char weather_api_path[128] = {0};
     switch (client_info->query_type)
     {
         case QUERY_TYPE_ZIP_CODE:
@@ -501,6 +528,7 @@ void weather_client_destroy(WEATHER_CLIENT_HANDLE handle)
         if ((handle->query_type == QUERY_TYPE_NAME || handle->query_type == QUERY_TYPE_ZIP_CODE) && handle->weather_query.value != NULL)
         {
             free(handle->weather_query.value);
+            handle->weather_query.value = NULL;
         }
         free(handle->api_key);
         free(handle->weather_data);
@@ -722,6 +750,7 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
                 if (handle->query_type == QUERY_TYPE_NAME || handle->query_type == QUERY_TYPE_ZIP_CODE)
                 {
                     free(handle->weather_query.value);
+                    handle->weather_query.value = NULL;
                 }
                 break;
         }

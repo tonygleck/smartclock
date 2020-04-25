@@ -156,7 +156,7 @@ static int get_days_till_trigger(const ALARM_INFO* alarm_1, const struct tm* cur
     return result;
 }
 
-static bool is_alarm_triggered_sooner(const ALARM_INFO* ai_initial, const ALARM_INFO* ai_compare, const struct tm* curr_time)
+static bool is_ALARM_STATE_sooner(const ALARM_INFO* ai_initial, const ALARM_INFO* ai_compare, const struct tm* curr_time)
 {
     bool result;
     // Convert all time to the number of days till the alarm
@@ -431,7 +431,7 @@ const ALARM_INFO* alarm_scheduler_get_next_alarm(SCHEDULER_HANDLE handle)
                     }
                     else
                     {
-                        if (is_alarm_triggered_sooner(result, &alarm_info->alarm_info, curr_time))
+                        if (is_ALARM_STATE_sooner(result, &alarm_info->alarm_info, curr_time))
                         {
                             result = &alarm_info->alarm_info;
                         }
@@ -449,6 +449,45 @@ int alarm_scheduler_get_next_day(const ALARM_INFO* alarm_info)
     // We are going to trick the algorithm here.  Always make the time
     // after the current
     return get_next_trigger_day(curr_time, alarm_info->trigger_days, &alarm_info->trigger_time);
+}
+
+size_t alarm_scheduler_get_alarm_count(SCHEDULER_HANDLE handle)
+{
+    size_t result;
+    if (handle == NULL)
+    {
+        log_error("Invalid argument handle is NULL");
+        result = 0;
+    }
+    else
+    {
+        result = item_list_item_count(handle->sched_list);
+    }
+    return result;
+}
+
+const ALARM_INFO* alarm_scheduler_get_alarm(SCHEDULER_HANDLE handle, size_t index)
+{
+    const ALARM_INFO* result;
+    if (handle == NULL)
+    {
+        log_error("Invalid argument handle is NULL");
+        result = NULL;
+    }
+    else
+    {
+        const ALARM_STORAGE_ITEM* tm_info = item_list_get_item(handle->sched_list, index);
+        if (tm_info == NULL)
+        {
+            log_error("Failure retrieving item");
+            result = NULL;
+        }
+        else
+        {
+            result = &tm_info->alarm_info;
+        }
+    }
+    return result;
 }
 
 int alarm_scheduler_snooze_alarm(SCHEDULER_HANDLE handle, const ALARM_INFO* alarm_info)
