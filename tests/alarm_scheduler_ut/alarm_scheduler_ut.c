@@ -10,7 +10,7 @@
 #include <time.h>
 #endif
 
-#include "testrunnerswitcher.h"
+#include "ctest.h"
 #include "azure_macro_utils/macro_utils.h"
 #include "umock_c/umock_c.h"
 
@@ -175,18 +175,14 @@ static int my_clone_string(char** target, const char* source)
 MU_DEFINE_ENUM_STRINGS(UMOCK_C_ERROR_CODE, UMOCK_C_ERROR_CODE_VALUES)
 static void on_umock_c_error(UMOCK_C_ERROR_CODE error_code)
 {
-    ASSERT_FAIL("umock_c reported error :%s", MU_ENUM_TO_STRING(UMOCK_C_ERROR_CODE, error_code));
+    CTEST_ASSERT_FAIL("umock_c reported error :%s", MU_ENUM_TO_STRING(UMOCK_C_ERROR_CODE, error_code));
 }
 
-static TEST_MUTEX_HANDLE g_testByTest;
+CTEST_BEGIN_TEST_SUITE(alarm_scheduler_ut)
 
-BEGIN_TEST_SUITE(alarm_scheduler_ut)
-
-    TEST_SUITE_INITIALIZE(suite_init)
+    CTEST_SUITE_INITIALIZE()
     {
         int result;
-        g_testByTest = TEST_MUTEX_CREATE();
-        ASSERT_IS_NOT_NULL(g_testByTest);
 
         (void)umock_c_init(on_umock_c_error);
 
@@ -195,7 +191,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         REGISTER_UMOCK_ALIAS_TYPE(ITEM_LIST_HANDLE, void*);
 
         result = umocktypes_charptr_register_types();
-        ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
 
         REGISTER_GLOBAL_MOCK_HOOK(mem_shim_malloc, my_mem_shim_malloc);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(mem_shim_malloc, NULL);
@@ -214,20 +210,13 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(clone_string, __LINE__);
     }
 
-    TEST_SUITE_CLEANUP(suite_cleanup)
+    CTEST_SUITE_CLEANUP()
     {
         umock_c_deinit();
-
-        TEST_MUTEX_DESTROY(g_testByTest);
     }
 
-    TEST_FUNCTION_INITIALIZE(function_init)
+    CTEST_FUNCTION_INITIALIZE()
     {
-        if (TEST_MUTEX_ACQUIRE(g_testByTest))
-        {
-            ASSERT_FAIL("Could not acquire test serialization mutex.");
-        }
-
         umock_c_reset_all_calls();
         g_list_destroy_item = NULL;
         g_destroy_user_ctx = NULL;
@@ -237,9 +226,8 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         g_insert_item[1] = NULL;
     }
 
-    TEST_FUNCTION_CLEANUP(function_cleanup)
+    CTEST_FUNCTION_CLEANUP()
     {
-        TEST_MUTEX_RELEASE(g_testByTest);
     }
 
     static void setup_alarm_scheduler_create_mocks(void)
@@ -256,7 +244,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         STRICT_EXPECTED_CALL(item_list_add_item(IGNORED_ARG, IGNORED_ARG));
     }
 
-    TEST_FUNCTION(alarm_scheduler_create_success)
+    CTEST_FUNCTION(alarm_scheduler_create_success)
     {
         // arrange
         setup_alarm_scheduler_create_mocks();
@@ -265,18 +253,18 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
 
         // assert
-        ASSERT_IS_NOT_NULL(handle);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(handle);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_create_fail)
+    CTEST_FUNCTION(alarm_scheduler_create_fail)
     {
         // arrange
         int negativeTestsInitResult = umock_c_negative_tests_init();
-        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
 
         setup_alarm_scheduler_create_mocks();
 
@@ -294,14 +282,14 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
                 SCHEDULER_HANDLE handle = alarm_scheduler_create();
 
                 // assert
-                ASSERT_IS_NULL(handle);
+                CTEST_ASSERT_IS_NULL(handle);
             }
         }
         // cleanup
         umock_c_negative_tests_deinit();
     }
 
-    TEST_FUNCTION(alarm_scheduler_destroy_success)
+    CTEST_FUNCTION(alarm_scheduler_destroy_success)
     {
         // arrange
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
@@ -314,12 +302,12 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         alarm_scheduler_destroy(handle);
 
         // assert
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(alarm_scheduler_destroy_handle_NULL_success)
+    CTEST_FUNCTION(alarm_scheduler_destroy_handle_NULL_success)
     {
         // arrange
 
@@ -327,12 +315,12 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         alarm_scheduler_destroy(NULL);
 
         // assert
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(alarm_scheduler_add_alarm_info_handle_NULL_fail)
+    CTEST_FUNCTION(alarm_scheduler_add_alarm_info_handle_NULL_fail)
     {
         // arrange
 
@@ -340,13 +328,13 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         int result = alarm_scheduler_add_alarm_info(NULL, &g_alarm_info);
 
         // assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(alarm_scheduler_add_alarm_info_success)
+    CTEST_FUNCTION(alarm_scheduler_add_alarm_info_success)
     {
         // arrange
         struct tm test_tm = {0};
@@ -361,14 +349,14 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         int result = alarm_scheduler_add_alarm_info(handle, &g_alarm_info);
 
         // assert
-        ASSERT_ARE_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_add_alarm_info_invalid_fail)
+    CTEST_FUNCTION(alarm_scheduler_add_alarm_info_invalid_fail)
     {
         // arrange
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
@@ -382,14 +370,14 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         int result = alarm_scheduler_add_alarm_info(handle, &alarm_info1);
 
         // assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_add_alarm_info_fail)
+    CTEST_FUNCTION(alarm_scheduler_add_alarm_info_fail)
     {
         // arrange
         struct tm test_tm = {0};
@@ -399,7 +387,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         umock_c_reset_all_calls();
 
         int negativeTestsInitResult = umock_c_negative_tests_init();
-        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
 
         setup_alarm_scheduler_add_alarm_info_mocks();
         umock_c_negative_tests_snapshot();
@@ -416,7 +404,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
                 int result = alarm_scheduler_add_alarm_info(handle, &g_alarm_info);
 
                 // assert
-                ASSERT_ARE_NOT_EQUAL(int, 0, result);
+                CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
             }
         }
 
@@ -425,7 +413,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         umock_c_negative_tests_deinit();
     }
 
-    TEST_FUNCTION(alarm_scheduler_add_alarm_handle_NULL_fail)
+    CTEST_FUNCTION(alarm_scheduler_add_alarm_handle_NULL_fail)
     {
         // arrange
         struct tm test_tm = {0};
@@ -437,13 +425,13 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         int result = alarm_scheduler_add_alarm(NULL, TEST_ALARM_TEXT, &tm_info, Monday|Tuesday, TEST_TEST_SOUND_FILE, TEST_SNOOZE_VALUE);
 
         // assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(alarm_scheduler_add_alarm_time_info_NULL_fail)
+    CTEST_FUNCTION(alarm_scheduler_add_alarm_time_info_NULL_fail)
     {
         // arrange
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
@@ -454,14 +442,14 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         int result = alarm_scheduler_add_alarm(handle, TEST_ALARM_TEXT, NULL, Monday|Tuesday, TEST_TEST_SOUND_FILE, TEST_SNOOZE_VALUE);
 
         // assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_add_alarm_success)
+    CTEST_FUNCTION(alarm_scheduler_add_alarm_success)
     {
         // arrange
         struct tm test_tm = {0};
@@ -477,14 +465,14 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         int result = alarm_scheduler_add_alarm(handle, TEST_ALARM_TEXT, &tm_info, Monday|Tuesday, TEST_TEST_SOUND_FILE, TEST_SNOOZE_VALUE);
 
         // assert
-        ASSERT_ARE_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_add_alarm_fail)
+    CTEST_FUNCTION(alarm_scheduler_add_alarm_fail)
     {
         // arrange
         struct tm test_tm = {0};
@@ -494,7 +482,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         umock_c_reset_all_calls();
 
         int negativeTestsInitResult = umock_c_negative_tests_init();
-        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
 
         setup_alarm_scheduler_add_alarm_info_mocks();
         umock_c_negative_tests_snapshot();
@@ -512,7 +500,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
                 int result = alarm_scheduler_add_alarm(handle, TEST_ALARM_TEXT, &tm_info, Monday|Tuesday, TEST_TEST_SOUND_FILE, TEST_SNOOZE_VALUE);
 
                 // assert
-                ASSERT_ARE_NOT_EQUAL(int, 0, result, "alarm_scheduler_add_alarm failure %d/%d", (int)index, (int)count);
+                CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result, "alarm_scheduler_add_alarm failure %d/%d", (int)index, (int)count);
             }
         }
 
@@ -521,7 +509,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         umock_c_negative_tests_deinit();
     }
 
-    TEST_FUNCTION(alarm_scheduler_is_triggered_handle_NULL_fail)
+    CTEST_FUNCTION(alarm_scheduler_is_triggered_handle_NULL_fail)
     {
         // arrange
         struct tm test_tm = {0};
@@ -532,13 +520,13 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_is_triggered(NULL, &test_tm);
 
         // assert
-        ASSERT_IS_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(alarm_scheduler_is_triggered_current_time_NULL_fail)
+    CTEST_FUNCTION(alarm_scheduler_is_triggered_current_time_NULL_fail)
     {
         // arrange
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
@@ -548,14 +536,14 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_is_triggered(handle, NULL);
 
         // assert
-        ASSERT_IS_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_is_triggered_alert_1_success)
+    CTEST_FUNCTION(alarm_scheduler_is_triggered_alert_1_success)
     {
         // arrange
         struct tm test_tm = {0};
@@ -572,15 +560,15 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_is_triggered(handle, &test_tm);
 
         // assert
-        ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_TEXT, alarm_info->alarm_text);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_TEXT, alarm_info->alarm_text);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_is_triggered_no_alert_success)
+    CTEST_FUNCTION(alarm_scheduler_is_triggered_no_alert_success)
     {
         // arrange
         ALARM_INFO alarm_info1 = {0};
@@ -616,13 +604,13 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_is_triggered(handle, &test_tm);
 
         // assert
-        ASSERT_IS_NULL(alarm_info);
+        CTEST_ASSERT_IS_NULL(alarm_info);
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_is_triggered_alert_3_success)
+    CTEST_FUNCTION(alarm_scheduler_is_triggered_alert_3_success)
     {
         // arrange
         ALARM_INFO alarm_info1 = {0};
@@ -659,15 +647,15 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_is_triggered(handle, &test_tm);
 
         // assert
-        ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_remove_alarm_handle_NULL_fail)
+    CTEST_FUNCTION(alarm_scheduler_remove_alarm_handle_NULL_fail)
     {
         // arrange
 
@@ -675,13 +663,13 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         int result = alarm_scheduler_remove_alarm(NULL, TEST_ALARM_TEXT);
 
         // assert
-        ASSERT_ARE_NOT_EQUAL(int, result, 0);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, result, 0);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(alarm_scheduler_remove_alarm_no_items_success)
+    CTEST_FUNCTION(alarm_scheduler_remove_alarm_no_items_success)
     {
         // arrange
         struct tm test_tm = {0};
@@ -697,14 +685,14 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         int result = alarm_scheduler_remove_alarm(handle, TEST_ALARM_TEXT);
 
         // assert
-        ASSERT_ARE_EQUAL(int, result, 0);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, result, 0);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_remove_alarm_success)
+    CTEST_FUNCTION(alarm_scheduler_remove_alarm_success)
     {
         // arrange
         struct tm test_tm = {0};
@@ -722,14 +710,14 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         int result = alarm_scheduler_remove_alarm(handle, TEST_ALARM_TEXT);
 
         // assert
-        ASSERT_ARE_EQUAL(int, result, 0);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, result, 0);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_next_alarm_handle_NULL_fail)
+    CTEST_FUNCTION(alarm_scheduler_get_next_alarm_handle_NULL_fail)
     {
         // arrange
 
@@ -737,13 +725,13 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(NULL);
 
         // assert
-        ASSERT_IS_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_next_alarm_1_success)
+    CTEST_FUNCTION(alarm_scheduler_get_next_alarm_1_success)
     {
         // arrange
         struct tm curr_time = {0};
@@ -779,15 +767,15 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_2_TEXT, alarm_info->alarm_text);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_2_TEXT, alarm_info->alarm_text);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_next_alarm_2_success)
+    CTEST_FUNCTION(alarm_scheduler_get_next_alarm_2_success)
     {
         // arrange
         struct tm curr_time = {0};
@@ -824,15 +812,15 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_next_alarm_3_success)
+    CTEST_FUNCTION(alarm_scheduler_get_next_alarm_3_success)
     {
         // arrange
         struct tm curr_time = {0};
@@ -870,15 +858,15 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_2_TEXT, alarm_info->alarm_text);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_2_TEXT, alarm_info->alarm_text);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_next_alarm_4_success)
+    CTEST_FUNCTION(alarm_scheduler_get_next_alarm_4_success)
     {
         // arrange
         struct tm curr_time = {0};
@@ -917,15 +905,15 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_next_alarm_5_success)
+    CTEST_FUNCTION(alarm_scheduler_get_next_alarm_5_success)
     {
         // arrange
         struct tm curr_time = {0};
@@ -961,15 +949,15 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_next_alarm_6_success)
+    CTEST_FUNCTION(alarm_scheduler_get_next_alarm_6_success)
     {
         // arrange
         struct tm curr_time = {0};
@@ -1005,15 +993,15 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_next_alarm_7_success)
+    CTEST_FUNCTION(alarm_scheduler_get_next_alarm_7_success)
     {
         // arrange
         struct tm curr_time = {0};
@@ -1059,15 +1047,15 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_3_TEXT, alarm_info->alarm_text);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_3_TEXT, alarm_info->alarm_text);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_next_alarm_8_success)
+    CTEST_FUNCTION(alarm_scheduler_get_next_alarm_8_success)
     {
         // arrange
         struct tm curr_time = {0};
@@ -1114,15 +1102,15 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_3_TEXT, alarm_info->alarm_text);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_3_TEXT, alarm_info->alarm_text);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_next_alarm_cmp_min_success)
+    CTEST_FUNCTION(alarm_scheduler_get_next_alarm_cmp_min_success)
     {
         // arrange
         struct tm curr_time = {0};
@@ -1160,16 +1148,16 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, alarm_info->alarm_text);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
 
-    TEST_FUNCTION(alarm_scheduler_get_next_alarm_no_day_success)
+    CTEST_FUNCTION(alarm_scheduler_get_next_alarm_no_day_success)
     {
         // arrange
         struct tm curr_time = {0};
@@ -1199,15 +1187,15 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
 
         // assert
-        ASSERT_IS_NULL(alarm_info);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NULL(alarm_info);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
 
-    TEST_FUNCTION(alarm_scheduler_get_next_day_success)
+    CTEST_FUNCTION(alarm_scheduler_get_next_day_success)
     {
         // arrange
         struct tm test_tm = {0};
@@ -1227,13 +1215,13 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         int result = alarm_scheduler_get_next_day(&alarm_info1);
 
         // assert
-        ASSERT_ARE_EQUAL(int, 4, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, 4, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_next_day_2_success)
+    CTEST_FUNCTION(alarm_scheduler_get_next_day_2_success)
     {
         // arrange
         struct tm test_tm = {0};
@@ -1254,13 +1242,13 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         int result = alarm_scheduler_get_next_day(&alarm_info1);
 
         // assert
-        ASSERT_ARE_EQUAL(int, 2, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, 2, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_next_day_3_success)
+    CTEST_FUNCTION(alarm_scheduler_get_next_day_3_success)
     {
         // arrange
         struct tm test_tm = {0};
@@ -1283,13 +1271,13 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         int result = alarm_scheduler_get_next_day(&alarm_info1);
 
         // assert
-        ASSERT_ARE_EQUAL(int, 4, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, 4, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_next_day_everyday_success)
+    CTEST_FUNCTION(alarm_scheduler_get_next_day_everyday_success)
     {
         // arrange
         struct tm test_tm = {0};
@@ -1313,7 +1301,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
             int result = alarm_scheduler_get_next_day(&alarm_info1);
 
             // assert
-            ASSERT_ARE_EQUAL(int, index, result);
+            CTEST_ASSERT_ARE_EQUAL(int, index, result);
 
             umock_c_reset_all_calls();
         }
@@ -1321,7 +1309,7 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         // cleanup
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_alarm_count_handle_NULL_fail)
+    CTEST_FUNCTION(alarm_scheduler_get_alarm_count_handle_NULL_fail)
     {
         // arrange
 
@@ -1329,13 +1317,13 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         size_t result = alarm_scheduler_get_alarm_count(NULL);
 
         // assert
-        ASSERT_ARE_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_alarm_count_success)
+    CTEST_FUNCTION(alarm_scheduler_get_alarm_count_success)
     {
         // arrange
         struct tm test_tm = {0};
@@ -1349,14 +1337,14 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         size_t result = alarm_scheduler_get_alarm_count(handle);
 
         // assert
-        ASSERT_ARE_EQUAL(int, 1, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, 1, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_get_alarm_success)
+    CTEST_FUNCTION(alarm_scheduler_get_alarm_success)
     {
         // arrange
         struct tm test_tm = {0};
@@ -1377,15 +1365,15 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         const ALARM_INFO* result = alarm_scheduler_get_alarm(handle, 0);
 
         // assert
-        ASSERT_IS_NOT_NULL(result);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, result->alarm_text);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_ALARM_1_TEXT, result->alarm_text);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-    TEST_FUNCTION(alarm_scheduler_snooze_alarm_success)
+    CTEST_FUNCTION(alarm_scheduler_snooze_alarm_success)
     {
         // arrange
         struct tm test_tm = {0};
@@ -1398,11 +1386,11 @@ BEGIN_TEST_SUITE(alarm_scheduler_ut)
         int result = alarm_scheduler_snooze_alarm(handle, &g_alarm_info);
 
         // assert
-        ASSERT_ARE_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         alarm_scheduler_destroy(handle);
     }
 
-END_TEST_SUITE(alarm_scheduler_ut)
+CTEST_END_TEST_SUITE(alarm_scheduler_ut)

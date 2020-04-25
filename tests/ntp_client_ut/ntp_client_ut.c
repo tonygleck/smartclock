@@ -23,7 +23,7 @@ static void my_mem_shim_free(void* ptr)
 /**
  * Include the test tools.
  */
-#include "testrunnerswitcher.h"
+#include "ctest.h"
 #include "umock_c/umock_c.h"
 #include "umock_c/umocktypes_charptr.h"
 #include "umock_c/umock_c_negative_tests.h"
@@ -85,10 +85,8 @@ static TEST_NTP_PACKET g_test_recv_packet = { 0xd9, 0, 10, 0, 0, 10100, 0, 0, 0,
 MU_DEFINE_ENUM_STRINGS(UMOCK_C_ERROR_CODE, UMOCK_C_ERROR_CODE_VALUES)
 static void on_umock_c_error(UMOCK_C_ERROR_CODE error_code)
 {
-    ASSERT_FAIL("umock_c reported error :%s", MU_ENUM_TO_STRING(UMOCK_C_ERROR_CODE, error_code));
+    CTEST_ASSERT_FAIL("umock_c reported error :%s", MU_ENUM_TO_STRING(UMOCK_C_ERROR_CODE, error_code));
 }
-
-static TEST_MUTEX_HANDLE g_testByTest;
 
 static ON_IO_OPEN_COMPLETE g_on_io_open_complete;
 static void* g_on_io_open_complete_context;
@@ -172,13 +170,11 @@ static void setup_ntp_client_get_time_mocks(NTP_CLIENT_HANDLE handle, size_t ntp
     STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_ARG, ntp_timeout));
 }
 
-BEGIN_TEST_SUITE(ntp_client_ut)
+CTEST_BEGIN_TEST_SUITE(ntp_client_ut)
 
-    TEST_SUITE_INITIALIZE(suite_init)
+    CTEST_SUITE_INITIALIZE()
     {
         int result;
-        g_testByTest = TEST_MUTEX_CREATE();
-        ASSERT_IS_NOT_NULL(g_testByTest);
 
         (void)umock_c_init(on_umock_c_error);
 
@@ -221,7 +217,7 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         REGISTER_GLOBAL_MOCK_HOOK(ntp_time_callback, my_ntp_time_callback);
 
         result = umocktypes_charptr_register_types();
-        ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
 
         REGISTER_UMOCK_ALIAS_TYPE(ALARM_TIMER_HANDLE, void*);
 
@@ -230,34 +226,26 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         g_test_recv_packet.txTm_s = 133102800; // Thursday, March 21, 1974 1:00:00 PM
     }
 
-    TEST_SUITE_CLEANUP(suite_cleanup)
+    CTEST_SUITE_CLEANUP()
     {
         umock_c_deinit();
-
-        TEST_MUTEX_DESTROY(g_testByTest);
     }
 
-    TEST_FUNCTION_INITIALIZE(function_init)
+    CTEST_FUNCTION_INITIALIZE()
     {
-        if (TEST_MUTEX_ACQUIRE(g_testByTest))
-        {
-            ASSERT_FAIL("Could not acquire test serialization mutex.");
-        }
-
         umock_c_reset_all_calls();
         g_call_completion = 0;
     }
 
-    TEST_FUNCTION_CLEANUP(function_cleanup)
+    CTEST_FUNCTION_CLEANUP()
     {
-        TEST_MUTEX_RELEASE(g_testByTest);
     }
 
-    TEST_FUNCTION(ntp_client_create_handle_fail)
+    CTEST_FUNCTION(ntp_client_create_handle_fail)
     {
         // arrange
         int negativeTestsInitResult = umock_c_negative_tests_init();
-        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
 
         STRICT_EXPECTED_CALL(malloc(IGNORED_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_init(IGNORED_ARG)).SetReturn(__LINE__);
@@ -276,14 +264,14 @@ BEGIN_TEST_SUITE(ntp_client_ut)
                 NTP_CLIENT_HANDLE handle = ntp_client_create();
 
                 // assert
-                ASSERT_IS_NULL(handle);
+                CTEST_ASSERT_IS_NULL(handle);
             }
         }
         // cleanup
         umock_c_negative_tests_deinit();
     }
 
-    TEST_FUNCTION(ntp_client_create_succeed)
+    CTEST_FUNCTION(ntp_client_create_succeed)
     {
         // arrange
         STRICT_EXPECTED_CALL(malloc(IGNORED_ARG));
@@ -293,14 +281,14 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         NTP_CLIENT_HANDLE handle = ntp_client_create();
 
         // assert
-        ASSERT_IS_NOT_NULL(handle);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(handle);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         ntp_client_destroy(handle);
     }
 
-    TEST_FUNCTION(ntp_client_destroy_handle_NULL_succeed)
+    CTEST_FUNCTION(ntp_client_destroy_handle_NULL_succeed)
     {
         // arrange
 
@@ -308,12 +296,12 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         ntp_client_destroy(NULL);
 
         // assert
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(ntp_client_destroy_handle_succeed)
+    CTEST_FUNCTION(ntp_client_destroy_handle_succeed)
     {
         // arrange
         NTP_CLIENT_HANDLE handle = ntp_client_create();
@@ -325,12 +313,12 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         ntp_client_destroy(handle);
 
         // assert
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(ntp_client_get_time_handle_NULL_fail)
+    CTEST_FUNCTION(ntp_client_get_time_handle_NULL_fail)
     {
         size_t ntp_timeout = 20;
         // arrange
@@ -340,13 +328,13 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         int result = ntp_client_get_time(NULL, TEST_NTP_SERVER_ADDRESS, ntp_timeout, my_ntp_time_callback, NULL);
 
         // assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(ntp_client_get_time_server_address_NULL_fail)
+    CTEST_FUNCTION(ntp_client_get_time_server_address_NULL_fail)
     {
         size_t ntp_timeout = 20;
         // arrange
@@ -357,18 +345,18 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         int result = ntp_client_get_time(handle, NULL, ntp_timeout, my_ntp_time_callback, NULL);
 
         // assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         ntp_client_destroy(handle);
     }
 
-    TEST_FUNCTION(ntp_client_get_time_fail)
+    CTEST_FUNCTION(ntp_client_get_time_fail)
     {
         size_t ntp_timeout = 20;
         int negativeTestsInitResult = umock_c_negative_tests_init();
-        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
 
         // arrange
         NTP_CLIENT_HANDLE handle = ntp_client_create();
@@ -388,7 +376,7 @@ BEGIN_TEST_SUITE(ntp_client_ut)
             int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, my_ntp_time_callback, NULL);
 
             // assert
-            ASSERT_ARE_NOT_EQUAL(int, 0, result, "ntp_client_get_time_fail test %lu/%lu", (unsigned long)index, (unsigned long)count);
+            CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result, "ntp_client_get_time_fail test %lu/%lu", (unsigned long)index, (unsigned long)count);
         }
 
         // cleanup
@@ -396,7 +384,7 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         umock_c_negative_tests_deinit();
     }
 
-    TEST_FUNCTION(ntp_client_get_time_succeed)
+    CTEST_FUNCTION(ntp_client_get_time_succeed)
     {
         size_t ntp_timeout = 20;
         // arrange
@@ -409,14 +397,14 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, my_ntp_time_callback, NULL);
 
         // assert
-        ASSERT_ARE_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         ntp_client_destroy(handle);
     }
 
-    TEST_FUNCTION(ntp_client_process_no_timeout_succeed)
+    CTEST_FUNCTION(ntp_client_process_no_timeout_succeed)
     {
         size_t ntp_timeout = 20;
         // arrange
@@ -433,13 +421,13 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         ntp_client_process(handle);
 
         // assert
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         ntp_client_destroy(handle);
     }
 
-    TEST_FUNCTION(ntp_client_process_connected_succeed)
+    CTEST_FUNCTION(ntp_client_process_connected_succeed)
     {
         size_t ntp_timeout = 20;
         // arrange
@@ -456,13 +444,13 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         ntp_client_process(handle);
 
         // assert
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         ntp_client_destroy(handle);
     }
 
-    TEST_FUNCTION(ntp_client_process_recv_response_succeed)
+    CTEST_FUNCTION(ntp_client_process_recv_response_succeed)
     {
         size_t ntp_timeout = 20;
         // arrange
@@ -484,13 +472,13 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         ntp_client_process(handle);
 
         // assert
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         ntp_client_destroy(handle);
     }
 
-    TEST_FUNCTION(ntp_on_io_bytes_received_recv_context_NULL_succeed)
+    CTEST_FUNCTION(ntp_on_io_bytes_received_recv_context_NULL_succeed)
     {
         size_t ntp_timeout = 20;
         // arrange
@@ -504,13 +492,13 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         g_on_bytes_received(NULL, (const unsigned char*)&g_test_recv_packet, NTP_TEST_PACKET_SIZE);
 
         // assert
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         ntp_client_destroy(handle);
     }
 
-    TEST_FUNCTION(ntp_on_io_bytes_received_succeed)
+    CTEST_FUNCTION(ntp_on_io_bytes_received_succeed)
     {
         size_t ntp_timeout = 20;
         // arrange
@@ -524,13 +512,13 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         g_on_bytes_received(g_on_bytes_received_context, (const unsigned char*)&g_test_recv_packet, NTP_TEST_PACKET_SIZE);
 
         // assert
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         ntp_client_destroy(handle);
     }
 
-    TEST_FUNCTION(ntp_client_set_time_server_NULL_fail)
+    CTEST_FUNCTION(ntp_client_set_time_server_NULL_fail)
     {
         size_t ntp_timeout = 20;
 
@@ -540,13 +528,13 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         int result = ntp_client_set_time(NULL, ntp_timeout);
 
         // assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(ntp_client_set_time_succeed)
+    CTEST_FUNCTION(ntp_client_set_time_succeed)
     {
         size_t ntp_timeout = 20;
         g_call_completion = 1;
@@ -570,10 +558,10 @@ BEGIN_TEST_SUITE(ntp_client_ut)
         int result = ntp_client_set_time(TEST_NTP_SERVER_ADDRESS, ntp_timeout);
 
         // assert
-        ASSERT_ARE_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-END_TEST_SUITE(ntp_client_ut)
+CTEST_END_TEST_SUITE(ntp_client_ut)

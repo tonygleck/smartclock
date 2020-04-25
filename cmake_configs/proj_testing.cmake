@@ -43,7 +43,7 @@ function(build_test_project whatIsBuilding folder)
     target_compile_definitions(${whatIsBuilding}_exe PUBLIC -DUSE_CTEST)
     target_include_directories(${whatIsBuilding}_exe PUBLIC ${include_dir})
 
-    target_link_libraries(${whatIsBuilding}_exe umock_c ctest testrunnerswitcher m)
+    target_link_libraries(${whatIsBuilding}_exe umock_c ctest m)
 
     if (${ENABLE_COVERAGE})
         set_target_properties(${whatIsBuilding}_exe PROPERTIES COMPILE_FLAGS "-fprofile-arcs -ftest-coverage")

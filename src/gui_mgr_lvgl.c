@@ -288,9 +288,9 @@ static void create_new_alarm_window(lv_obj_t* parent)
     //lv_obj_set_event_cb(list_btn, alarm_dlg_day_select);
 
     lv_obj_t* save_btn = lv_btn_create(parent, NULL);
-    lv_obj_set_pos(save_btn, tab_width - 70, 10);
+    lv_obj_set_pos(save_btn, tab_width - 120, 10);
     lv_obj_t* label = lv_label_create(save_btn, NULL);
-    lv_label_set_text(label, LV_SYMBOL_SAVE "Save");
+    lv_label_set_text(label, LV_SYMBOL_SAVE " Save");
     lv_obj_set_event_cb(save_btn, save_option_callback);
 
     lv_obj_t* ringtone_roller = lv_roller_create(parent, NULL);

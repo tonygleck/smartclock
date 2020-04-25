@@ -28,7 +28,7 @@ static void my_mem_shim_free(void* ptr)
 /**
  * Include the test tools.
  */
-#include "testrunnerswitcher.h"
+#include "ctest.h"
 #include "umock_c/umock_c.h"
 
 #include "umock_c/umocktypes_charptr.h"
@@ -40,19 +40,14 @@ static void my_mem_shim_free(void* ptr)
 MU_DEFINE_ENUM_STRINGS(UMOCK_C_ERROR_CODE, UMOCK_C_ERROR_CODE_VALUES)
 static void on_umock_c_error(UMOCK_C_ERROR_CODE error_code)
 {
-    ASSERT_FAIL("umock_c reported error :%s", MU_ENUM_TO_STRING(UMOCK_C_ERROR_CODE, error_code));
+    CTEST_ASSERT_FAIL("umock_c reported error :%s", MU_ENUM_TO_STRING(UMOCK_C_ERROR_CODE, error_code));
 }
 
-static TEST_MUTEX_HANDLE g_testByTest;
+CTEST_BEGIN_TEST_SUITE(smartclock_ut)
 
-BEGIN_TEST_SUITE(smartclock_ut)
-
-    TEST_SUITE_INITIALIZE(suite_init)
+    CTEST_SUITE_INITIALIZE()
     {
         int result;
-        g_testByTest = TEST_MUTEX_CREATE();
-        ASSERT_IS_NOT_NULL(g_testByTest);
-
         (void)umock_c_init(on_umock_c_error);
 
         //REGISTER_TYPE(IO_OPEN_RESULT, IO_OPEN_RESULT);
@@ -65,33 +60,25 @@ BEGIN_TEST_SUITE(smartclock_ut)
         //REGISTER_GLOBAL_MOCK_FAIL_RETURN(file_mgr_read, __LINE__);
 
         result = umocktypes_charptr_register_types();
-        ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
     }
 
-    TEST_SUITE_CLEANUP(suite_cleanup)
+    CTEST_SUITE_CLEANUP()
     {
         umock_c_deinit();
-
-        TEST_MUTEX_DESTROY(g_testByTest);
     }
 
-    TEST_FUNCTION_INITIALIZE(function_init)
+    CTEST_FUNCTION_INITIALIZE()
     {
-        if (TEST_MUTEX_ACQUIRE(g_testByTest))
-        {
-            ASSERT_FAIL("Could not acquire test serialization mutex.");
-        }
-
         umock_c_reset_all_calls();
     }
 
-    TEST_FUNCTION_CLEANUP(function_cleanup)
+    CTEST_FUNCTION_CLEANUP()
     {
-        TEST_MUTEX_RELEASE(g_testByTest);
     }
 
 
-    TEST_FUNCTION(sound_mgr_create_succeed)
+    CTEST_FUNCTION(sound_mgr_create_succeed)
     {
         // arrange
 
@@ -103,4 +90,4 @@ BEGIN_TEST_SUITE(smartclock_ut)
     }
 
 
-END_TEST_SUITE(smartclock_ut)
+CTEST_END_TEST_SUITE(smartclock_ut)

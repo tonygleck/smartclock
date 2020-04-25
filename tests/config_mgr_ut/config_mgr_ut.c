@@ -10,7 +10,7 @@
 #include <time.h>
 #endif
 
-#include "testrunnerswitcher.h"
+#include "ctest.h"
 #include "azure_macro_utils/macro_utils.h"
 #include "umock_c/umock_c.h"
 
@@ -128,25 +128,21 @@ static void my_json_value_free(JSON_Value *value)
 MU_DEFINE_ENUM_STRINGS(UMOCK_C_ERROR_CODE, UMOCK_C_ERROR_CODE_VALUES)
 static void on_umock_c_error(UMOCK_C_ERROR_CODE error_code)
 {
-    ASSERT_FAIL("umock_c reported error :%s", MU_ENUM_TO_STRING(UMOCK_C_ERROR_CODE, error_code));
+    CTEST_ASSERT_FAIL("umock_c reported error :%s", MU_ENUM_TO_STRING(UMOCK_C_ERROR_CODE, error_code));
 }
 
-static TEST_MUTEX_HANDLE g_testByTest;
+CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
 
-BEGIN_TEST_SUITE(config_mgr_ut)
-
-    TEST_SUITE_INITIALIZE(suite_init)
+    CTEST_SUITE_INITIALIZE()
     {
         int result;
-        g_testByTest = TEST_MUTEX_CREATE();
-        ASSERT_IS_NOT_NULL(g_testByTest);
 
         (void)umock_c_init(on_umock_c_error);
 
         REGISTER_UMOCK_ALIAS_TYPE(time_t, long);
 
         result = umocktypes_charptr_register_types();
-        ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
 
         REGISTER_GLOBAL_MOCK_HOOK(mem_shim_malloc, my_mem_shim_malloc);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(mem_shim_malloc, NULL);
@@ -196,26 +192,18 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_array_append_value, JSONFailure);
     }
 
-    TEST_SUITE_CLEANUP(suite_cleanup)
+    CTEST_SUITE_CLEANUP()
     {
         umock_c_deinit();
-
-        TEST_MUTEX_DESTROY(g_testByTest);
     }
 
-    TEST_FUNCTION_INITIALIZE(function_init)
+    CTEST_FUNCTION_INITIALIZE()
     {
-        if (TEST_MUTEX_ACQUIRE(g_testByTest))
-        {
-            ASSERT_FAIL("Could not acquire test serialization mutex.");
-        }
-
         umock_c_reset_all_calls();
     }
 
-    TEST_FUNCTION_CLEANUP(function_cleanup)
+    CTEST_FUNCTION_CLEANUP()
     {
-        TEST_MUTEX_RELEASE(g_testByTest);
     }
 
     static void setup_config_mgr_create_mocks(void)
@@ -251,7 +239,7 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         STRICT_EXPECTED_CALL(json_array_append_value(IGNORED_ARG, IGNORED_ARG));
     }
 
-    TEST_FUNCTION(config_mgr_create_success)
+    CTEST_FUNCTION(config_mgr_create_success)
     {
         // arrange
         setup_config_mgr_create_mocks();
@@ -260,18 +248,18 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
 
         // assert
-        ASSERT_IS_NOT_NULL(handle);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(handle);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(config_mgr_create_fail)
+    CTEST_FUNCTION(config_mgr_create_fail)
     {
         // arrange
         int negativeTestsInitResult = umock_c_negative_tests_init();
-        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
 
         setup_config_mgr_create_mocks();
 
@@ -289,14 +277,14 @@ BEGIN_TEST_SUITE(config_mgr_ut)
                 CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
 
                 // assert
-                ASSERT_IS_NULL(handle);
+                CTEST_ASSERT_IS_NULL(handle);
             }
         }
         // cleanup
         umock_c_negative_tests_deinit();
     }
 
-    TEST_FUNCTION(config_mgr_destroy_handle_NULL_success)
+    CTEST_FUNCTION(config_mgr_destroy_handle_NULL_success)
     {
         // arrange
 
@@ -304,12 +292,12 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         config_mgr_destroy(NULL);
 
         // assert
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(config_mgr_destroy_success)
+    CTEST_FUNCTION(config_mgr_destroy_success)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -323,12 +311,12 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         config_mgr_destroy(handle);
 
         // assert
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(config_mgr_save_handle_NULL_fail)
+    CTEST_FUNCTION(config_mgr_save_handle_NULL_fail)
     {
         // arrange
 
@@ -336,13 +324,13 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         bool result = config_mgr_save(NULL);
 
         // assert
-        ASSERT_IS_FALSE(result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_FALSE(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(config_mgr_save_success)
+    CTEST_FUNCTION(config_mgr_save_success)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -354,18 +342,18 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         bool result = config_mgr_save(handle);
 
         // assert
-        ASSERT_IS_TRUE(result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_TRUE(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(config_mgr_save_fail)
+    CTEST_FUNCTION(config_mgr_save_fail)
     {
         // arrange
         int negativeTestsInitResult = umock_c_negative_tests_init();
-        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
 
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
         umock_c_reset_all_calls();
@@ -378,15 +366,15 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         bool result = config_mgr_save(handle);
 
         // assert
-        ASSERT_IS_FALSE(result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_FALSE(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
         umock_c_negative_tests_deinit();
     }
 
-    TEST_FUNCTION(config_mgr_load_alarm_handle_NULL_fail)
+    CTEST_FUNCTION(config_mgr_load_alarm_handle_NULL_fail)
     {
         // arrange
 
@@ -394,13 +382,13 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         int result = config_mgr_load_alarm(NULL, load_alarms_cb, NULL);
 
         // assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(config_mgr_load_alarm_callback_NULL_fail)
+    CTEST_FUNCTION(config_mgr_load_alarm_callback_NULL_fail)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -410,14 +398,14 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         int result = config_mgr_load_alarm(handle, NULL, NULL);
 
         // assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(config_mgr_load_alarm_success)
+    CTEST_FUNCTION(config_mgr_load_alarm_success)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -429,18 +417,18 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         int result = config_mgr_load_alarm(handle, load_alarms_cb, NULL);
 
         // assert
-        ASSERT_ARE_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(config_mgr_load_alarm_fail)
+    CTEST_FUNCTION(config_mgr_load_alarm_fail)
     {
         // arrange
         int negativeTestsInitResult = umock_c_negative_tests_init();
-        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
 
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
         umock_c_reset_all_calls();
@@ -461,7 +449,7 @@ BEGIN_TEST_SUITE(config_mgr_ut)
                 int result = config_mgr_load_alarm(handle, load_alarms_cb, NULL);
 
                 // assert
-                ASSERT_ARE_NOT_EQUAL(int, 0, result, "config_mgr_load_alarm failure %d/%d", (int)index, (int)count);
+                CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result, "config_mgr_load_alarm failure %d/%d", (int)index, (int)count);
             }
         }
 
@@ -470,7 +458,7 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         umock_c_negative_tests_deinit();
     }
 
-    TEST_FUNCTION(config_mgr_load_alarm_invalid_time_success)
+    CTEST_FUNCTION(config_mgr_load_alarm_invalid_time_success)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -487,14 +475,14 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         int result = config_mgr_load_alarm(handle, load_alarms_cb, NULL);
 
         // assert
-        ASSERT_ARE_NOT_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(config_mgr_store_alarm_success)
+    CTEST_FUNCTION(config_mgr_store_alarm_success)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -506,18 +494,18 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN);
 
         // assert
-        ASSERT_ARE_EQUAL(int, 0, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(config_mgr_store_alarm_fail)
+    CTEST_FUNCTION(config_mgr_store_alarm_fail)
     {
         // arrange
         int negativeTestsInitResult = umock_c_negative_tests_init();
-        ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
 
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
         umock_c_reset_all_calls();
@@ -538,7 +526,7 @@ BEGIN_TEST_SUITE(config_mgr_ut)
                 int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN);
 
                 // assert
-                ASSERT_ARE_NOT_EQUAL(int, 0, result);
+                CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
             }
         }
         // cleanup
@@ -546,7 +534,7 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         umock_c_negative_tests_deinit();
     }
 
-    TEST_FUNCTION(config_mgr_get_zipcode_handle_NULL_fail)
+    CTEST_FUNCTION(config_mgr_get_zipcode_handle_NULL_fail)
     {
         // arrange
 
@@ -554,13 +542,13 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         const char* result = config_mgr_get_zipcode(NULL);
 
         // assert
-        ASSERT_IS_NULL(result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NULL(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(config_mgr_get_zipcode_fail)
+    CTEST_FUNCTION(config_mgr_get_zipcode_fail)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -572,14 +560,14 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         const char* result = config_mgr_get_zipcode(handle);
 
         // assert
-        ASSERT_IS_NULL(result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NULL(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(config_mgr_get_zipcode_success)
+    CTEST_FUNCTION(config_mgr_get_zipcode_success)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -591,15 +579,15 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         const char* result = config_mgr_get_zipcode(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(result);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_ZIPCODE, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_ZIPCODE, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(config_mgr_get_zipcode_cache_success)
+    CTEST_FUNCTION(config_mgr_get_zipcode_cache_success)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -611,16 +599,16 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         const char* result = config_mgr_get_zipcode(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(result);
+        CTEST_ASSERT_IS_NOT_NULL(result);
         // Specifically don't check the value here.  It won't be what you expect since the
         // testing framework doesn't return a const char* ptr that is statically allocated
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(config_mgr_get_ntp_address_handle_NULL_fail)
+    CTEST_FUNCTION(config_mgr_get_ntp_address_handle_NULL_fail)
     {
         // arrange
 
@@ -628,13 +616,13 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         const char* result = config_mgr_get_ntp_address(NULL);
 
         // assert
-        ASSERT_IS_NULL(result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NULL(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(config_mgr_get_ntp_address_fail)
+    CTEST_FUNCTION(config_mgr_get_ntp_address_fail)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -646,14 +634,14 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         const char* result = config_mgr_get_ntp_address(handle);
 
         // assert
-        ASSERT_IS_NULL(result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NULL(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(config_mgr_get_ntp_address_success)
+    CTEST_FUNCTION(config_mgr_get_ntp_address_success)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -665,15 +653,15 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         const char* result = config_mgr_get_ntp_address(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(result);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_NTP_ADDRESS, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_NTP_ADDRESS, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(config_mgr_get_ntp_address_cache_success)
+    CTEST_FUNCTION(config_mgr_get_ntp_address_cache_success)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -685,16 +673,16 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         const char* result = config_mgr_get_ntp_address(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(result);
+        CTEST_ASSERT_IS_NOT_NULL(result);
         // Specifically don't check the value here.  It won't be what you expect since the
         // testing framework doesn't return a const char* ptr that is statically allocated
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(config_mgr_get_audio_dir_handle_NULL_fail)
+    CTEST_FUNCTION(config_mgr_get_audio_dir_handle_NULL_fail)
     {
         // arrange
 
@@ -702,13 +690,13 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         const char* result = config_mgr_get_audio_dir(NULL);
 
         // assert
-        ASSERT_IS_NULL(result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NULL(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
     }
 
-    TEST_FUNCTION(config_mgr_get_audio_dir_fail)
+    CTEST_FUNCTION(config_mgr_get_audio_dir_fail)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -720,14 +708,14 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         const char* result = config_mgr_get_audio_dir(handle);
 
         // assert
-        ASSERT_IS_NULL(result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NULL(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(config_mgr_get_audio_dir_success)
+    CTEST_FUNCTION(config_mgr_get_audio_dir_success)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -739,15 +727,15 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         const char* result = config_mgr_get_audio_dir(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(result);
-        ASSERT_ARE_EQUAL(char_ptr, TEST_AUDIO_DIR, result);
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_IS_NOT_NULL(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, TEST_AUDIO_DIR, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-    TEST_FUNCTION(config_mgr_get_audio_dir_cache_success)
+    CTEST_FUNCTION(config_mgr_get_audio_dir_cache_success)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
@@ -759,13 +747,13 @@ BEGIN_TEST_SUITE(config_mgr_ut)
         const char* result = config_mgr_get_audio_dir(handle);
 
         // assert
-        ASSERT_IS_NOT_NULL(result);
+        CTEST_ASSERT_IS_NOT_NULL(result);
         // Specifically don't check the value here.  It won't be what you expect since the
         // testing framework doesn't return a const char* ptr that is statically allocated
-        ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
         config_mgr_destroy(handle);
     }
 
-END_TEST_SUITE(config_mgr_ut)
+CTEST_END_TEST_SUITE(config_mgr_ut)
