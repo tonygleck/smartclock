@@ -504,3 +504,18 @@ int alarm_scheduler_snooze_alarm(SCHEDULER_HANDLE handle, const ALARM_INFO* alar
     }
     return result;
 }
+
+bool alarm_scheduler_is_morning(const TIME_INFO* time_info)
+{
+    bool result;
+    if (time_info == NULL)
+    {
+        log_error("Invalid argument time_info is NULL");
+        result = false;
+    }
+    else
+    {
+        result = time_info->hour >= 12 ? false : true;
+    }
+    return result;
+}

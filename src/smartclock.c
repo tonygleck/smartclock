@@ -4,8 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdbool.h>
 
-#include "parson.h"
+#include "lib-util-c/sys_debug_shim.h"
 #include "lib-util-c/app_logging.h"
 #include "lib-util-c/alarm_timer.h"
 #include "lib-util-c/thread_mgr.h"
@@ -130,7 +131,7 @@ static void check_weather_operation(SMARTCLOCK_INFO* clock_info)
 {
     if (clock_info->weather_operation == OPERATION_STATE_IN_PROCESS)
     {
-#if PRODUCTION
+#if WEATHER_PROD
         weather_client_process(clock_info->weather_client);
 #else
         WEATHER_CONDITIONS cond = {0};
@@ -159,7 +160,7 @@ static void check_weather_operation(SMARTCLOCK_INFO* clock_info)
             clock_info->weather_operation = OPERATION_STATE_ERROR;
             log_error("Invalid zipcode specfied");
         }
-#if PRODUCTION
+#if WEATHER_PROD
         else if (weather_client_get_by_zipcode(clock_info->weather_client, zipcode, OPERATION_TIMEOUT, weather_cond_callback, clock_info) != 0)
         {
             log_error("Failure getting weather information");
@@ -177,7 +178,7 @@ static void check_ntp_operation(SMARTCLOCK_INFO* clock_info)
 {
     if (clock_info->ntp_operation == OPERATION_STATE_IN_PROCESS)
     {
-#if PRODUCTION
+#if NTP_PROD
         ntp_client_process(clock_info->ntp_client);
 #else
         ntp_result_callback(clock_info, NTP_OP_RESULT_SUCCESS, time(NULL));
@@ -197,7 +198,7 @@ static void check_ntp_operation(SMARTCLOCK_INFO* clock_info)
             log_error("Ntp Address is not entered");
             clock_info->ntp_operation = OPERATION_STATE_ERROR;
         }
-#if PRODUCTION
+#if NTP_PROD
         else if (ntp_client_get_time(clock_info->ntp_client, ntp_address, OPERATION_TIMEOUT, ntp_result_callback, clock_info) != 0)
         {
             clock_info->ntp_operation = OPERATION_STATE_ERROR;
@@ -249,9 +250,25 @@ static void gui_notification_cb(void* user_ctx, GUI_NOTIFICATION_TYPE type, void
         {
             g_run_application = false;
         }
-        else if (type == NOTIFICATION_ALARM_DLG)
+        else if (type == NOTIFICATION_OPTION_DLG)
         {
-            configure_alarms(clock_info);
+            GUI_OPTION_DLG_INFO* option_info = (GUI_OPTION_DLG_INFO*)res_value;
+            if (option_info->dlg_state == OPTION_DLG_OPEN)
+            {
+                configure_alarms(clock_info);
+            }
+            else
+            {
+                if (option_info->is_dirty)
+                {
+                    if (!config_mgr_save(clock_info->config_mgr))
+                    {
+                        log_error("Failure saving configuration");
+                    }
+                }
+                // The option dialog just closed
+                gui_mgr_set_next_alarm(clock_info->gui_mgr, alarm_scheduler_get_next_alarm(clock_info->sched_mgr));
+            }
         }
     }
 }
@@ -317,10 +334,9 @@ static int load_alarms_cb(void* context, const CONFIG_ALARM_INFO* cfg_alarm)
     else
     {
         TIME_INFO time_info;
-        time_info.hour = cfg_alarm->time_array[0];
-        time_info.min = cfg_alarm->time_array[1];
-        time_info.sec = cfg_alarm->time_array[2];
-
+        time_info.hour = cfg_alarm->time_value.hours;
+        time_info.min = cfg_alarm->time_value.minutes;
+        time_info.sec = cfg_alarm->time_value.seconds;
         if (alarm_scheduler_add_alarm(sched_mgr, cfg_alarm->name, &time_info, cfg_alarm->frequency, cfg_alarm->sound_file, cfg_alarm->snooze) != 0)
         {
             log_error("Failure adding alarm %s", cfg_alarm->name);

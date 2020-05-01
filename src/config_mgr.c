@@ -26,7 +26,8 @@ static const char* ALARM_NODE_SNOOZE = "snooze";
 
 #define CLOCK_HOUR_12           0x00000001
 #define CLOCK_SHOW_SECONDS      0x00000002
-#define DEFAULT_DIGIT_COLOR      128
+#define DEFAULT_DIGIT_COLOR     128
+#define INVALID_DIGIT_COLOR     0xFFFFFFFF
 
 typedef struct CONFIG_MGR_INFO_TAG
 {
@@ -40,7 +41,7 @@ typedef struct CONFIG_MGR_INFO_TAG
     const char* audio_directory;
 } CONFIG_MGR_INFO;
 
-static int parse_time_value(const char* time, uint8_t time_array[3])
+static int parse_time_value(const char* time, TIME_VALUE_STORAGE* time_value)
 {
     int result = 0;
     const char* iterator = time;
@@ -58,7 +59,19 @@ static int parse_time_value(const char* time, uint8_t time_array[3])
         {
             if (*iterator == ':')
             {
-                time_array[array_idx++] = accu_val;
+                if (array_idx == 0)
+                {
+                    time_value->hours = accu_val;
+                }
+                else if (array_idx == 1)
+                {
+                    time_value->minutes = accu_val;
+                }
+                else if (array_idx == 2)
+                {
+                    time_value->seconds = accu_val;
+                }
+                array_idx++;
                 accu_val = 0;
             }
             else
@@ -70,9 +83,9 @@ static int parse_time_value(const char* time, uint8_t time_array[3])
     } while (*iterator != '\0');
     if (result == 0)
     {
-        time_array[array_idx++] = accu_val;
+        time_value->seconds = accu_val;
         // Validate if any value is out of scope
-        if (time_array[0] > 23 || time_array[1] > 59 || time_array[2] > 59)
+        if (time_value->hours > 23 || time_value->minutes > 59 || time_value->seconds > 59)
         {
             log_error("Invalid time value out of bounds");
             result = __LINE__;
@@ -115,6 +128,7 @@ CONFIG_MGR_HANDLE config_mgr_create(const char* config_path)
         else
         {
             result->option |= CLOCK_HOUR_12;
+            result->digit_color = INVALID_DIGIT_COLOR;
         }
     }
     return result;
@@ -252,7 +266,7 @@ uint32_t config_mgr_get_digit_color(CONFIG_MGR_HANDLE handle)
     }
     else
     {
-        if (handle->digit_color == 0)
+        if (handle->digit_color == INVALID_DIGIT_COLOR)
         {
             if ((handle->audio_directory = json_object_get_string(handle->json_object, DIGIT_COLOR_NODE)) == NULL)
             {
@@ -323,7 +337,7 @@ int config_mgr_load_alarm(CONFIG_MGR_HANDLE handle, ON_ALARM_LOAD_CALLBACK alarm
                     if (((config_alarm.name = json_object_get_string(alarm_item, "name")) == NULL) ||
                         ((config_alarm.sound_file = json_object_get_string(alarm_item, "sound")) == NULL) ||
                         ((time = json_object_get_string(alarm_item, "time")) == NULL) ||
-                        ((parse_time_value(time, config_alarm.time_array)) != 0))
+                        ((parse_time_value(time, &config_alarm.time_value)) != 0))
                     {
                         log_error("Failure parsing the time object");
                         result = __LINE__;
@@ -346,7 +360,7 @@ int config_mgr_load_alarm(CONFIG_MGR_HANDLE handle, ON_ALARM_LOAD_CALLBACK alarm
     return result;
 }
 
-int config_mgr_store_alarm(CONFIG_MGR_HANDLE handle, const char* name, const uint8_t time_array[3], const char* sound_file, uint32_t frequency, uint8_t snooze)
+int config_mgr_store_alarm(CONFIG_MGR_HANDLE handle, const char* name, const TIME_VALUE_STORAGE* time_value, const char* sound_file, uint32_t frequency, uint8_t snooze)
 {
     int result;
     if (handle == NULL)
@@ -355,7 +369,7 @@ int config_mgr_store_alarm(CONFIG_MGR_HANDLE handle, const char* name, const uin
         result = __LINE__;
     }
     // validate time
-    else if (time_array[0] > 23 || time_array[1] > 59 || time_array[2] > 59)
+    else if (time_value->hours > 23 || time_value->minutes > 59 || time_value->seconds > 59)
     {
         log_error("Invalid time value specified");
         result = __LINE__;
@@ -383,7 +397,7 @@ int config_mgr_store_alarm(CONFIG_MGR_HANDLE handle, const char* name, const uin
         else
         {
             char time_string[16];
-            sprintf(time_string, "%d:%02d:%02d", time_array[0], time_array[1], time_array[2]);
+            sprintf(time_string, "%d:%02d:%02d", time_value->hours, time_value->minutes, time_value->seconds);
             if (json_object_set_string(alarm_object, ALARM_NODE_NAME, name == NULL ? "" : name) != JSONSuccess)
             {
                 log_error("Failure constructing alarm name");

@@ -66,6 +66,8 @@ MOCKABLE_FUNCTION(, const ALARM_INFO*, alarm_scheduler_is_triggered, SCHEDULER_H
 MOCKABLE_FUNCTION(, int, alarm_scheduler_snooze_alarm, SCHEDULER_HANDLE, handle, const ALARM_INFO*, alarm_info);
 MOCKABLE_FUNCTION(, int, alarm_scheduler_get_next_day, const ALARM_INFO*, alarm_info);
 
+MOCKABLE_FUNCTION(, bool, alarm_scheduler_is_morning, const TIME_INFO*, time_info);
+
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */

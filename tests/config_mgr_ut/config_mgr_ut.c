@@ -100,7 +100,7 @@ static const char* TEST_ALARM_NAME = "alarm text 1";
 static uint8_t TEST_SNOOZE_MIN = 15;
 static const char* TEST_ALARM_SOUND = "alarm_sound1.mp3";
 static uint8_t TEST_ALARM_FREQUENCY = 127;
-static uint8_t TEST_ALARM_ARRAY[3] = { 12, 30, 0 };
+static TIME_VALUE_STORAGE TEST_ALARM_ARRAY = { 12, 30, 0 };
 
 static int load_alarms_cb(void* context, const CONFIG_ALARM_INFO* cfg_alarm)
 {
@@ -491,7 +491,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         setup_config_mgr_store_alarm_mocks();
 
         // act
-        int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN);
+        int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, &TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN);
 
         // assert
         CTEST_ASSERT_ARE_EQUAL(int, 0, result);
@@ -523,7 +523,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
                 umock_c_negative_tests_fail_call(index);
 
                 // act
-                int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN);
+                int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, &TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN);
 
                 // assert
                 CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
