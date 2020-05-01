@@ -313,7 +313,7 @@ void gui_mgr_set_next_alarm(GUI_MGR_HANDLE handle, const ALARM_INFO* next_alarm)
         int trigger_day;
         if ((trigger_day = alarm_scheduler_get_next_day(next_alarm)) >= 0)
         {
-            sprintf(alarm_line, "Alarm set: %s %d:%02d %s", get_day_name(trigger_day), config_mgr_format_hour(handle->config_mgr, next_alarm->trigger_time.hour), next_alarm->trigger_time.min, next_alarm->trigger_time.hour > 12 ? "pm" : "am");
+            sprintf(alarm_line, "Alarm set: %s %d:%02d %s", get_day_name(trigger_day), config_mgr_format_hour(handle->config_mgr, next_alarm->trigger_time.hour), next_alarm->trigger_time.min, alarm_scheduler_is_morning(&next_alarm->trigger_time) ? "am" : "ap");
             write_line(handle, NEXT_ALARM_LINE_POS_X, NEXT_ALARM_LINE_POS_Y, alarm_line);
         }
     }
@@ -380,7 +380,7 @@ void gui_mgr_process_items(GUI_MGR_HANDLE handle)
         }
         else if (response_ch == SHOW_ALARM_DLG)
         {
-            handle->notify_cb(handle->user_ctx, NOTIFICATION_ALARM_DLG, NULL);
+            handle->notify_cb(handle->user_ctx, NOTIFICATION_OPTION_DLG, NULL);
         }
     }
     wrefresh(handle->clock_win);

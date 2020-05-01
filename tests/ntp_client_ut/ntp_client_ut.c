@@ -24,6 +24,7 @@ static void my_mem_shim_free(void* ptr)
  * Include the test tools.
  */
 #include "ctest.h"
+#include "umock_c/umock_c_prod.h"
 #include "umock_c/umock_c.h"
 #include "umock_c/umocktypes_charptr.h"
 #include "umock_c/umock_c_negative_tests.h"
@@ -45,7 +46,7 @@ MOCKABLE_FUNCTION(, void, ntp_time_callback, void*, user_ctx, NTP_OPERATION_RESU
 static const char* TEST_NTP_SERVER_ADDRESS = "test_server.org";
 
 #define TEST_xio_socket_INTERFACE_DESCRIPTION     (const IO_INTERFACE_DESCRIPTION*)0x4242
-#define TEST_IO_HANDLE                          (XIO_IMPL_HANDLE)0x4243
+#define TEST_IO_HANDLE                            (XIO_IMPL_HANDLE)0x4243
 
 #define NTP_TEST_PACKET_SIZE                    48
 
@@ -214,7 +215,7 @@ CTEST_BEGIN_TEST_SUITE(ntp_client_ut)
         REGISTER_GLOBAL_MOCK_RETURN(xio_socket_send, 0);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(xio_socket_send, __LINE__);
 
-        REGISTER_GLOBAL_MOCK_HOOK(ntp_time_callback, my_ntp_time_callback);
+        //REGISTER_GLOBAL_MOCK_HOOK(ntp_time_callback, my_ntp_time_callback);
 
         result = umocktypes_charptr_register_types();
         CTEST_ASSERT_ARE_EQUAL(int, 0, result);
@@ -455,14 +456,14 @@ CTEST_BEGIN_TEST_SUITE(ntp_client_ut)
         size_t ntp_timeout = 20;
         // arrange
         NTP_CLIENT_HANDLE handle = ntp_client_create();
-        int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, ntp_time_callback, NULL);
+        int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, my_ntp_time_callback, NULL);
         g_on_io_open_complete(g_on_io_open_complete_context, IO_OPEN_OK);
         ntp_client_process(handle);
         g_on_bytes_received(g_on_bytes_received_context, (const unsigned char*)&g_test_recv_packet, NTP_TEST_PACKET_SIZE);
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(xio_socket_process_item(IGNORED_ARG));
-        STRICT_EXPECTED_CALL(ntp_time_callback(IGNORED_ARG, NTP_OP_RESULT_SUCCESS, IGNORED_ARG));
+        //STRICT_EXPECTED_CALL(ntp_time_callback(IGNORED_ARG, NTP_OP_RESULT_SUCCESS, IGNORED_ARG));
         STRICT_EXPECTED_CALL(xio_socket_close(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(xio_socket_process_item(IGNORED_ARG));
         STRICT_EXPECTED_CALL(xio_socket_process_item(IGNORED_ARG));
@@ -483,7 +484,7 @@ CTEST_BEGIN_TEST_SUITE(ntp_client_ut)
         size_t ntp_timeout = 20;
         // arrange
         NTP_CLIENT_HANDLE handle = ntp_client_create();
-        int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, ntp_time_callback, NULL);
+        int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, my_ntp_time_callback, NULL);
         g_on_io_open_complete(g_on_io_open_complete_context, IO_OPEN_OK);
         ntp_client_process(handle);
         umock_c_reset_all_calls();
@@ -503,7 +504,7 @@ CTEST_BEGIN_TEST_SUITE(ntp_client_ut)
         size_t ntp_timeout = 20;
         // arrange
         NTP_CLIENT_HANDLE handle = ntp_client_create();
-        int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, ntp_time_callback, NULL);
+        int result = ntp_client_get_time(handle, TEST_NTP_SERVER_ADDRESS, ntp_timeout, my_ntp_time_callback, NULL);
         g_on_io_open_complete(g_on_io_open_complete_context, IO_OPEN_OK);
         ntp_client_process(handle);
         umock_c_reset_all_calls();

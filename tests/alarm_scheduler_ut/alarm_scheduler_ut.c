@@ -1393,4 +1393,28 @@ CTEST_BEGIN_TEST_SUITE(alarm_scheduler_ut)
         alarm_scheduler_destroy(handle);
     }
 
+    CTEST_FUNCTION(alarm_scheduler_is_morning_success)
+    {
+        // arrange
+        TIME_INFO test_time = {0};
+        test_time.hour = 12;
+
+        // act
+        bool result = alarm_scheduler_is_morning(&test_time);
+        CTEST_ASSERT_IS_FALSE(result);
+
+        test_time.hour = 13;
+        result = alarm_scheduler_is_morning(&test_time);
+        CTEST_ASSERT_IS_FALSE(result);
+
+        test_time.hour = 11;
+        result = alarm_scheduler_is_morning(&test_time);
+        CTEST_ASSERT_IS_TRUE(result);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
 CTEST_END_TEST_SUITE(alarm_scheduler_ut)

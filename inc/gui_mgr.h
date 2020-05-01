@@ -9,6 +9,7 @@ extern "C" {
 #else
 #include <stdint.h>
 #include <time.h>
+#include <stdbool.h>
 #endif /* __cplusplus */
 
 #include "umock_c/umock_c_prod.h"
@@ -28,8 +29,20 @@ typedef enum GUI_NOTIFICATION_TYPE_TAG
 {
     NOTIFICATION_ALARM_RESULT,
     NOTIFICATION_APPLICATION_RESULT,
-    NOTIFICATION_ALARM_DLG
+    NOTIFICATION_OPTION_DLG
 } GUI_NOTIFICATION_TYPE;
+
+typedef enum GUI_OPTION_DLG_STATE_TAG
+{
+    OPTION_DLG_OPEN,
+    OPTION_DLG_CLOSED
+} GUI_OPTION_DLG_STATE;
+
+typedef struct GUI_OPTION_DLG_INFO_TAG
+{
+    GUI_OPTION_DLG_STATE dlg_state;
+    bool is_dirty;
+} GUI_OPTION_DLG_INFO;
 
 typedef struct GUI_MGR_INFO_TAG* GUI_MGR_HANDLE;
 

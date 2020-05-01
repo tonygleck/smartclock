@@ -15,10 +15,17 @@ extern "C" {
 
 #include "umock_c/umock_c_prod.h"
 
+typedef struct TIME_VALUE_STORAGE_TAG
+{
+    uint8_t hours;
+    uint8_t minutes;
+    uint8_t seconds;
+} TIME_VALUE_STORAGE;
+
 typedef struct CONFIG_ALARM_INFO_TAG
 {
     const char* name;
-    uint8_t time_array[3];
+    TIME_VALUE_STORAGE time_value;
     const char* sound_file;
     uint32_t frequency;
     uint8_t snooze;
@@ -39,7 +46,7 @@ MOCKABLE_FUNCTION(, uint32_t, config_mgr_get_digit_color, CONFIG_MGR_HANDLE, han
 MOCKABLE_FUNCTION(, int, config_mgr_set_digit_color, CONFIG_MGR_HANDLE, handle, uint32_t, digit_color);
 
 MOCKABLE_FUNCTION(, int, config_mgr_load_alarm, CONFIG_MGR_HANDLE, handle, ON_ALARM_LOAD_CALLBACK, alarm_cb, void*, user_ctx);
-MOCKABLE_FUNCTION(, int, config_mgr_store_alarm, CONFIG_MGR_HANDLE, handle, const char*, name, const uint8_t, time_array[3], const char*, sound_file, uint32_t, frequency, uint8_t, snooze);
+MOCKABLE_FUNCTION(, int, config_mgr_store_alarm, CONFIG_MGR_HANDLE, handle, const char*, name, const TIME_VALUE_STORAGE*, time_value, const char*, sound_file, uint32_t, frequency, uint8_t, snooze);
 
 
 MOCKABLE_FUNCTION(, uint8_t, config_mgr_format_hour, CONFIG_MGR_HANDLE, handle, int, hour);
