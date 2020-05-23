@@ -284,7 +284,7 @@ CTEST_BEGIN_TEST_SUITE(smartclock_ut)
         {
             STRICT_EXPECTED_CALL(gui_mgr_set_alarm_triggered(IGNORED_ARG, IGNORED_ARG));
             STRICT_EXPECTED_CALL(config_mgr_get_audio_dir(IGNORED_ARG));
-            STRICT_EXPECTED_CALL(sound_mgr_play(IGNORED_ARG, IGNORED_ARG, true));
+            STRICT_EXPECTED_CALL(sound_mgr_play(IGNORED_ARG, IGNORED_ARG, true, true));
             STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_ARG, IGNORED_ARG));
 
             STRICT_EXPECTED_CALL(alarm_timer_is_expired(IGNORED_ARG));
@@ -346,5 +346,22 @@ CTEST_BEGIN_TEST_SUITE(smartclock_ut)
         // cleanup
     }
 
+    CTEST_FUNCTION(run_application_no_arg_fail)
+    {
+        // arrange
+        int argc = 1;
+        char* argv[] = {
+            "/usr/bin/smartclock_exe"
+            };
+
+        // act
+        int result = run_application(argc, argv);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
 
 CTEST_END_TEST_SUITE(smartclock_ut)

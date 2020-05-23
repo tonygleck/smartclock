@@ -1,0 +1,69 @@
+{
+    "ntpAddress": "0.north-america.pool.ntp.org",
+    "option": 3,
+    "timezone": -8,
+    "brightness": 10,
+    "digitColor": 3,
+    "shadeStartTime": "21:00",
+    "shadeEndTime": "07:00",
+    "zipcode": "98077",
+    "audioDirectory": "",
+    "alarms": [
+        {
+            "name": "test_1",
+            "time": "08:00:00",
+            "frequency": 127,
+            "sound": "alarm_02.mp3",
+            "snooze": 5
+        },
+        {
+            "name": "test_2",
+            "time": "08:10:00",
+            "frequency": 127,
+            "sound": "alarm_02.mp3",
+            "snooze": 5
+        },
+        {
+            "name": "test_2",
+            "time": "08:20:00",
+            "frequency": 127,
+            "sound": "alarm_02.mp3",
+            "snooze": 5
+        },
+        {
+            "name": "test_2",
+            "time": "08:30:00",
+            "frequency": 127,
+            "sound": "alarm_02.mp3",
+            "snooze": 5
+        },
+        {
+            "name": "test_4",
+            "time": "08:40:00",
+            "frequency": 127,
+            "sound": "alarm_02.mp3",
+            "snooze": 5
+        },
+        {
+            "name": "test_5",
+            "time": "08:50:00",
+            "frequency": 127,
+            "sound": "alarm_02.mp3",
+            "snooze": 5
+        },
+        {
+            "name": "test_6",
+            "time": "09:00:00",
+            "frequency": 127,
+            "sound": "alarm_02.mp3",
+            "snooze": 5
+        },
+        {
+            "name": "test_7",
+            "time": "09:10:00",
+            "frequency": 127,
+            "sound": "alarm_02.mp3",
+            "snooze": 5
+        }
+    ]
+}

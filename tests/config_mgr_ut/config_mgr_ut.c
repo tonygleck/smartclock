@@ -91,16 +91,26 @@ static JSON_Array* TEST_ARRAY_OBJECT = (JSON_Array*)0x11111119;
 static const char* TEST_NODE_STRING = "{ node: \"data\" }";
 static const char* TEST_CONFIG_PATH = "/some/path/";
 static const char* TEST_VALID_TIME_VAL = "11:59:32";
+static const char* TEST_VALID_TIME_VAL2 = "9:17:00";
 static const char* TEST_INVALID_TIME_VAL = "11:A9:32";
+
+static const char* TEST_DIGITCOLOR_NODE = "digitColor";
+static const char* TEST_ZIPCODE_NODE = "zipcode";
 static const char* TEST_ZIPCODE = "12345";
+static const char* TEST_NEW_ZIPCODE = "67890";
 static const char* TEST_NTP_ADDRESS = "127.0.0.1";
 static const char* TEST_AUDIO_DIR = "/audio/directory";
+static const char* TEST_SHADE_START = "shadeStart";
+static const char* TEST_SHADE_END = "shadeEnd";
 
 static const char* TEST_ALARM_NAME = "alarm text 1";
 static uint8_t TEST_SNOOZE_MIN = 15;
 static const char* TEST_ALARM_SOUND = "alarm_sound1.mp3";
 static uint8_t TEST_ALARM_FREQUENCY = 127;
 static TIME_VALUE_STORAGE TEST_ALARM_ARRAY = { 12, 30, 0 };
+static TIME_VALUE_STORAGE TEST_INVALID_ALARM_ARRAY = { 25, 30, 0 };
+static uint32_t TEST_DIGIT_COLOR = 3;
+static uint32_t TEST_DEFAULT_DIGIT_COLOR = 128;
 
 static int load_alarms_cb(void* context, const CONFIG_ALARM_INFO* cfg_alarm)
 {
@@ -140,6 +150,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         (void)umock_c_init(on_umock_c_error);
 
         REGISTER_UMOCK_ALIAS_TYPE(time_t, long);
+        REGISTER_UMOCK_ALIAS_TYPE(JSON_Status, int);
 
         result = umocktypes_charptr_register_types();
         CTEST_ASSERT_ARE_EQUAL(int, 0, result);
@@ -482,6 +493,20 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         config_mgr_destroy(handle);
     }
 
+    CTEST_FUNCTION(config_mgr_store_alarm_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        int result = config_mgr_store_alarm(NULL, TEST_ALARM_NAME, &TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
     CTEST_FUNCTION(config_mgr_store_alarm_success)
     {
         // arrange
@@ -495,6 +520,23 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
 
         // assert
         CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_store_alarm_invalid_time_fail)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        // act
+        int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, &TEST_INVALID_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
         CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
@@ -554,7 +596,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "zipcode")).SetReturn(NULL);
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, TEST_ZIPCODE_NODE)).SetReturn(NULL);
 
         // act
         const char* result = config_mgr_get_zipcode(handle);
@@ -573,7 +615,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "zipcode")).SetReturn(TEST_ZIPCODE);
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, TEST_ZIPCODE_NODE)).SetReturn(TEST_ZIPCODE);
 
         // act
         const char* result = config_mgr_get_zipcode(handle);
@@ -591,7 +633,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
     {
         // arrange
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
-        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "zipcode")).SetReturn(TEST_ZIPCODE);
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, TEST_ZIPCODE_NODE)).SetReturn(TEST_ZIPCODE);
         (void)config_mgr_get_zipcode(handle);
         umock_c_reset_all_calls();
 
@@ -606,6 +648,241 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
 
         // cleanup
         config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_set_zipcode_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        int result = config_mgr_set_zipcode(NULL, TEST_NEW_ZIPCODE);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    CTEST_FUNCTION(config_mgr_set_zipcode_zipcode_NULL_fail)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        // act
+        int result = config_mgr_set_zipcode(handle, NULL);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_set_zipcode_zipcode_empty_fail)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        // act
+        int result = config_mgr_set_zipcode(handle, "");
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_set_zipcode_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_set_string(IGNORED_ARG, TEST_ZIPCODE_NODE, TEST_NEW_ZIPCODE));
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, TEST_ZIPCODE_NODE)).SetReturn(TEST_NEW_ZIPCODE);
+
+        // act
+        int result = config_mgr_set_zipcode(handle, TEST_NEW_ZIPCODE);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_set_zipcode_set_json_fail)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_set_string(IGNORED_ARG, TEST_ZIPCODE_NODE, TEST_NEW_ZIPCODE)).SetReturn(JSONFailure);
+
+        // act
+        int result = config_mgr_set_zipcode(handle, TEST_NEW_ZIPCODE);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_set_zipcode_get_string_fail)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_set_string(IGNORED_ARG, TEST_ZIPCODE_NODE, TEST_NEW_ZIPCODE));
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, TEST_ZIPCODE_NODE)).SetReturn(NULL);
+
+        // act
+        int result = config_mgr_set_zipcode(handle, TEST_NEW_ZIPCODE);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_get_digit_color_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        uint32_t result = config_mgr_get_digit_color(NULL);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(uint32_t, TEST_DEFAULT_DIGIT_COLOR, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    CTEST_FUNCTION(config_mgr_get_digit_color_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, TEST_DIGITCOLOR_NODE)).SetReturn(TEST_DIGIT_COLOR);
+
+        // act
+        uint32_t result = config_mgr_get_digit_color(handle);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(uint32_t, TEST_DIGIT_COLOR, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_get_digit_color_fail)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, TEST_DIGITCOLOR_NODE)).SetReturn(0);
+
+        // act
+        uint32_t result = config_mgr_get_digit_color(handle);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(uint32_t, TEST_DEFAULT_DIGIT_COLOR, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_get_digit_color_cache_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, TEST_DIGITCOLOR_NODE)).SetReturn(TEST_DIGIT_COLOR);
+        (void)config_mgr_get_digit_color(handle);
+        umock_c_reset_all_calls();
+
+        // act
+        uint32_t result = config_mgr_get_digit_color(handle);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(uint32_t, TEST_DIGIT_COLOR, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_set_digit_color_success)
+    {
+        // arrange
+        uint32_t new_color = 10;
+
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_set_number(IGNORED_ARG, TEST_DIGITCOLOR_NODE, new_color));
+
+        // act
+        int result = config_mgr_set_digit_color(handle, new_color);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_set_digit_color_fail)
+    {
+        // arrange
+        uint32_t new_color = 10;
+
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_set_number(IGNORED_ARG, TEST_DIGITCOLOR_NODE, new_color)).SetReturn(JSONFailure);
+
+        // act
+        int result = config_mgr_set_digit_color(handle, new_color);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_set_digit_color_handle_NULL_fail)
+    {
+        // arrange
+        uint32_t new_color = 10;
+
+        // act
+        int result = config_mgr_set_digit_color(NULL, new_color);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
     }
 
     CTEST_FUNCTION(config_mgr_get_ntp_address_handle_NULL_fail)
@@ -754,6 +1031,297 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
 
         // cleanup
         config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_format_hour_handle_NULL_success)
+    {
+        // arrange
+
+        // act
+        uint8_t result = config_mgr_format_hour(NULL, 15);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    CTEST_FUNCTION(config_mgr_format_hour_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        // act
+        uint8_t result = config_mgr_format_hour(handle, 15);
+        CTEST_ASSERT_ARE_EQUAL(int, 3, result);
+        result = config_mgr_format_hour(handle, 3);
+        CTEST_ASSERT_ARE_EQUAL(int, 3, result);
+
+        // assert
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_show_seconds_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        bool result = config_mgr_show_seconds(NULL);
+
+        // assert
+        CTEST_ASSERT_IS_FALSE(result);
+
+        // cleanup
+    }
+
+    CTEST_FUNCTION(config_mgr_show_seconds_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        // act
+        bool result = config_mgr_show_seconds(handle);
+
+        // assert
+        CTEST_ASSERT_IS_FALSE(result);
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_get_shade_times_handle_NULL_fail)
+    {
+        // arrange
+        TIME_VALUE_STORAGE start_time;
+        TIME_VALUE_STORAGE end_time;
+        umock_c_reset_all_calls();
+
+        // act
+        int result = config_mgr_get_shade_times(NULL, &start_time, &end_time);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    CTEST_FUNCTION(config_mgr_get_shade_times_start_NULL_fail)
+    {
+        // arrange
+        TIME_VALUE_STORAGE end_time;
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        // act
+        int result = config_mgr_get_shade_times(handle, NULL, &end_time);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_get_shade_times_end_NULL_fail)
+    {
+        // arrange
+        TIME_VALUE_STORAGE start_time;
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        // act
+        int result = config_mgr_get_shade_times(handle, &start_time, NULL);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_get_shade_times_success)
+    {
+        // arrange
+        TIME_VALUE_STORAGE start_time;
+        TIME_VALUE_STORAGE end_time;
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, TEST_SHADE_START)).SetReturn(TEST_VALID_TIME_VAL);
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, TEST_SHADE_END)).SetReturn(TEST_VALID_TIME_VAL2);
+
+        // act
+        int result = config_mgr_get_shade_times(handle, &start_time, &end_time);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(int, 11, start_time.hours);
+        CTEST_ASSERT_ARE_EQUAL(int, 59, start_time.minutes);
+        CTEST_ASSERT_ARE_EQUAL(int, 32, start_time.seconds);
+        CTEST_ASSERT_ARE_EQUAL(int, 9, end_time.hours);
+        CTEST_ASSERT_ARE_EQUAL(int, 17, end_time.minutes);
+        CTEST_ASSERT_ARE_EQUAL(int, 0, end_time.seconds);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_get_shade_times_fail)
+    {
+        // arrange
+        TIME_VALUE_STORAGE start_time;
+        TIME_VALUE_STORAGE end_time;
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        int negativeTestsInitResult = umock_c_negative_tests_init();
+        CTEST_ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, TEST_SHADE_START)).SetReturn(TEST_VALID_TIME_VAL);
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, TEST_SHADE_END)).SetReturn(TEST_VALID_TIME_VAL2);
+
+        umock_c_negative_tests_snapshot();
+
+        size_t count = umock_c_negative_tests_call_count();
+        for (size_t index = 0; index < count; index++)
+        {
+            if (umock_c_negative_tests_can_call_fail(index))
+            {
+                umock_c_negative_tests_reset();
+                umock_c_negative_tests_fail_call(index);
+
+                // act
+                int result = config_mgr_get_shade_times(handle, &start_time, &end_time);
+
+                // assert
+                CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+            }
+        }
+
+        // cleanup
+        config_mgr_destroy(handle);
+        umock_c_negative_tests_deinit();
+    }
+
+    CTEST_FUNCTION(config_mgr_set_shade_times_handle_NULL_fail)
+    {
+        // arrange
+        TIME_VALUE_STORAGE start_time = { 16, 29, 22 };
+        TIME_VALUE_STORAGE end_time = { 12, 3, 0 };
+        umock_c_reset_all_calls();
+
+        // act
+        int result = config_mgr_set_shade_times(NULL, &start_time, &end_time);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    CTEST_FUNCTION(config_mgr_set_shade_times_start_NULL_fail)
+    {
+        // arrange
+        TIME_VALUE_STORAGE end_time;
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        // act
+        int result = config_mgr_set_shade_times(handle, NULL, &end_time);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_set_shade_times_end_NULL_fail)
+    {
+        // arrange
+        TIME_VALUE_STORAGE start_time;
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        // act
+        int result = config_mgr_set_shade_times(handle, &start_time, NULL);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_set_shade_times_success)
+    {
+        // arrange
+        TIME_VALUE_STORAGE start_time = { 16, 29, 22 };
+        TIME_VALUE_STORAGE end_time = { 12, 3, 0 };
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_set_string(IGNORED_ARG, TEST_SHADE_START, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_object_set_string(IGNORED_ARG, TEST_SHADE_END, IGNORED_ARG));
+
+        // act
+        int result = config_mgr_set_shade_times(handle, &start_time, &end_time);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_set_shade_times_fail)
+    {
+        // arrange
+        TIME_VALUE_STORAGE start_time = { 16, 29, 22 };
+        TIME_VALUE_STORAGE end_time = { 12, 3, 0 };
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        int negativeTestsInitResult = umock_c_negative_tests_init();
+        CTEST_ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+
+        STRICT_EXPECTED_CALL(json_object_set_string(IGNORED_ARG, TEST_SHADE_START, "16:29:22"));
+        STRICT_EXPECTED_CALL(json_object_set_string(IGNORED_ARG, TEST_SHADE_END, "12:03:00"));
+
+        umock_c_negative_tests_snapshot();
+
+        size_t count = umock_c_negative_tests_call_count();
+        for (size_t index = 0; index < count; index++)
+        {
+            if (umock_c_negative_tests_can_call_fail(index))
+            {
+                umock_c_negative_tests_reset();
+                umock_c_negative_tests_fail_call(index);
+
+                // act
+                int result = config_mgr_set_shade_times(handle, &start_time, &end_time);
+
+                // assert
+                CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+            }
+        }
+
+        // cleanup
+        config_mgr_destroy(handle);
+        umock_c_negative_tests_deinit();
     }
 
 CTEST_END_TEST_SUITE(config_mgr_ut)

@@ -156,7 +156,7 @@ static int get_days_till_trigger(const ALARM_INFO* alarm_1, const struct tm* cur
     return result;
 }
 
-static bool is_ALARM_STATE_sooner(const ALARM_INFO* ai_initial, const ALARM_INFO* ai_compare, const struct tm* curr_time)
+static bool is_alarm_initial_sooner(const ALARM_INFO* ai_initial, const ALARM_INFO* ai_compare, const struct tm* curr_time)
 {
     bool result;
     // Convert all time to the number of days till the alarm
@@ -180,16 +180,18 @@ static bool is_ALARM_STATE_sooner(const ALARM_INFO* ai_initial, const ALARM_INFO
         }
         else
         {
+            // Let's make sure that one hour has not passed
+            // If both the hours are either past or both are before the current hour the just compare them
             if (
-                (ai_initial->trigger_time.hour > curr_time->tm_hour && ai_compare->trigger_time.hour > curr_time->tm_hour) ||
-                (ai_initial->trigger_time.hour < curr_time->tm_hour && ai_compare->trigger_time.hour < curr_time->tm_hour)
+                (ai_initial->trigger_time.hour >= curr_time->tm_hour && ai_compare->trigger_time.hour >= curr_time->tm_hour) ||
+                (ai_initial->trigger_time.hour <= curr_time->tm_hour && ai_compare->trigger_time.hour <= curr_time->tm_hour)
                )
             {
                 result = ai_initial->trigger_time.hour > ai_compare->trigger_time.hour;
             }
             else
             {
-                // If the inital hour is later than the current time (it still is coming up)
+                // If the inital hour is past than the current time (it still is coming up) and the compare hour is before
                 if (ai_initial->trigger_time.hour >= curr_time->tm_hour && ai_compare->trigger_time.hour < curr_time->tm_hour)
                 {
                     result = false;
@@ -431,7 +433,7 @@ const ALARM_INFO* alarm_scheduler_get_next_alarm(SCHEDULER_HANDLE handle)
                     }
                     else
                     {
-                        if (is_ALARM_STATE_sooner(result, &alarm_info->alarm_info, curr_time))
+                        if (is_alarm_initial_sooner(result, &alarm_info->alarm_info, curr_time))
                         {
                             result = &alarm_info->alarm_info;
                         }

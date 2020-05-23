@@ -26,9 +26,12 @@ typedef struct SOUND_MGR_INFO_TAG* SOUND_MGR_HANDLE;
 MOCKABLE_FUNCTION(, SOUND_MGR_HANDLE, sound_mgr_create);
 MOCKABLE_FUNCTION(, void, sound_mgr_destroy, SOUND_MGR_HANDLE, handle);
 
-MOCKABLE_FUNCTION(, int, sound_mgr_play, SOUND_MGR_HANDLE, handle, const char*, sound_file, bool, set_repeat);
+MOCKABLE_FUNCTION(, int, sound_mgr_play, SOUND_MGR_HANDLE, handle, const char*, sound_file, bool, set_repeat, bool, crescendo);
 MOCKABLE_FUNCTION(, int, sound_mgr_stop, SOUND_MGR_HANDLE, handle);
 MOCKABLE_FUNCTION(, SOUND_MGR_STATE, sound_mgr_get_current_state, SOUND_MGR_HANDLE, handle);
+
+MOCKABLE_FUNCTION(, float, sound_mgr_get_volume, SOUND_MGR_HANDLE, handle);
+MOCKABLE_FUNCTION(, int, sound_mgr_set_volume, SOUND_MGR_HANDLE, handle, float, volume);
 
 #ifdef __cplusplus
 }

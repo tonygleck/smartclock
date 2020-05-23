@@ -33,8 +33,8 @@ static void my_mem_shim_free(void* ptr)
 #define ENABLE_MOCKS
 #include "lib-util-c/alarm_timer.h"
 #include "lib-util-c/sys_debug_shim.h"
-#include "patchcords/xio_client.h"
-#include "patchcords/xio_socket.h"
+#include "patchcords/patchcord_client.h"
+#include "patchcords/cord_socket.h"
 #undef ENABLE_MOCKS
 
 #include "ntp_client.h"
@@ -46,7 +46,7 @@ MOCKABLE_FUNCTION(, void, ntp_time_callback, void*, user_ctx, NTP_OPERATION_RESU
 static const char* TEST_NTP_SERVER_ADDRESS = "test_server.org";
 
 #define TEST_xio_socket_INTERFACE_DESCRIPTION     (const IO_INTERFACE_DESCRIPTION*)0x4242
-#define TEST_IO_HANDLE                            (XIO_IMPL_HANDLE)0x4243
+#define TEST_IO_HANDLE                            (CORD_HANDLE)0x4243
 
 #define NTP_TEST_PACKET_SIZE                    48
 
@@ -99,19 +99,15 @@ static ON_IO_CLOSE_COMPLETE g_on_io_close_complete;
 static void* g_on_io_close_complete_context;
 static int g_call_completion = 0;
 
-static int my_socket_open(XIO_IMPL_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_complete, void* on_io_open_complete_context, ON_BYTES_RECEIVED on_bytes_received, void* on_bytes_received_context, ON_IO_ERROR on_io_error, void* on_io_error_context)
+static int my_socket_open(CORD_HANDLE socket_io, ON_IO_OPEN_COMPLETE on_io_open_complete, void* on_io_open_complete_context)
 {
     (void)socket_io;
     g_on_io_open_complete = on_io_open_complete;
     g_on_io_open_complete_context = on_io_open_complete_context;
-    g_on_bytes_received = on_bytes_received;
-    g_on_bytes_received_context = on_bytes_received_context;
-    g_on_io_error = on_io_error;
-    g_on_io_error_context = on_io_error_context;
     return 0;
 }
 
-static int my_socket_close(XIO_IMPL_HANDLE socket_io, ON_IO_CLOSE_COMPLETE on_io_close_complete, void* callback_context)
+static int my_socket_close(CORD_HANDLE socket_io, ON_IO_CLOSE_COMPLETE on_io_close_complete, void* callback_context)
 {
     (void)socket_io;
     g_on_io_close_complete = on_io_close_complete;
@@ -119,18 +115,22 @@ static int my_socket_close(XIO_IMPL_HANDLE socket_io, ON_IO_CLOSE_COMPLETE on_io
     return 0;
 }
 
-static XIO_IMPL_HANDLE my_socket_create(const void* create_parameters)
+static CORD_HANDLE my_socket_create(const void* create_parameters, ON_BYTES_RECEIVED on_bytes_received, void* on_bytes_received_context, ON_IO_ERROR on_io_error, void* on_io_error_context)
 {
     (void)create_parameters;
+    g_on_bytes_received = on_bytes_received;
+    g_on_bytes_received_context = on_bytes_received_context;
+    g_on_io_error = on_io_error;
+    g_on_io_error_context = on_io_error_context;
     return my_mem_shim_malloc(1);
 }
 
-static void my_socket_destroy(XIO_IMPL_HANDLE socket_io)
+static void my_socket_destroy(CORD_HANDLE socket_io)
 {
     my_mem_shim_free(socket_io);
 }
 
-static void my_xio_socket_process_item(XIO_IMPL_HANDLE xio)
+static void my_xio_socket_process_item(CORD_HANDLE xio)
 {
     if (g_call_completion == 1)
     {
@@ -166,8 +166,8 @@ static void my_ntp_time_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result
 
 static void setup_ntp_client_get_time_mocks(NTP_CLIENT_HANDLE handle, size_t ntp_timeout)
 {
-    STRICT_EXPECTED_CALL(xio_socket_create(IGNORED_ARG));
-    STRICT_EXPECTED_CALL(xio_socket_open(IGNORED_ARG, IGNORED_ARG, handle, IGNORED_ARG, handle, IGNORED_ARG, handle));
+    STRICT_EXPECTED_CALL(xio_socket_create(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+    STRICT_EXPECTED_CALL(xio_socket_open(IGNORED_ARG, IGNORED_ARG, handle));
     STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_ARG, ntp_timeout));
 }
 
@@ -183,7 +183,7 @@ CTEST_BEGIN_TEST_SUITE(ntp_client_ut)
 
         //REGISTER_TYPE(IO_OPEN_RESULT, IO_OPEN_RESULT);
         //REGISTER_TYPE(IO_SEND_RESULT, IO_SEND_RESULT);
-        REGISTER_UMOCK_ALIAS_TYPE(XIO_IMPL_HANDLE, void*);
+        REGISTER_UMOCK_ALIAS_TYPE(CORD_HANDLE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_IO_OPEN_COMPLETE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_BYTES_RECEIVED, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_IO_ERROR, void*);
@@ -543,8 +543,8 @@ CTEST_BEGIN_TEST_SUITE(ntp_client_ut)
         // arrange
         STRICT_EXPECTED_CALL(malloc(IGNORED_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_init(IGNORED_ARG));
-        STRICT_EXPECTED_CALL(xio_socket_create(IGNORED_ARG));
-        STRICT_EXPECTED_CALL(xio_socket_open(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_create(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(xio_socket_open(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_ARG, ntp_timeout));
         STRICT_EXPECTED_CALL(xio_socket_process_item(IGNORED_ARG));
         STRICT_EXPECTED_CALL(xio_socket_send(IGNORED_ARG, IGNORED_ARG, 48, IGNORED_ARG, IGNORED_ARG));

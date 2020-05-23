@@ -17,6 +17,9 @@ static const char* ZIPCODE_NODE = "zipcode";
 static const char* ALARMS_ARRAY_NODE = "alarms";
 static const char* AUDIO_DIR_NODE = "audioDirectory";
 static const char* DIGIT_COLOR_NODE = "digitColor";
+static const char* SHADE_START_NODE = "shadeStart";
+static const char* SHADE_END_NODE = "shadeEnd";
+
 
 static const char* ALARM_NODE_NAME = "name";
 static const char* ALARM_NODE_TIME = "time";
@@ -40,6 +43,21 @@ typedef struct CONFIG_MGR_INFO_TAG
     const char* zipcode;
     const char* audio_directory;
 } CONFIG_MGR_INFO;
+
+static int validate_time(const TIME_VALUE_STORAGE* time_value)
+{
+    int result;
+    if (time_value->hours > 23 || time_value->minutes > 59 || time_value->seconds > 59)
+    {
+        log_error("Invalid time value specified");
+        result = __LINE__;
+    }
+    else
+    {
+        result = 0;
+    }
+    return result;
+}
 
 static int parse_time_value(const char* time, TIME_VALUE_STORAGE* time_value)
 {
@@ -167,6 +185,34 @@ bool config_mgr_save(CONFIG_MGR_HANDLE handle)
     return result;
 }
 
+int config_mgr_set_zipcode(CONFIG_MGR_HANDLE handle, const char* zipecode)
+{
+    int result;
+    if (handle == NULL || zipecode == NULL || zipecode[0] == '\0')
+    {
+        log_error("Invalid parameter handle: %p zipcode: %p", handle, zipecode);
+        result = __LINE__;
+    }
+    else
+    {
+        if (json_object_set_string(handle->json_object, ZIPCODE_NODE, zipecode) != JSONSuccess)
+        {
+            log_error("Failed setting zipcode value");
+            result = __LINE__;
+        }
+        else if ((handle->zipcode = json_object_get_string(handle->json_object, ZIPCODE_NODE)) == NULL)
+        {
+            log_error("Failure getting zipcode json object");
+            result = __LINE__;
+        }
+        else
+        {
+            result = 0;
+        }
+    }
+    return result;
+}
+
 const char* config_mgr_get_zipcode(CONFIG_MGR_HANDLE handle)
 {
     const char* result;
@@ -177,7 +223,7 @@ const char* config_mgr_get_zipcode(CONFIG_MGR_HANDLE handle)
     }
     else if (handle->zipcode == NULL)
     {
-        // Read Zipcode Option
+        // Read Zip code Option
         if ((handle->zipcode = json_object_get_string(handle->json_object, ZIPCODE_NODE)) == NULL)
         {
             log_error("Failure getting zipcode json object");
@@ -268,7 +314,7 @@ uint32_t config_mgr_get_digit_color(CONFIG_MGR_HANDLE handle)
     {
         if (handle->digit_color == INVALID_DIGIT_COLOR)
         {
-            if ((handle->audio_directory = json_object_get_string(handle->json_object, DIGIT_COLOR_NODE)) == NULL)
+            if ((handle->digit_color = (uint32_t)json_object_get_number(handle->json_object, DIGIT_COLOR_NODE)) == 0)
             {
                 log_error("Failure getting json object");
                 result = DEFAULT_DIGIT_COLOR;
@@ -296,7 +342,16 @@ int config_mgr_set_digit_color(CONFIG_MGR_HANDLE handle, uint32_t digit_color)
     }
     else
     {
-        handle->digit_color = digit_color;
+        if (json_object_set_number(handle->json_object, DIGIT_COLOR_NODE, digit_color) != JSONSuccess)
+        {
+            log_error("Failure setting digit color value");
+            result = __LINE__;
+        }
+        else
+        {
+            handle->digit_color = digit_color;
+            result = 0;
+        }
     }
     return result;
 }
@@ -369,7 +424,7 @@ int config_mgr_store_alarm(CONFIG_MGR_HANDLE handle, const char* name, const TIM
         result = __LINE__;
     }
     // validate time
-    else if (time_value->hours > 23 || time_value->minutes > 59 || time_value->seconds > 59)
+    else if (validate_time(time_value) != 0)
     {
         log_error("Invalid time value specified");
         result = __LINE__;
@@ -470,6 +525,82 @@ bool config_mgr_show_seconds(CONFIG_MGR_HANDLE handle)
     else
     {
         result = (handle->option & CLOCK_SHOW_SECONDS);
+    }
+    return result;
+}
+
+int config_mgr_get_shade_times(CONFIG_MGR_HANDLE handle, TIME_VALUE_STORAGE* start_time, TIME_VALUE_STORAGE* end_time)
+{
+    int result;
+    if (handle == NULL || start_time == NULL || end_time == NULL)
+    {
+        log_error("Invalid parameter specified handle: %p, start_time: %p end_time: %p", handle, start_time, end_time);
+        result = __LINE__;
+    }
+    else
+    {
+        const char* shade_start;
+        const char* shade_end;
+        if ((shade_start = json_object_get_string(handle->json_object, SHADE_START_NODE)) == NULL ||
+            parse_time_value(shade_start, start_time) != 0)
+        {
+            log_error("Failure retrieving shade start time");
+            result = __LINE__;
+        }
+        else if ((shade_end = json_object_get_string(handle->json_object, SHADE_END_NODE)) == NULL ||
+            parse_time_value(shade_end, end_time) != 0)
+        {
+            log_error("Failure retrieving shade end time");
+            result = __LINE__;
+        }
+        else
+        {
+            result = 0;
+        }
+    }
+    return result;
+}
+
+int config_mgr_set_shade_times(CONFIG_MGR_HANDLE handle, const TIME_VALUE_STORAGE* start_time, const TIME_VALUE_STORAGE* end_time)
+{
+    int result;
+    if (handle == NULL || start_time == NULL || end_time == NULL)
+    {
+        log_error("Invalid parameter specified handle: %p, start_time: %p end_time: %p", handle, start_time, end_time);
+        result = __LINE__;
+    }
+    else if (validate_time(start_time) != 0)
+    {
+        log_error("Invalid start time specified");
+        result = __LINE__;
+    }
+    else if (validate_time(end_time) != 0)
+    {
+        log_error("Invalid end time specified");
+        result = __LINE__;
+    }
+    else
+    {
+        char time_string[16];
+        sprintf(time_string, "%d:%02d:%02d", start_time->hours, start_time->minutes, start_time->seconds);
+        if (json_object_set_string(handle->json_object, SHADE_START_NODE, time_string) != JSONSuccess)
+        {
+            log_error("Failed setting shade start value");
+            result = __LINE__;
+        }
+        else
+        {
+            sprintf(time_string, "%d:%02d:%02d", end_time->hours, end_time->minutes, end_time->seconds);
+            if (json_object_set_string(handle->json_object, SHADE_END_NODE, time_string) != JSONSuccess)
+            {
+                log_error("Failed setting shade end value");
+                result = __LINE__;
+            }
+            else
+            {
+                result = 0;
+            }
+        }
     }
     return result;
 }

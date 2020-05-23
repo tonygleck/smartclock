@@ -1,5 +1,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+//#define WEATHER_PROD        1
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,6 +54,7 @@ typedef struct SMARTCLOCK_INFO_TAG
     ALARM_TIMER_INFO max_alarm_len;
     const ALARM_INFO* triggered_alarm;
 
+    uint32_t alarm_volume;
     const char* weather_appid;
     char* config_path;
 } SMARTCLOCK_INFO;
@@ -286,11 +289,19 @@ static void play_alarm_sound(SMARTCLOCK_INFO* clock_info, const ALARM_INFO* alar
     {
         // construct names
         sprintf(sound_filename, "%s%s", audio_dir, alarm_info->sound_file);
-        if (sound_mgr_play(clock_info->sound_mgr, sound_filename, true) != 0)
+        if (sound_mgr_play(clock_info->sound_mgr, sound_filename, true, false) != 0)
         {
             // todo: need to do something to tell the user
             log_error("Failure playing sound file for alarm: %s", alarm_info->alarm_text);
         }
+    }
+}
+
+static void stop_alarm_sound(SMARTCLOCK_INFO* clock_info)
+{
+    if (sound_mgr_stop(clock_info->sound_mgr) != 0)
+    {
+        log_error("Failure stopping alarm sound");
     }
 }
 
@@ -318,6 +329,12 @@ static void check_alarm_operation(SMARTCLOCK_INFO* clock_info, const struct tm* 
         {
             gui_mgr_set_alarm_triggered(clock_info->gui_mgr, NULL);
             gui_mgr_set_next_alarm(clock_info->gui_mgr, alarm_scheduler_get_next_alarm(clock_info->sched_mgr));
+            stop_alarm_sound(clock_info);
+            clock_info->alarm_op_state = ALARM_STATE_STOPPED;
+        }
+        else
+        {
+            //clock_info->alarm_volume;
         }
     }
 }
@@ -404,6 +421,12 @@ static int parse_command_line(int argc, char* argv[], SMARTCLOCK_INFO* clock_inf
             }
         }
     }
+
+    if (clock_info->weather_appid == NULL)
+    {
+        log_error("Invalid weather app Id specified");
+        result = __LINE__;
+    }
     return result;
 }
 
@@ -467,25 +490,30 @@ int initialize_data(SMARTCLOCK_INFO* clock_info)
 
 int run_application(int argc, char* argv[])
 {
+    int result;
     SMARTCLOCK_INFO clock_info = {0};
     if (parse_command_line(argc, argv, &clock_info) != 0)
     {
         log_error("Failure parse command line");
+        result = __LINE__;
     }
     else if (initialize_data(&clock_info) != 0)
     {
         log_error("Failure creating configuration objects");
         free(clock_info.config_path);
+        result = __LINE__;
     }
     else
     {
         if (config_mgr_load_alarm(clock_info.config_mgr, load_alarms_cb, clock_info.sched_mgr) != 0)
         {
             log_error("Failure loading alarms from config file");
+            result = __LINE__;
         }
         else if (gui_mgr_create_win(clock_info.gui_mgr) != 0)
         {
             log_error("Failure creating window");
+            result = __LINE__;
         }
         else
         {
@@ -523,6 +551,8 @@ int run_application(int argc, char* argv[])
             } while (g_run_application);
         }
 
+        result = 0;
+
         ntp_client_destroy(clock_info.ntp_client);
         gui_mgr_destroy(clock_info.gui_mgr);
         sound_mgr_destroy(clock_info.sound_mgr);
@@ -531,5 +561,5 @@ int run_application(int argc, char* argv[])
         weather_client_destroy(clock_info.weather_client);
         free(clock_info.config_path);
     }
-    return 0;
+    return result;
 }

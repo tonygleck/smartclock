@@ -13,15 +13,13 @@
 #include "weather_client.h"
 
 #include "http_client/http_client.h"
-#include "patchcords/xio_client.h"
-#include "patchcords/xio_socket.h"
 #include "parson.h"
 
 /* http://openweathermap.org/ */
 static const char* WEATHER_API_HOSTNAME = "api.openweathermap.org";
 static const char* API_COORD_PATH_FMT = "/data/2.5/weather?lat=%f&lon=%f&%s&appid=%s";
 static const char* API_NAME_PATH_FMT = "/data/2.5/weather?q=%s&%s&appid=%s";
-static const char* API_ZIPCODE_FMT = "/data/2.5/weather?id=%s&%s&appid=%s";
+static const char* API_ZIPCODE_FMT = "/data/2.5/weather?zip=%s,us&%s&appid=%s";
 
 static const char* TEMP_UNIT_FAHRENHEIT_VALUE = "units=imperial";
 static const char* TEMP_UNIT_CELSIUS_VALUE = "units=metric";
@@ -60,7 +58,6 @@ typedef enum WEATHER_QUERY_TYPE_TAG
 typedef struct WEATHER_CLIENT_INFO_TAG
 {
     HTTP_CLIENT_HANDLE http_handle;
-    XIO_INSTANCE_HANDLE socket;
 
     ALARM_TIMER_INFO timer_info;
     char* api_key;
@@ -428,8 +425,6 @@ static void close_http_connection(WEATHER_CLIENT_INFO* client_info)
     }
     http_client_destroy(client_info->http_handle);
     client_info->http_handle = NULL;
-    xio_client_destroy(client_info->socket);
-    client_info->socket = NULL;
 #endif // DEMO_MODE
 }
 
@@ -437,30 +432,23 @@ static int open_connection(WEATHER_CLIENT_INFO* client_info)
 {
     int result;
 #ifndef DEMO_MODE
-    SOCKETIO_CONFIG config = {0};
-    config.hostname = WEATHER_API_HOSTNAME;
-    config.port = HTTP_PORT_VALUE;
-    config.address_type = ADDRESS_TYPE_IP;
+    HTTP_ADDRESS http_address = {0};
+    http_address.hostname = WEATHER_API_HOSTNAME;
+    http_address.port = HTTP_PORT_VALUE;
+    http_address.is_secure = false;
 
     if ((client_info->http_handle = http_client_create()) == NULL)
     {
         log_error("Failure creating http client");
         result = __LINE__;
     }
-    else if ((client_info->socket = xio_client_create(xio_socket_get_interface(), &config)) == NULL)
-    {
-        log_error("Failure opening sockets");
-        http_client_destroy(client_info->http_handle);
-        result = __LINE__;
-    }
     else
     {
         (void)http_client_set_trace(client_info->http_handle, true);
 
-        if (http_client_open(client_info->http_handle, client_info->socket, on_http_connected, client_info, on_http_error, client_info) != 0)
+        if (http_client_open(client_info->http_handle, &http_address, on_http_connected, client_info, on_http_error, client_info) != 0)
         {
-            log_error("Failure opening http connection: %s:%d", config.hostname, config.port);
-            xio_client_destroy(client_info->socket);
+            log_error("Failure opening http connection: %s:%d", http_address.hostname, http_address.port);
             http_client_destroy(client_info->http_handle);
             result = __LINE__;
         }

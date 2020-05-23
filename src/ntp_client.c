@@ -13,8 +13,8 @@
     #include <sys/timeb.h>
 #endif
 
-#include "patchcords/xio_client.h"
-#include "patchcords/xio_socket.h"
+#include "patchcords/patchcord_client.h"
+#include "patchcords/cord_socket.h"
 
 #include "ntp_client.h"
 #include "lib-util-c/sys_debug_shim.h"
@@ -88,7 +88,7 @@ typedef struct NTP_CLIENT_INFO_TAG
 {
     NTP_TIME_CALLBACK ntp_callback;
     void* user_ctx;
-    XIO_IMPL_HANDLE socket_impl;
+    CORD_HANDLE socket_impl;
     size_t timeout_sec;
     bool server_connected;
 
@@ -298,28 +298,24 @@ static int init_connect_to_server(NTP_CLIENT_INFO* ntp_client, const char* time_
 {
     int result;
     SOCKETIO_CONFIG socket_config;
-
     socket_config.hostname = time_server;
     socket_config.port = NTP_PORT_NUM;
     socket_config.address_type = ADDRESS_TYPE_UDP;
-    if ((ntp_client->socket_impl = xio_socket_create(&socket_config)) == NULL)
+    if ((ntp_client->socket_impl = xio_socket_create(&socket_config, on_socket_bytes_received, ntp_client, on_socket_error, ntp_client)) == NULL)
     {
         log_error("Error connecting to NTP server %s:%d", time_server, NTP_PORT_NUM);
         result = MU_FAILURE;
     }
+    else if (xio_socket_open(ntp_client->socket_impl, on_socket_open_complete, ntp_client) != 0)
+    {
+        log_error("Error opening socket IO.");
+        xio_socket_destroy(ntp_client->socket_impl);
+        ntp_client->socket_impl = NULL;
+        result = MU_FAILURE;
+    }
     else
     {
-        if (xio_socket_open(ntp_client->socket_impl, on_socket_open_complete, ntp_client, on_socket_bytes_received, ntp_client, on_socket_error, ntp_client) != 0)
-        {
-            log_error("Error opening socket IO.");
-            xio_socket_destroy(ntp_client->socket_impl);
-            ntp_client->socket_impl = NULL;
-            result = MU_FAILURE;
-        }
-        else
-        {
-            result = 0;
-        }
+        result = 0;
     }
     return result;
 }

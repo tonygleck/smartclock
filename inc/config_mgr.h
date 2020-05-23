@@ -41,13 +41,15 @@ MOCKABLE_FUNCTION(, bool, config_mgr_save, CONFIG_MGR_HANDLE, handle);
 
 MOCKABLE_FUNCTION(, const char*, config_mgr_get_ntp_address, CONFIG_MGR_HANDLE, handle);
 MOCKABLE_FUNCTION(, const char*, config_mgr_get_zipcode, CONFIG_MGR_HANDLE, handle);
+MOCKABLE_FUNCTION(, int, config_mgr_set_zipcode, CONFIG_MGR_HANDLE, handle, const char*, zipecode);
 MOCKABLE_FUNCTION(, const char*, config_mgr_get_audio_dir, CONFIG_MGR_HANDLE, handle);
 MOCKABLE_FUNCTION(, uint32_t, config_mgr_get_digit_color, CONFIG_MGR_HANDLE, handle);
 MOCKABLE_FUNCTION(, int, config_mgr_set_digit_color, CONFIG_MGR_HANDLE, handle, uint32_t, digit_color);
+MOCKABLE_FUNCTION(, int, config_mgr_get_shade_times, CONFIG_MGR_HANDLE, handle, TIME_VALUE_STORAGE*, start_time, TIME_VALUE_STORAGE*, end_time);
+MOCKABLE_FUNCTION(, int, config_mgr_set_shade_times, CONFIG_MGR_HANDLE, handle, const TIME_VALUE_STORAGE*, start_time, const TIME_VALUE_STORAGE*, end_time);
 
 MOCKABLE_FUNCTION(, int, config_mgr_load_alarm, CONFIG_MGR_HANDLE, handle, ON_ALARM_LOAD_CALLBACK, alarm_cb, void*, user_ctx);
 MOCKABLE_FUNCTION(, int, config_mgr_store_alarm, CONFIG_MGR_HANDLE, handle, const char*, name, const TIME_VALUE_STORAGE*, time_value, const char*, sound_file, uint32_t, frequency, uint8_t, snooze);
-
 
 MOCKABLE_FUNCTION(, uint8_t, config_mgr_format_hour, CONFIG_MGR_HANDLE, handle, int, hour);
 MOCKABLE_FUNCTION(, bool, config_mgr_show_seconds, CONFIG_MGR_HANDLE, handle);

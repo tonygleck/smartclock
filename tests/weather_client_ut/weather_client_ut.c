@@ -40,8 +40,6 @@ static void my_mem_shim_free(void* ptr)
 #include "lib-util-c/alarm_timer.h"
 #include "lib-util-c/crt_extensions.h"
 #include "http_client/http_client.h"
-#include "patchcords/xio_client.h"
-#include "patchcords/xio_socket.h"
 #include "parson.h"
 
 MOCKABLE_FUNCTION(, JSON_Value*, json_parse_string, const char *, string);
@@ -91,7 +89,6 @@ static const char* TEST_ZIPCODE = "98077";
 static size_t TEST_WEATHER_CONTENT_LEN = 20;
 
 #define TEST_SOCKETIO_INTERFACE_DESCRIPTION     (const IO_INTERFACE_DESCRIPTION*)0x4242
-#define TEST_IO_HANDLE                          (XIO_HANDLE)0x4243
 #define TEST_DEFAULT_TIMEOUT_VALUE              10
 #define TEST_HTTP_HEADER                        (HTTP_HEADERS_HANDLE)0x4243
 
@@ -135,7 +132,7 @@ static HTTP_CLIENT_HANDLE my_http_client_create(void)
     return (HTTP_CLIENT_HANDLE)my_mem_shim_malloc(1);
 }
 
-static int my_http_client_open(HTTP_CLIENT_HANDLE handle, XIO_INSTANCE_HANDLE xio_handle, ON_HTTP_OPEN_COMPLETE_CALLBACK on_open_complete_cb, void* user_ctx, ON_HTTP_ERROR_CALLBACK on_error_cb, void* err_user_ctx)
+static int my_http_client_open(HTTP_CLIENT_HANDLE handle, const HTTP_ADDRESS* http_address, ON_HTTP_OPEN_COMPLETE_CALLBACK on_open_complete_cb, void* user_ctx, ON_HTTP_ERROR_CALLBACK on_error_cb, void* err_user_ctx)
 {
     (void)handle;
     g_on_io_error = on_error_cb;
@@ -162,16 +159,6 @@ static int my_http_client_execute_request(HTTP_CLIENT_HANDLE handle, HTTP_CLIENT
     g_on_request_callback = on_request_callback;
     g_on_request_context = callback_ctx;
     return 0;
-}
-
-static XIO_INSTANCE_HANDLE my_xio_client_create(const IO_INTERFACE_DESCRIPTION* io_interface_description, const void* parameters)
-{
-    return (XIO_INSTANCE_HANDLE)my_mem_shim_malloc(1);
-}
-
-static void my_xio_client_destroy(XIO_INSTANCE_HANDLE xio)
-{
-    my_mem_shim_free(xio);
 }
 
 static int my_clone_string(char** target, const char* source)
@@ -211,7 +198,6 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         REGISTER_UMOCK_ALIAS_TYPE(HTTP_CLIENT_HANDLE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(HTTP_HEADERS_HANDLE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ON_HTTP_REQUEST_CALLBACK, void*);
-        REGISTER_UMOCK_ALIAS_TYPE(XIO_INSTANCE_HANDLE, void*);
         REGISTER_UMOCK_ALIAS_TYPE(ALARM_TIMER_HANDLE, void*);
 
         REGISTER_UMOCK_ALIAS_TYPE(WEATHER_OPERATION_RESULT, int);
@@ -226,15 +212,9 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_init, 0);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(alarm_timer_init, __LINE__);
 
-        REGISTER_GLOBAL_MOCK_HOOK(xio_client_create, my_xio_client_create);
-        REGISTER_GLOBAL_MOCK_FAIL_RETURN(xio_client_create, NULL);
-        REGISTER_GLOBAL_MOCK_HOOK(xio_client_destroy, my_xio_client_destroy);
-
         REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_start, 0);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(alarm_timer_start, __LINE__);
         REGISTER_GLOBAL_MOCK_RETURN(alarm_timer_is_expired, false);
-
-        REGISTER_GLOBAL_MOCK_RETURN(xio_socket_get_interface, TEST_SOCKETIO_INTERFACE_DESCRIPTION);
 
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(http_client_create, NULL);
         REGISTER_GLOBAL_MOCK_HOOK(http_client_create, my_http_client_create);
@@ -323,8 +303,6 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     static void setup_open_connection_mocks(void)
     {
         STRICT_EXPECTED_CALL(http_client_create());
-        STRICT_EXPECTED_CALL(xio_socket_get_interface()).CallCannotFail();
-        STRICT_EXPECTED_CALL(xio_client_create(TEST_SOCKETIO_INTERFACE_DESCRIPTION, IGNORED_ARG));
         STRICT_EXPECTED_CALL(http_client_set_trace(IGNORED_ARG, true)).CallCannotFail();
         STRICT_EXPECTED_CALL(http_client_open(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_ARG, TEST_DEFAULT_TIMEOUT_VALUE));
@@ -346,7 +324,6 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
             STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
         }
         STRICT_EXPECTED_CALL(http_client_destroy(IGNORED_ARG));
-        STRICT_EXPECTED_CALL(xio_client_destroy(IGNORED_ARG));
     }
 
     CTEST_FUNCTION(weather_client_create_api_key_NULL_fail)
@@ -416,7 +393,6 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(http_client_destroy(IGNORED_ARG));
-        STRICT_EXPECTED_CALL(xio_client_destroy(IGNORED_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_ARG));
@@ -679,6 +655,32 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         // cleanup
         weather_client_destroy(client_handle);
         umock_c_negative_tests_deinit();
+    }
+
+    CTEST_FUNCTION(weather_client_get_by_zipcode_process_succeed)
+    {
+        // arrange
+
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        umock_c_reset_all_calls();
+
+        const char* TEST_ZIP_CODE_PATH = "/data/2.5/weather?zip=98077,us&units=metric&appid=test_key";
+        setup_open_connection_mocks();
+        STRICT_EXPECTED_CALL(clone_string(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(http_client_execute_request(IGNORED_ARG, HTTP_CLIENT_REQUEST_GET, TEST_ZIP_CODE_PATH, NULL, NULL, 0, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_ARG, IGNORED_ARG));
+
+        // act
+        int result = weather_client_get_by_zipcode(client_handle, TEST_ZIPCODE, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+        weather_client_process(client_handle);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        weather_client_destroy(client_handle);
     }
 
     CTEST_FUNCTION(weather_client_get_by_city_handle_null_fail)

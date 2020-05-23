@@ -36,7 +36,8 @@
 
 static const char* g_alarm_buttons[] = {"Snooze", "Dismiss", ""};
 
-static lv_color_t g_image_colors[] = {
+static lv_color_t g_image_colors[] =
+{
     LV_COLOR_MAKE(0xFF, 0x33, 0x33),
     LV_COLOR_MAKE(0x33, 0xD5, 0xE5),
     LV_COLOR_MAKE(0x33, 0xD5, 0xE5),
@@ -50,6 +51,13 @@ typedef enum CLOCK_FACE_THEME_TAG
     THEME_BLACK_AND_WHITE,
     THEME_MOSS_GREEN
 } CLOCK_FACE_THEME;
+
+typedef enum DAY_NAME_TYPE_TAG
+{
+    DAY_NAME_FULLNAME,
+    DAY_NAME_ABBREV,
+    DAY_NAME_LETTER
+} DAY_NAME_TYPE;
 
 // Declare the font
 LV_FONT_DECLARE(arial_20)
@@ -92,7 +100,9 @@ typedef struct NEW_ALARM_DLG_TAG
     lv_obj_t* ringtone_roller;
     lv_obj_t* alarm_text;
     lv_obj_t* alert_day_cb[7];
-
+    lv_obj_t* table;
+    lv_obj_t* zipcode_text;
+    const char* orig_zipcode;
     bool is_dirty;
 } NEW_ALARM_DLG;
 
@@ -165,31 +175,31 @@ static DayOfTheWeek get_trigger_day_value(size_t index)
     return result;
 }
 
-static const char* get_day_name(int day, bool use_abbrev)
+static const char* get_day_name(int day, DAY_NAME_TYPE type)
 {
     const char* result;
     switch (day)
     {
         case 0:
-            result = use_abbrev ? "Sun" : "Sunday";
+            result = (type == DAY_NAME_FULLNAME) ? "Sunday" : (type == DAY_NAME_ABBREV) ? "Sun" : "Su";
             break;
         case 1:
-            result = use_abbrev ? "Mon" : "Monday";
+            result = (type == DAY_NAME_FULLNAME) ? "Monday" : (type == DAY_NAME_ABBREV) ? "Mon" : "M";
             break;
         case 2:
-            result = use_abbrev ? "Tue" : "Tuesday";
+            result = (type == DAY_NAME_FULLNAME) ? "Tuesday" : (type == DAY_NAME_ABBREV) ? "Tue" : "T";
             break;
         case 3:
-            result = use_abbrev ? "Wed" : "Wednesday";
+            result = (type == DAY_NAME_FULLNAME) ? "Wednesday" : (type == DAY_NAME_ABBREV) ? "Wed" : "W";
             break;
         case 4:
-            result = use_abbrev ? "Thu" : "Thursday";
+            result = (type == DAY_NAME_FULLNAME) ? "Thursday" : (type == DAY_NAME_ABBREV) ? "Thu" : "Th";
             break;
         case 5:
-            result = use_abbrev ? "Fri" : "Friday";
+            result = (type == DAY_NAME_FULLNAME) ? "Friday" : (type == DAY_NAME_ABBREV) ? "Fri" : "F";
             break;
         case 6:
-            result = use_abbrev ? "Sat" : "Saturday";
+            result = (type == DAY_NAME_FULLNAME) ? "Saturday" : (type == DAY_NAME_ABBREV) ? "Sat" : "S";
             break;
     }
     return result;
@@ -237,6 +247,51 @@ static const char* get_month_name(int month)
     return result;
 }
 
+static void add_item_to_table(lv_obj_t* table, uint16_t row, const char* alarm_text, const TIME_INFO* trigger_time, uint32_t trigger_days)
+{
+    char table_value[64];
+
+    uint16_t row_cnt = lv_table_get_row_cnt(table);
+    lv_table_set_row_cnt(table, row_cnt + 1);
+
+    lv_table_set_cell_value(table, row, 0, alarm_text);
+    sprintf(table_value, "%02d:%02d %s", trigger_time->hour > 12 ? trigger_time->hour - 12 : trigger_time->hour,
+        trigger_time->min, alarm_scheduler_is_morning(trigger_time) ? "am" : "pm");
+    lv_table_set_cell_value(table, row, 1, table_value);
+
+    if (trigger_days != NoDay)
+    {
+        if (trigger_days == Everyday)
+        {
+            strcpy(table_value, "M T W Th F S Su");
+        }
+        else
+        {
+            memset(table_value, 0, sizeof(char)*64);
+            char* iterator = table_value;
+            bool day_entered = false;
+            for (size_t inner = 0; inner < 7; inner++)
+            {
+                if (trigger_days & get_trigger_day_value(inner))
+                {
+                    if (day_entered)
+                    {
+                        memcpy(iterator, ", ", 2);
+                        iterator += 2;
+                    }
+                    const char* day = get_day_name(inner, DAY_NAME_LETTER);
+                    size_t len = strlen(day);
+                    memcpy(iterator, day, len);
+                    iterator += len;
+                    day_entered = true;
+                }
+            }
+        }
+        lv_table_set_cell_value(table, row, 2, table_value);
+    }
+
+}
+
 // Callbacks
 static void save_option_callback(lv_obj_t* save_btn, lv_event_t event)
 {
@@ -276,27 +331,41 @@ static void save_option_callback(lv_obj_t* save_btn, lv_event_t event)
                     }
                 }
             }
+            TIME_VALUE_STORAGE tm_value = {0};
             TIME_INFO alarm_time = {0};
             char time_value[8];
             char ringtone[32];
             const char* alarm_text_value;
 
             lv_roller_get_selected_str(gui_info->new_alarm_dlg.hour_roller, time_value, 8);
-            alarm_time.hour = (uint8_t)atol(time_value);
+            tm_value.hours = alarm_time.hour = (uint8_t)atol(time_value);
+
             lv_roller_get_selected_str(gui_info->new_alarm_dlg.min_roller, time_value, 8);
-            alarm_time.min = (uint8_t)atol(time_value);
+            tm_value.minutes = alarm_time.min = (uint8_t)atol(time_value);
 
             lv_roller_get_selected_str(gui_info->new_alarm_dlg.ringtone_roller, ringtone, 32);
 
             alarm_text_value = lv_ta_get_text(gui_info->new_alarm_dlg.alarm_text);
+            if (alarm_text_value == NULL || strlen(alarm_text_value) == 0)
+            {
+                alarm_text_value = "New alarm text";
+            }
 
             if (alarm_scheduler_add_alarm(gui_info->new_alarm_dlg.sched_handle, alarm_text_value,
                 &alarm_time, trigger_days, ringtone, DEFAULT_SNOOZE_TIME) != 0)
             {
                 log_error("Failure saving alarm");
             }
+            else if (config_mgr_store_alarm(gui_info->config_mgr, alarm_text_value, &tm_value, ringtone, trigger_days, DEFAULT_SNOOZE_TIME) != 0)
+            {
+                log_error("Failure saving alarm to config");
+            }
             else
             {
+                uint16_t row_cnt = lv_table_get_row_cnt(gui_info->new_alarm_dlg.table);
+                lv_table_set_row_cnt(gui_info->new_alarm_dlg.table, row_cnt+1);
+                add_item_to_table(gui_info->new_alarm_dlg.table, row_cnt+1, alarm_text_value, &alarm_time, trigger_days);
+
                 // Clear the items
                 lv_ta_set_text(gui_info->new_alarm_dlg.alarm_text, "");
                 for (size_t index = 0; index < 7; index++)
@@ -392,6 +461,16 @@ static void alarm_dlg_btn_cb(lv_obj_t* close_btn, lv_event_t event)
         GUI_MGR_INFO* gui_info = (GUI_MGR_INFO*)lv_obj_get_user_data(close_btn);
         if (gui_info != NULL)
         {
+            // Check to see if zipcode has changed
+            const char* new_zipcode = lv_ta_get_text(gui_info->new_alarm_dlg.zipcode_text);
+            if (new_zipcode != NULL)
+            {
+                const char* curr_zipcode = config_mgr_get_zipcode(gui_info->config_mgr);
+                if (strcmp(new_zipcode, curr_zipcode) != 0)
+                {
+                    config_mgr_set_zipcode(gui_info->config_mgr, new_zipcode);
+                }
+            }
             gui_info->window_mode = WINDOW_MODE_CLOSE_OPTIONS;
         }
         lv_obj_del(alarm_option_win);
@@ -426,75 +505,39 @@ static void create_alarm_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     //style_cell2.body.main_color = LV_COLOR_SILVER;
     //style_cell2.body.grad_color = LV_COLOR_SILVER;
 
-    lv_obj_t* table = lv_table_create(parent, NULL);
-    lv_table_set_style(table, LV_TABLE_STYLE_CELL1, &style_cell1);
-    lv_table_set_style(table, LV_TABLE_STYLE_CELL2, &style_cell2);
-    lv_table_set_style(table, LV_TABLE_STYLE_BG, &lv_style_transp_tight);
-    lv_table_set_col_cnt(table, 3);
-    lv_table_set_row_cnt(table, alarm_count + 1);
-    lv_obj_set_pos(table, LEFT_MARGIN, TOP_MARGIN);
+    gui_info->new_alarm_dlg.table = lv_table_create(parent, NULL);
+    lv_table_set_style(gui_info->new_alarm_dlg.table, LV_TABLE_STYLE_CELL1, &style_cell1);
+    lv_table_set_style(gui_info->new_alarm_dlg.table, LV_TABLE_STYLE_CELL2, &style_cell2);
+    lv_table_set_style(gui_info->new_alarm_dlg.table, LV_TABLE_STYLE_BG, &lv_style_transp_tight);
+    lv_table_set_col_cnt(gui_info->new_alarm_dlg.table, 3);
+    lv_table_set_row_cnt(gui_info->new_alarm_dlg.table, alarm_count + 1);
+    lv_obj_set_pos(gui_info->new_alarm_dlg.table, LEFT_MARGIN, TOP_MARGIN);
     //lv_obj_align_origo(table, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 0);
 
     // Make the cells of the first row center aligned
-    lv_table_set_cell_align(table, 0, 0, LV_LABEL_ALIGN_CENTER);
-    lv_table_set_cell_align(table, 0, 1, LV_LABEL_ALIGN_CENTER);
-    lv_table_set_cell_align(table, 0, 2, LV_LABEL_ALIGN_CENTER);
+    lv_table_set_cell_align(gui_info->new_alarm_dlg.table, 0, 0, LV_LABEL_ALIGN_CENTER);
+    lv_table_set_cell_align(gui_info->new_alarm_dlg.table, 0, 1, LV_LABEL_ALIGN_CENTER);
+    lv_table_set_cell_align(gui_info->new_alarm_dlg.table, 0, 2, LV_LABEL_ALIGN_CENTER);
 
     // Make the cells of the first row TYPE = 2 (use `style_cell2`)
-    lv_table_set_cell_type(table, 0, 0, 2);
-    lv_table_set_cell_type(table, 0, 1, 2);
-    lv_table_set_cell_type(table, 0, 2, 2);
+    lv_table_set_cell_type(gui_info->new_alarm_dlg.table, 0, 0, 2);
+    lv_table_set_cell_type(gui_info->new_alarm_dlg.table, 0, 1, 2);
+    lv_table_set_cell_type(gui_info->new_alarm_dlg.table, 0, 2, 2);
 
     // Fill the header column
-    lv_table_set_cell_value(table, 0, 0, "Alarm Name");
-    lv_table_set_cell_value(table, 0, 1, "Time");
-    lv_table_set_cell_value(table, 0, 2, "Days");
+    lv_table_set_cell_value(gui_info->new_alarm_dlg.table, 0, 0, "Alarm Name");
+    lv_table_set_cell_value(gui_info->new_alarm_dlg.table, 0, 1, "Time");
+    lv_table_set_cell_value(gui_info->new_alarm_dlg.table, 0, 2, "Days");
 
-    char table_value[64];
     for (size_t index = 0; index < alarm_count; index++)
     {
         const ALARM_INFO* alarm_info = alarm_scheduler_get_alarm(gui_info->new_alarm_dlg.sched_handle, index);
         if (alarm_info != NULL)
         {
-            lv_table_set_cell_value(table, index+1, 0, alarm_info->alarm_text);
-            sprintf(table_value, "%02d:%02d %s", alarm_info->trigger_time.hour > 12 ? alarm_info->trigger_time.hour - 12 : alarm_info->trigger_time.hour,
-             alarm_info->trigger_time.min, alarm_scheduler_is_morning(&alarm_info->trigger_time) ? "am" : "pm");
-            lv_table_set_cell_value(table, index+1, 1, table_value);
-
-            if (alarm_info->trigger_days != NoDay)
-            {
-                if (alarm_info->trigger_days == Everyday)
-                {
-                    strcpy(table_value, "Mon, Tue, Wed, Thur, Fri, Sat, Sun");
-                }
-                else
-                {
-
-                    memset(table_value, 0, sizeof(char)*64);
-                    char* iterator = table_value;
-                    bool day_entered = false;
-                    for (size_t inner = 0; inner < 7; inner++)
-                    {
-                        if (alarm_info->trigger_days & get_trigger_day_value(inner))
-                        {
-                            if (day_entered)
-                            {
-                                memcpy(iterator, ", ", 2);
-                                iterator += 2;
-                            }
-                            const char* day = get_day_name(inner, true);
-                            size_t len = strlen(day);
-                            memcpy(iterator, day, len);
-                            iterator += len;
-                            day_entered = true;
-                        }
-                    }
-                }
-                lv_table_set_cell_value(table, index+1, 2, table_value);
-            }
+            add_item_to_table(gui_info->new_alarm_dlg.table, index+1, alarm_info->alarm_text, &alarm_info->trigger_time, alarm_info->trigger_days);
         }
     }
-    lv_table_set_cell_type(table, 1, 1, 3);
+    lv_table_set_cell_type(gui_info->new_alarm_dlg.table, 1, 1, 3);
 }
 
 static void create_new_alarm_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
@@ -536,19 +579,19 @@ static void create_new_alarm_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_obj_set_width(cont, 200);
 
     gui_info->new_alarm_dlg.alert_day_cb[0] = lv_cb_create(cont, NULL);
-    lv_cb_set_text(gui_info->new_alarm_dlg.alert_day_cb[0], get_day_name(1, false));
+    lv_cb_set_text(gui_info->new_alarm_dlg.alert_day_cb[0], get_day_name(1, DAY_NAME_ABBREV));
     gui_info->new_alarm_dlg.alert_day_cb[1] = lv_cb_create(cont, NULL);
-    lv_cb_set_text(gui_info->new_alarm_dlg.alert_day_cb[1], get_day_name(2, false));
+    lv_cb_set_text(gui_info->new_alarm_dlg.alert_day_cb[1], get_day_name(2, DAY_NAME_ABBREV));
     gui_info->new_alarm_dlg.alert_day_cb[2] = lv_cb_create(cont, NULL);
-    lv_cb_set_text(gui_info->new_alarm_dlg.alert_day_cb[2], get_day_name(3, false));
+    lv_cb_set_text(gui_info->new_alarm_dlg.alert_day_cb[2], get_day_name(3, DAY_NAME_ABBREV));
     gui_info->new_alarm_dlg.alert_day_cb[3] = lv_cb_create(cont, NULL);
-    lv_cb_set_text(gui_info->new_alarm_dlg.alert_day_cb[3], get_day_name(4, false));
+    lv_cb_set_text(gui_info->new_alarm_dlg.alert_day_cb[3], get_day_name(4, DAY_NAME_ABBREV));
     gui_info->new_alarm_dlg.alert_day_cb[4] = lv_cb_create(cont, NULL);
-    lv_cb_set_text(gui_info->new_alarm_dlg.alert_day_cb[4], get_day_name(5, false));
+    lv_cb_set_text(gui_info->new_alarm_dlg.alert_day_cb[4], get_day_name(5, DAY_NAME_ABBREV));
     gui_info->new_alarm_dlg.alert_day_cb[5] = lv_cb_create(cont, NULL);
-    lv_cb_set_text(gui_info->new_alarm_dlg.alert_day_cb[5], get_day_name(6, false));
+    lv_cb_set_text(gui_info->new_alarm_dlg.alert_day_cb[5], get_day_name(6, DAY_NAME_ABBREV));
     gui_info->new_alarm_dlg.alert_day_cb[6] = lv_cb_create(cont, NULL);
-    lv_cb_set_text(gui_info->new_alarm_dlg.alert_day_cb[6], get_day_name(0, false));
+    lv_cb_set_text(gui_info->new_alarm_dlg.alert_day_cb[6], get_day_name(0, DAY_NAME_ABBREV));
 
     lv_obj_t* save_btn = lv_btn_create(parent, NULL);
     lv_obj_set_pos(save_btn, tab_width - 120, 10);
@@ -594,6 +637,19 @@ static void create_options_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_obj_t* img1 = lv_img_create(parent, NULL);
     lv_img_set_src(img1, &alarm_img);
     lv_obj_align(img1, digit_color, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
+
+    const char* zipcode = config_mgr_get_zipcode(gui_info->config_mgr);
+
+    gui_info->new_alarm_dlg.zipcode_text = lv_ta_create(parent, NULL);
+    lv_ta_set_one_line(gui_info->new_alarm_dlg.zipcode_text, true);
+    lv_ta_set_text(gui_info->new_alarm_dlg.zipcode_text, zipcode);
+    lv_obj_align(gui_info->new_alarm_dlg.zipcode_text, NULL, LV_ALIGN_IN_TOP_MID, 0, TOP_MARGIN);
+
+    lv_obj_t* num_keybrd = lv_kb_create(parent, NULL);
+    lv_kb_set_cursor_manage(num_keybrd, true);
+    // Set text area with keyboard
+    lv_kb_set_ta(num_keybrd, gui_info->new_alarm_dlg.zipcode_text);
+    lv_kb_set_mode(num_keybrd, LV_KB_MODE_NUM);
 }
 
 static int tick_thread(void * data)
@@ -936,7 +992,7 @@ void gui_mgr_set_time_item(GUI_MGR_HANDLE handle, const struct tm* curr_time)
             }
         }
         char date_line[128];
-        sprintf(date_line, "%s, %s %d", get_day_name(curr_time->tm_wday, false), get_month_name(curr_time->tm_mon), curr_time->tm_mday);
+        sprintf(date_line, "%s, %s %d", get_day_name(curr_time->tm_wday, DAY_NAME_FULLNAME), get_month_name(curr_time->tm_mon), curr_time->tm_mday);
         lv_label_set_text(handle->date_label, date_line);
     }
 }
@@ -951,7 +1007,7 @@ void gui_mgr_set_forcast(GUI_MGR_HANDLE handle, FORCAST_TIME timeframe, const WE
     else
     {
         char forcast_line[128];
-        sprintf(forcast_line, "%s %d", get_day_name(weather_cond->forcast_date->tm_wday, true), weather_cond->forcast_date->tm_mday);
+        sprintf(forcast_line, "%s %d", get_day_name(weather_cond->forcast_date->tm_wday, DAY_NAME_ABBREV), weather_cond->forcast_date->tm_mday);
         lv_label_set_text(handle->forcast_date_label, forcast_line);
 
         lv_label_set_text(handle->forcast_desc_label, weather_cond->description);
@@ -977,7 +1033,7 @@ void gui_mgr_set_next_alarm(GUI_MGR_HANDLE handle, const ALARM_INFO* next_alarm)
         int trigger_day;
         if ((trigger_day = alarm_scheduler_get_next_day(next_alarm)) >= 0)
         {
-            sprintf(alarm_line, "Alarm set: %s %d:%02d %s", get_day_name(trigger_day, true), config_mgr_format_hour(handle->config_mgr, next_alarm->trigger_time.hour), next_alarm->trigger_time.min, alarm_scheduler_is_morning(&next_alarm->trigger_time) ? "am" : "pm");
+            sprintf(alarm_line, "Alarm set: %s %d:%02d %s", get_day_name(trigger_day, DAY_NAME_ABBREV), config_mgr_format_hour(handle->config_mgr, next_alarm->trigger_time.hour), next_alarm->trigger_time.min, alarm_scheduler_is_morning(&next_alarm->trigger_time) ? "am" : "pm");
             lv_label_set_text(handle->alarm_label, alarm_line);
         }
         else
@@ -1011,10 +1067,10 @@ int gui_mgr_set_alarm_triggered(GUI_MGR_HANDLE handle, const ALARM_INFO* alarm_t
 
             // Set the background's style
             modal_style.body.main_color = modal_style.body.grad_color = LV_COLOR_BLACK;
-            modal_style.body.opa = LV_OPA_50;
+            modal_style.body.opa = LV_OPA_70;
 
             // Create a base object for the modal background
-            lv_obj_t* model_shade = lv_obj_create(lv_scr_act(), NULL);
+            lv_obj_t* model_shade = lv_obj_create(handle->win_bkgrd, NULL);
             lv_obj_set_style(model_shade, &modal_style);
             lv_obj_set_pos(model_shade, 0, 0);
             lv_obj_set_size(model_shade, LV_HOR_RES, LV_VER_RES);
@@ -1040,7 +1096,6 @@ int gui_mgr_set_alarm_triggered(GUI_MGR_HANDLE handle, const ALARM_INFO* alarm_t
 
             //lv_label_set_text(info, in_msg_info);
             //lv_obj_align(info, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 5, -5);
-
         }
     }
     return result;
@@ -1051,17 +1106,15 @@ void gui_mgr_process_items(GUI_MGR_HANDLE handle)
     if (handle != NULL)
     {
         SDL_Event event;
-
         lv_task_handler();
-
         mouse_handler(&event);
 
-        if (handle->alarm_state == ALARM_STATE_TRIGGERED)
-        {
-        }
-        else if (handle->alarm_state == ALARM_STATE_SNOOZE)
-        {
-        }
+        // if (handle->alarm_state == ALARM_STATE_TRIGGERED)
+        // {
+        // }
+        // else if (handle->alarm_state == ALARM_STATE_SNOOZE)
+        // {
+        // }
 
         GUI_OPTION_DLG_INFO option_info = {0};
         if (handle->window_mode == WINDOW_MODE_SHOW_OPTIONS)
@@ -1074,6 +1127,7 @@ void gui_mgr_process_items(GUI_MGR_HANDLE handle)
             option_info.dlg_state = OPTION_DLG_CLOSED;
             option_info.is_dirty = handle->new_alarm_dlg.is_dirty;
             handle->notify_cb(handle->user_ctx, NOTIFICATION_OPTION_DLG, &option_info);
+            handle->window_mode = WINDOW_MODE_CLOCK;
         }
     }
 }
