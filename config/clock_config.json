@@ -4,8 +4,8 @@
     "timezone": -8,
     "brightness": 10,
     "digitColor": 3,
-    "shadeStartTime": "21:00",
-    "shadeEndTime": "07:00",
+    "shadeStart": "21:00",
+    "shadeEnd": "07:00",
     "zipcode": "98077",
     "audioDirectory": "",
     "alarms": [

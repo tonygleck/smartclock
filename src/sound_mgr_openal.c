@@ -22,6 +22,7 @@ typedef struct SOUND_MGR_INFO_TAG
     ALCcontext* alc_context;
     const unsigned char* wav_data;
     size_t wav_size;
+    float volume;
 
     ALuint source;
     ALuint sound_buf;
@@ -321,15 +322,23 @@ static int construct_buffer_data(SOUND_MGR_INFO* sound_info, format_info* fmt_in
                     ALfloat listenerOri[] = {0.0,0.0,1.0, 0.0,1.0,0.0};
 
                     alSourcefv(sound_info->source, AL_POSITION, sourcePos);
+                    validate_openal_error("Failure setting Sound Position");
                     alSourcefv(sound_info->source, AL_VELOCITY, sourceVel);
+                    validate_openal_error("Failure setting Sound Velocity");
+                    alSourcef(sound_info->source, AL_GAIN, sound_info->volume);
+                    validate_openal_error("Failure setting Sound Gain");
                     alSourcef(sound_info->source, AL_PITCH, 1.0f);
-                    alSourcef(sound_info->source, AL_GAIN, 1.0f);
+                    validate_openal_error("Failure setting Sound Pitch");
                     alSourcei(sound_info->source, AL_LOOPING, repeat ? AL_TRUE : AL_FALSE);
+                    validate_openal_error("Failure setting Sound Looping");
                     //alSourcefv(source, AL_DIRECTION, sourceOri);
 
                     alListenerfv(AL_POSITION, listenerPos);
+                    validate_openal_error("Failure setting Sound Position");
                     alListenerfv(AL_VELOCITY, listenerVel);
+                    validate_openal_error("Failure setting Listen Sound Velocity");
                     alListenerfv(AL_ORIENTATION, listenerOri);
+                    validate_openal_error("Failure setting Listen Sound Orientation");
                     result = 0;
                 }
             }
@@ -368,6 +377,10 @@ SOUND_MGR_HANDLE sound_mgr_create(void)
             free(result);
             result = NULL;
         }
+        else
+        {
+            result->volume = 1.0;
+        }
     }
     return result;
 }
@@ -385,7 +398,7 @@ void sound_mgr_destroy(SOUND_MGR_HANDLE handle)
     }
 }
 
-int sound_mgr_play(SOUND_MGR_HANDLE handle, const char* sound_file, bool set_repeat)
+int sound_mgr_play(SOUND_MGR_HANDLE handle, const char* sound_file, bool set_repeat, bool crescendo)
 {
     int result;
     if (handle == NULL || sound_file == NULL)
@@ -400,6 +413,15 @@ int sound_mgr_play(SOUND_MGR_HANDLE handle, const char* sound_file, bool set_rep
         if (handle->sound_state == SOUND_STATE_PLAYING)
         {
 
+        }
+
+        if (crescendo)
+        {
+            handle->volume = 0.1;
+        }
+        else
+        {
+            handle->volume = 1.0;
         }
 
         unsigned char* wav_buffer;
@@ -490,6 +512,46 @@ SOUND_MGR_STATE sound_mgr_get_current_state(SOUND_MGR_HANDLE handle)
     else
     {
         result = handle->sound_state;
+    }
+    return result;
+}
+
+int sound_mgr_set_volume(SOUND_MGR_HANDLE handle, float volume)
+{
+    int result;
+    if (handle == NULL)
+    {
+        log_error("Invalid argument specified handle: NULL");
+        result = __LINE__;
+    }
+    else if (volume < 0.0 || volume > 1.0)
+    {
+        log_error("The volume is not within range of 0.0 - 1.0");
+        result = __LINE__;
+    }
+    else
+    {
+        //handle->volume = volume;
+        if (handle->sound_state == SOUND_STATE_PLAYING)
+        {
+            //alSourcef(handle->source, AL_PITCH, handle->volume);
+        }
+        result = 0;
+    }
+    return result;
+}
+
+float sound_mgr_get_volume(SOUND_MGR_HANDLE handle)
+{
+    float result;
+    if (handle == NULL)
+    {
+        log_error("Invalid argument specified: handle: NULL");
+        result = 0.0;
+    }
+    else
+    {
+        result = handle->volume;
     }
     return result;
 }

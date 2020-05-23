@@ -263,13 +263,21 @@ CTEST_BEGIN_TEST_SUITE(sound_mgr_ut)
         STRICT_EXPECTED_CALL(alSourcei(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         setup_validate_al_error_mocks(failure);
         STRICT_EXPECTED_CALL(alSourcefv(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alGetError()).CallCannotFail();
         STRICT_EXPECTED_CALL(alSourcefv(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alGetError()).CallCannotFail();
         STRICT_EXPECTED_CALL(alSourcef(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alGetError()).CallCannotFail();
         STRICT_EXPECTED_CALL(alSourcef(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alGetError()).CallCannotFail();
         STRICT_EXPECTED_CALL(alSourcei(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alGetError()).CallCannotFail();
         STRICT_EXPECTED_CALL(alListenerfv(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alGetError()).CallCannotFail();
         STRICT_EXPECTED_CALL(alListenerfv(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alGetError()).CallCannotFail();
         STRICT_EXPECTED_CALL(alListenerfv(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(alGetError()).CallCannotFail();
     }
 
     static void setup_play_mocks(bool failure)
@@ -371,7 +379,7 @@ CTEST_BEGIN_TEST_SUITE(sound_mgr_ut)
         // arrange
 
         // act
-        int result = sound_mgr_play(NULL, TEST_SOUND_FILE, true);
+        int result = sound_mgr_play(NULL, TEST_SOUND_FILE, true, true);
 
         // assert
         CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
@@ -389,7 +397,7 @@ CTEST_BEGIN_TEST_SUITE(sound_mgr_ut)
         setup_play_mocks(false);
 
         // act
-        int result = sound_mgr_play(handle, TEST_SOUND_FILE, true);
+        int result = sound_mgr_play(handle, TEST_SOUND_FILE, true, false);
 
         // assert
         CTEST_ASSERT_ARE_EQUAL(int, 0, result);
@@ -421,7 +429,7 @@ CTEST_BEGIN_TEST_SUITE(sound_mgr_ut)
                 umock_c_negative_tests_fail_call(index);
 
                 // act
-                int result = sound_mgr_play(handle, TEST_SOUND_FILE, true);
+                int result = sound_mgr_play(handle, TEST_SOUND_FILE, true, true);
 
                 // assert
                 CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result, "sound_mgr_play failure %d/%d", (int)index, (int)count);
@@ -450,7 +458,7 @@ CTEST_BEGIN_TEST_SUITE(sound_mgr_ut)
     {
         // arrange
         SOUND_MGR_HANDLE handle = sound_mgr_create();
-        int result = sound_mgr_play(handle, TEST_SOUND_FILE, true);
+        int result = sound_mgr_play(handle, TEST_SOUND_FILE, true, false);
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(alSourceStop(IGNORED_ARG));
@@ -489,7 +497,7 @@ CTEST_BEGIN_TEST_SUITE(sound_mgr_ut)
     {
         // arrange
         SOUND_MGR_HANDLE handle = sound_mgr_create();
-        int result = sound_mgr_play(handle, TEST_SOUND_FILE, true);
+        int result = sound_mgr_play(handle, TEST_SOUND_FILE, true, true);
         umock_c_reset_all_calls();
 
         // act
@@ -525,7 +533,7 @@ CTEST_BEGIN_TEST_SUITE(sound_mgr_ut)
     {
         // arrange
         SOUND_MGR_HANDLE handle = sound_mgr_create();
-        int result = sound_mgr_play(handle, TEST_SOUND_FILE, true);
+        int result = sound_mgr_play(handle, TEST_SOUND_FILE, true, false);
         sound_mgr_stop(handle);
         umock_c_reset_all_calls();
 
