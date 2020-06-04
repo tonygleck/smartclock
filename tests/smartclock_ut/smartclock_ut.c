@@ -139,6 +139,11 @@ static void my_gui_mgr_destroy(GUI_MGR_HANDLE handle)
     my_mem_shim_free(handle);
 }
 
+static void my_gui_mgr_process_items(GUI_MGR_HANDLE handle)
+{
+    (void)handle;
+}
+
 static NTP_CLIENT_HANDLE my_ntp_client_create(void)
 {
     return (NTP_CLIENT_HANDLE)my_mem_shim_malloc(1);
@@ -221,6 +226,7 @@ CTEST_BEGIN_TEST_SUITE(smartclock_ut)
         REGISTER_GLOBAL_MOCK_HOOK(gui_mgr_destroy, my_gui_mgr_destroy);
         REGISTER_GLOBAL_MOCK_RETURN(gui_mgr_create_win, 0);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(gui_mgr_create_win, __LINE__);
+        REGISTER_GLOBAL_MOCK_HOOK(gui_mgr_process_items, my_gui_mgr_process_items);
 
         REGISTER_GLOBAL_MOCK_HOOK(ntp_client_create, my_ntp_client_create);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(ntp_client_create, NULL);
@@ -319,6 +325,7 @@ CTEST_BEGIN_TEST_SUITE(smartclock_ut)
         setup_initialize_mocks();
         STRICT_EXPECTED_CALL(config_mgr_load_alarm(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(gui_mgr_create_win(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(config_mgr_get_shade_times(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         setup_check_ntp_operation_mocks();
         setup_check_weather_operation_mocks();
         STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_ARG, IGNORED_ARG));
@@ -362,6 +369,46 @@ CTEST_BEGIN_TEST_SUITE(smartclock_ut)
         CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
+    }
+
+    CTEST_FUNCTION(run_application_fail)
+    {
+        // arrange
+        int argc = 3;
+        char* argv[] = {
+            "/usr/bin/smartclock_exe",
+            "--weather_appid",
+            "1a2b3c4d5e6f7g8h9i0j"
+            };
+
+        int negativeTestsInitResult = umock_c_negative_tests_init();
+        CTEST_ASSERT_ARE_EQUAL(int, 0, negativeTestsInitResult);
+
+        STRICT_EXPECTED_CALL(config_mgr_create(IGNORED_ARG));
+        setup_initialize_mocks();
+        STRICT_EXPECTED_CALL(config_mgr_load_alarm(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(gui_mgr_create_win(IGNORED_ARG));
+
+        umock_c_negative_tests_snapshot();
+
+        size_t count = umock_c_negative_tests_call_count();
+        for (size_t index = 0; index < count; index++)
+        {
+            if (umock_c_negative_tests_can_call_fail(index))
+            {
+                umock_c_negative_tests_reset();
+                umock_c_negative_tests_fail_call(index);
+
+                // act
+                g_close_iteration = 1;
+                int result = run_application(argc, argv);
+
+                // assert
+                CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result, "Failure in item %d", (int)index);
+            }
+        }
+        // cleanup
+        umock_c_negative_tests_deinit();
     }
 
 CTEST_END_TEST_SUITE(smartclock_ut)
