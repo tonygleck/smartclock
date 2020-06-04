@@ -29,13 +29,13 @@ static const char* ALARM_NODE_SNOOZE = "snooze";
 
 #define CLOCK_HOUR_12           0x00000001
 #define CLOCK_SHOW_SECONDS      0x00000002
-#define DEFAULT_DIGIT_COLOR     128
+#define DEFAULT_DIGIT_COLOR     0
 #define INVALID_DIGIT_COLOR     0xFFFFFFFF
 
 typedef struct CONFIG_MGR_INFO_TAG
 {
     char* config_file;
-    int option;
+    uint32_t option;
     uint32_t digit_color;
     JSON_Value* json_root;
     JSON_Object* json_object;
@@ -145,7 +145,11 @@ CONFIG_MGR_HANDLE config_mgr_create(const char* config_path)
         }
         else
         {
-            result->option |= CLOCK_HOUR_12;
+            if ((result->option = (uint32_t)json_object_get_number(result->json_object, DIGIT_COLOR_NODE)) == ((uint32_t)JSONError))
+            {
+                log_warning("Failure retrieving option node");
+                result->option |= CLOCK_HOUR_12;
+            }
             result->digit_color = INVALID_DIGIT_COLOR;
         }
     }
@@ -314,7 +318,7 @@ uint32_t config_mgr_get_digit_color(CONFIG_MGR_HANDLE handle)
     {
         if (handle->digit_color == INVALID_DIGIT_COLOR)
         {
-            if ((handle->digit_color = (uint32_t)json_object_get_number(handle->json_object, DIGIT_COLOR_NODE)) == 0)
+            if ((handle->digit_color = (uint32_t)json_object_get_number(handle->json_object, DIGIT_COLOR_NODE)) == (uint32_t)JSONError)
             {
                 log_error("Failure getting json object");
                 result = DEFAULT_DIGIT_COLOR;

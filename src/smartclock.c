@@ -57,6 +57,10 @@ typedef struct SMARTCLOCK_INFO_TAG
     uint32_t alarm_volume;
     const char* weather_appid;
     char* config_path;
+
+    TIME_VALUE_STORAGE shade_start;
+    TIME_VALUE_STORAGE shade_end;
+    bool shades_down;
 } SMARTCLOCK_INFO;
 
 typedef enum ARGUEMENT_TYPE_TAG
@@ -70,6 +74,7 @@ typedef enum ARGUEMENT_TYPE_TAG
 #define MAX_WEATHER_DIFF        6*60*60 // Every 6 hours
 #define MAX_TIME_OFFSET         2*60    // 2 min
 #define MAX_ALARM_RING_TIME     2*60    // 2 min
+#define INVALID_HOUR_VALUE      24      // Invalid hour
 
 //static const char* const ENV_WEATHER_APP_ID = "weather_appid";
 static const char* const CONFIG_FOLDER_NAME = "config";
@@ -221,6 +226,32 @@ static void configure_alarms(SMARTCLOCK_INFO* clock_info)
     gui_mgr_show_alarm_dlg(clock_info->gui_mgr, clock_info->sched_mgr);
 
     // Check
+}
+
+static void adjust_shades(SMARTCLOCK_INFO* clock_info, const struct tm* curr_time)
+{
+    if (clock_info->shade_start.hours < INVALID_HOUR_VALUE && clock_info->shade_start.hours < INVALID_HOUR_VALUE)
+    {
+        // Check shade
+        if (clock_info->shades_down)
+        {
+            if (curr_time->tm_hour == clock_info->shade_start.hours && curr_time->tm_min == clock_info->shade_start.minutes)
+            {
+                // TODO: Turn up the shades
+                log_debug("Turning shades on");
+                clock_info->shades_down = false;
+            }
+        }
+        else
+        {
+            if (curr_time->tm_hour == clock_info->shade_end.hours && curr_time->tm_min == clock_info->shade_end.minutes)
+            {
+                // TODO: Turn down the shades
+                log_debug("Turning shades off");
+                clock_info->shades_down = true;
+            }
+        }
+    }
 }
 
 static void gui_notification_cb(void* user_ctx, GUI_NOTIFICATION_TYPE type, void* res_value)
@@ -521,6 +552,13 @@ int run_application(int argc, char* argv[])
             clock_info.ntp_operation = OPERATION_STATE_IDLE;
             clock_info.weather_operation = OPERATION_STATE_IDLE;
 
+            if (config_mgr_get_shade_times(clock_info.config_mgr, &clock_info.shade_start, &clock_info.shade_end) != 0)
+            {
+                log_warning("Shade times not validate.  Check configuration");
+                clock_info.shade_start.hours = INVALID_HOUR_VALUE;
+                clock_info.shade_end.hours = INVALID_HOUR_VALUE;
+            }
+
             // Get the inital weather
             check_ntp_operation(&clock_info);
             check_weather_operation(&clock_info);
@@ -534,6 +572,7 @@ int run_application(int argc, char* argv[])
 
             do
             {
+                // Check against the Ntp server
                 check_ntp_operation(&clock_info);
 
                 check_weather_operation(&clock_info);
@@ -542,16 +581,16 @@ int run_application(int argc, char* argv[])
                 struct tm* curr_time = get_time_value();
                 check_alarm_operation(&clock_info, curr_time);
 
-                gui_mgr_set_time_item(clock_info.gui_mgr, curr_time);
+                // Check the shades
+                adjust_shades(&clock_info, curr_time);
 
-                // Sleep here
+                gui_mgr_set_time_item(clock_info.gui_mgr, curr_time);
                 gui_mgr_process_items(clock_info.gui_mgr);
 
                 thread_mgr_sleep(refresh_time);
             } while (g_run_application);
+            result = 0;
         }
-
-        result = 0;
 
         ntp_client_destroy(clock_info.ntp_client);
         gui_mgr_destroy(clock_info.gui_mgr);

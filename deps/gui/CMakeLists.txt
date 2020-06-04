@@ -16,23 +16,29 @@ set(lv_core_src_files
 
 set(lv_draw_src_files
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_draw/lv_draw_arc.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_draw/lv_draw_basic.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_draw/lv_draw_blend.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_draw/lv_draw_img.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_draw/lv_draw_label.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_draw/lv_draw_line.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_draw/lv_draw_mask.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_draw/lv_draw_rect.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_draw/lv_draw_triangle.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_draw/lv_draw.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_draw/lv_img_buf.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_draw/lv_img_cache.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_draw/lv_img_decoder.c
 )
 
 set(lv_font_src_files
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_fmt_txt.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_roboto_12.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_roboto_16.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_roboto_22.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_roboto_28.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_montserrat_12.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_montserrat_14.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_montserrat_16.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_montserrat_18.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_montserrat_20.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_montserrat_22.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_montserrat_24.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_montserrat_26.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_montserrat_28.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font_unscii_8.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font/lv_font.c
 )
@@ -48,7 +54,7 @@ set(lv_misc_src_files
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_area.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_async.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_bidi.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_circ.c
+    #${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_circ.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_color.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_fs.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_gc.c
@@ -62,50 +68,47 @@ set(lv_misc_src_files
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_utils.c
 )
 
-set(lv_objx_src_files
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_arc.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_bar.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_btn.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_btnm.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_cb.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_calendar.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_canvas.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_cont.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_cpicker.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_chart.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_ddlist.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_gauge.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_img.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_imgbtn.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_kb.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_label.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_led.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_line.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_list.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_lmeter.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_mbox.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_page.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_preload.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_roller.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_slider.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_spinbox.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_sw.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_ta.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_table.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_tabview.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_tileview.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx/lv_win.c
+set(lv_widgets_src_files
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_arc.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_bar.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_btn.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_btnmatrix.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_checkbox.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_calendar.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_canvas.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_cont.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_cpicker.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_chart.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_dropdown.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_gauge.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_img.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_imgbtn.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_keyboard.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_label.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_led.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_line.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_list.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_linemeter.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_msgbox.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_page.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_roller.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_slider.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_spinbox.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_spinner.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_slider.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_tabview.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_table.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_tabview.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_textarea.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_tileview.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_win.c
 )
 
 set(lv_themes_src_files
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_themes/lv_theme_alien.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_themes/lv_theme_default.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_themes/lv_theme_empty.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_themes/lv_theme_material.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_themes/lv_theme_mono.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_themes/lv_theme_nemo.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_themes/lv_theme_night.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_themes/lv_theme_templ.c
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_themes/lv_theme_zen.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_themes/lv_theme_template.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_themes/lv_theme.c
 )
 
@@ -123,7 +126,7 @@ add_library(lvgl
     ${lv_font_src_files}
     ${lv_hal_src_files}
     ${lv_misc_src_files}
-    ${lv_objx_src_files}
+    ${lv_widgets_src_files}
     ${lv_themes_src_files}
     ${lv_drivers_src_files})
 
@@ -134,5 +137,5 @@ target_include_directories(lvgl PUBLIC ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_dra
 target_include_directories(lvgl PUBLIC ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_font)
 target_include_directories(lvgl PUBLIC ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_hal)
 target_include_directories(lvgl PUBLIC ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc)
-target_include_directories(lvgl PUBLIC ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_objx)
+target_include_directories(lvgl PUBLIC ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets)
 target_include_directories(lvgl PUBLIC ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_themes)

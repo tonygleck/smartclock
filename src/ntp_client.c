@@ -14,7 +14,7 @@
 #endif
 
 #include "patchcords/patchcord_client.h"
-#include "patchcords/cord_socket.h"
+#include "patchcords/cord_socket_client.h"
 
 #include "ntp_client.h"
 #include "lib-util-c/sys_debug_shim.h"
@@ -282,7 +282,7 @@ static int send_initial_ntp_packet(NTP_CLIENT_INFO* ntp_client)
     //ntp_info.ntp_transmit_timestamp.integer = ntp_info.ntp_orig_timestamp.integer;
     //ntp_info.ntp_transmit_timestamp.fractional = ntp_info.ntp_orig_timestamp.fractional;
 
-    if (xio_socket_send(ntp_client->socket_impl, &ntp_info, ntp_len, NULL, NULL) != 0)
+    if (cord_socket_send(ntp_client->socket_impl, &ntp_info, ntp_len, NULL, NULL) != 0)
     {
         log_error("Failure sending NTP packet to server");
         result = MU_FAILURE;
@@ -301,15 +301,15 @@ static int init_connect_to_server(NTP_CLIENT_INFO* ntp_client, const char* time_
     socket_config.hostname = time_server;
     socket_config.port = NTP_PORT_NUM;
     socket_config.address_type = ADDRESS_TYPE_UDP;
-    if ((ntp_client->socket_impl = xio_socket_create(&socket_config, on_socket_bytes_received, ntp_client, on_socket_error, ntp_client)) == NULL)
+    if ((ntp_client->socket_impl = cord_socket_create(&socket_config, on_socket_bytes_received, ntp_client, on_socket_error, ntp_client)) == NULL)
     {
         log_error("Error connecting to NTP server %s:%d", time_server, NTP_PORT_NUM);
         result = MU_FAILURE;
     }
-    else if (xio_socket_open(ntp_client->socket_impl, on_socket_open_complete, ntp_client) != 0)
+    else if (cord_socket_open(ntp_client->socket_impl, on_socket_open_complete, ntp_client) != 0)
     {
         log_error("Error opening socket IO.");
-        xio_socket_destroy(ntp_client->socket_impl);
+        cord_socket_destroy(ntp_client->socket_impl);
         ntp_client->socket_impl = NULL;
         result = MU_FAILURE;
     }
@@ -324,12 +324,12 @@ static void close_ntp_connection(NTP_CLIENT_INFO* ntp_client)
 {
     if (ntp_client->server_connected)
     {
-        if (xio_socket_close(ntp_client->socket_impl, on_connection_closed, ntp_client) == 0)
+        if (cord_socket_close(ntp_client->socket_impl, on_connection_closed, ntp_client) == 0)
         {
             size_t counter = 0;
             do
             {
-                xio_socket_process_item(ntp_client->socket_impl);
+                cord_socket_process_item(ntp_client->socket_impl);
                 counter++;
                 //ThreadAPI_Sleep(2);
             } while (ntp_client->server_connected && counter < MAX_CLOSE_RETRIES);
@@ -339,7 +339,7 @@ static void close_ntp_connection(NTP_CLIENT_INFO* ntp_client)
     // Close client
     if (ntp_client->socket_impl)
     {
-        xio_socket_destroy(ntp_client->socket_impl);
+        cord_socket_destroy(ntp_client->socket_impl);
         ntp_client->socket_impl = NULL;
     }
 }
@@ -419,7 +419,7 @@ void ntp_client_process(NTP_CLIENT_HANDLE handle)
 {
     if (handle != NULL)
     {
-        xio_socket_process_item(handle->socket_impl);
+        cord_socket_process_item(handle->socket_impl);
 
         // Check timeout here
         if (handle->server_connected)
