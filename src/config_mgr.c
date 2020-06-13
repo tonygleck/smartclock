@@ -17,6 +17,7 @@ static const char* ZIPCODE_NODE = "zipcode";
 static const char* ALARMS_ARRAY_NODE = "alarms";
 static const char* AUDIO_DIR_NODE = "audioDirectory";
 static const char* DIGIT_COLOR_NODE = "digitColor";
+static const char* OPTION_NODE = "option";
 static const char* SHADE_START_NODE = "shadeStart";
 static const char* SHADE_END_NODE = "shadeEnd";
 
@@ -145,7 +146,7 @@ CONFIG_MGR_HANDLE config_mgr_create(const char* config_path)
         }
         else
         {
-            if ((result->option = (uint32_t)json_object_get_number(result->json_object, DIGIT_COLOR_NODE)) == ((uint32_t)JSONError))
+            if ((result->option = (uint32_t)json_object_get_number(result->json_object, OPTION_NODE)) == ((uint32_t)JSONError))
             {
                 log_warning("Failure retrieving option node");
                 result->option |= CLOCK_HOUR_12;

@@ -9,6 +9,7 @@ set(PROJECT_INC_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/inc)
 
 #option(use_opengl "set the smartclock to run on opengl (default is OFF)" OFF)
 option(smartclock_ut "Include unittest in build" OFF)
+option(smartclock_samples "Include samples in build" OFF)
 option(set_demo_mode "Set up demo mode" OFF)
 option(set_gui_mode "Set the application to run with a gui" OFF)
 
@@ -161,7 +162,9 @@ endif()
 target_include_directories(smartclock_exe PRIVATE ./deps/parson)
 target_include_directories(smartclock_exe PUBLIC ${PROJECT_SOURCE_DIR}/inc)
 
-add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/samples)
+if (${smartclock_samples})
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/samples)
+endif()
 
 smartclock_addCompileSettings(smartclock_exe)
 compileTargetAsC99(smartclock_exe)

@@ -110,7 +110,7 @@ static uint8_t TEST_ALARM_FREQUENCY = 127;
 static TIME_VALUE_STORAGE TEST_ALARM_ARRAY = { 12, 30, 0 };
 static TIME_VALUE_STORAGE TEST_INVALID_ALARM_ARRAY = { 25, 30, 0 };
 static uint32_t TEST_DIGIT_COLOR = 3;
-static uint32_t TEST_DEFAULT_DIGIT_COLOR = 128;
+static uint32_t TEST_DEFAULT_DIGIT_COLOR = 0;
 
 static int load_alarms_cb(void* context, const CONFIG_ALARM_INFO* cfg_alarm)
 {
@@ -180,6 +180,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         REGISTER_GLOBAL_MOCK_RETURN(json_array_get_value, TEST_JSON_VALUE);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_array_get_value, NULL);
         REGISTER_GLOBAL_MOCK_RETURN(json_object_get_number, 1);
+        REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_object_get_number, JSONError);
         REGISTER_GLOBAL_MOCK_RETURN(json_serialize_to_file_pretty, JSONSuccess);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_serialize_to_file_pretty, JSONFailure);
         REGISTER_GLOBAL_MOCK_RETURN(json_array_get_count, 1);
@@ -222,6 +223,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         STRICT_EXPECTED_CALL(malloc(IGNORED_ARG));
         STRICT_EXPECTED_CALL(json_parse_file(IGNORED_ARG));
         STRICT_EXPECTED_CALL(json_value_get_object(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "option")).CallCannotFail();
     }
 
     static void setup_config_mgr_load_alarm_mocks(void)
@@ -796,7 +798,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, TEST_DIGITCOLOR_NODE)).SetReturn(0);
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, TEST_DIGITCOLOR_NODE)).SetReturn(JSONError);
 
         // act
         uint32_t result = config_mgr_get_digit_color(handle);
