@@ -144,9 +144,9 @@ static void check_weather_operation(SMARTCLOCK_INFO* clock_info)
 #else
         WEATHER_CONDITIONS cond = {0};
         cond.forcast_date = get_time_value();
-        cond.temperature = 57;
-        cond.lo_temp = 47;
-        cond.hi_temp = 67;
+        cond.temperature = -11;
+        cond.lo_temp = -1;
+        cond.hi_temp = 100;
         cond.description = "Partly Sunny";
         cond.weather_icon[0] = '0';
         cond.weather_icon[1] = '9';
