@@ -61,6 +61,7 @@ typedef struct SMARTCLOCK_INFO_TAG
     TIME_VALUE_STORAGE shade_start;
     TIME_VALUE_STORAGE shade_end;
     bool shades_down;
+    bool is_demo_mode;
 } SMARTCLOCK_INFO;
 
 typedef enum ARGUEMENT_TYPE_TAG
@@ -139,23 +140,27 @@ static void check_weather_operation(SMARTCLOCK_INFO* clock_info)
 {
     if (clock_info->weather_operation == OPERATION_STATE_IN_PROCESS)
     {
-#if WEATHER_PROD
-        weather_client_process(clock_info->weather_client);
-#else
-        WEATHER_CONDITIONS cond = {0};
-        cond.forcast_date = get_time_value();
-        cond.temperature = -11;
-        cond.lo_temp = -1;
-        cond.hi_temp = 100;
-        cond.description = "Partly Sunny";
-        cond.weather_icon[0] = '0';
-        cond.weather_icon[1] = '9';
-        cond.weather_icon[2] = 'd';
-        weather_cond_callback(clock_info, WEATHER_OP_RESULT_SUCCESS, &cond);
-#endif
+        if (clock_info->is_demo_mode)
+        {
+            WEATHER_CONDITIONS cond = {0};
+            cond.forcast_date = get_time_value();
+            cond.temperature = -11;
+            cond.lo_temp = -1;
+            cond.hi_temp = 100;
+            cond.description = "Partly Sunny";
+            cond.weather_icon[0] = '0';
+            cond.weather_icon[1] = '9';
+            cond.weather_icon[2] = 'd';
+            weather_cond_callback(clock_info, WEATHER_OP_RESULT_SUCCESS, &cond);
+        }
+        else
+        {
+            weather_client_process(clock_info->weather_client);
+        }
     }
     else if (clock_info->weather_operation == OPERATION_STATE_ERROR)
     {
+        log_error("Failure getting weather operations");
         // todo: Need to alert the user and show config dialog
         alarm_timer_reset(&clock_info->weather_timer);
     }
@@ -168,13 +173,11 @@ static void check_weather_operation(SMARTCLOCK_INFO* clock_info)
             clock_info->weather_operation = OPERATION_STATE_ERROR;
             log_error("Invalid zipcode specfied");
         }
-#if WEATHER_PROD
-        else if (weather_client_get_by_zipcode(clock_info->weather_client, zipcode, OPERATION_TIMEOUT, weather_cond_callback, clock_info) != 0)
+        else if (!clock_info->is_demo_mode && weather_client_get_by_zipcode(clock_info->weather_client, zipcode, OPERATION_TIMEOUT, weather_cond_callback, clock_info) != 0)
         {
             log_error("Failure getting weather information");
             clock_info->weather_operation = OPERATION_STATE_ERROR;
         }
-#endif
         else
         {
             clock_info->weather_operation = OPERATION_STATE_IN_PROCESS;
@@ -558,6 +561,8 @@ int run_application(int argc, char* argv[])
                 clock_info.shade_start.hours = INVALID_HOUR_VALUE;
                 clock_info.shade_end.hours = INVALID_HOUR_VALUE;
             }
+
+            clock_info.is_demo_mode = config_mgr_is_demo_mode(clock_info.config_mgr);
 
             // Get the inital weather
             check_ntp_operation(&clock_info);

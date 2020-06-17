@@ -20,7 +20,7 @@ static const char* DIGIT_COLOR_NODE = "digitColor";
 static const char* OPTION_NODE = "option";
 static const char* SHADE_START_NODE = "shadeStart";
 static const char* SHADE_END_NODE = "shadeEnd";
-
+static const char* DEMO_MODE_NODE = "demo_mode";
 
 static const char* ALARM_NODE_NAME = "name";
 static const char* ALARM_NODE_TIME = "time";
@@ -605,6 +605,29 @@ int config_mgr_set_shade_times(CONFIG_MGR_HANDLE handle, const TIME_VALUE_STORAG
             {
                 result = 0;
             }
+        }
+    }
+    return result;
+}
+
+bool config_mgr_is_demo_mode(CONFIG_MGR_HANDLE handle)
+{
+    bool result;
+    if (handle == NULL)
+    {
+        log_error("Invalid handle specified");
+        result = true;
+    }
+    else
+    {
+        int boolean_res = json_object_get_boolean(handle->json_object, DEMO_MODE_NODE);
+        if (boolean_res == -1)
+        {
+            result = true;
+        }
+        else
+        {
+            result = (bool)boolean_res;
         }
     }
     return result;

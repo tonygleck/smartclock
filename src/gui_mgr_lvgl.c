@@ -741,6 +741,7 @@ static void create_new_alarm_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
                     "chimes\nheavy Metal", LV_ROLLER_MODE_INIFINITE);
     lv_roller_set_visible_row_count(gui_info->new_alarm_dlg.ringtone_roller, 2);
     lv_obj_set_pos(gui_info->new_alarm_dlg.ringtone_roller, 450, top);
+    lv_roller_set_selected(gui_info->new_alarm_dlg.ringtone_roller, 0, LV_ANIM_OFF);
     //lv_obj_align(save_btn, NULL, LV_ALIGN_IN_TOP_MID, 0, 20);
 }
 
@@ -753,7 +754,6 @@ static void create_options_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
                     "Black & White\n"
                     "Moss Green", LV_ROLLER_MODE_INIFINITE);
     lv_roller_set_visible_row_count(digit_color, 2);
-    //lv_obj_align(digit_color, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 0);
     lv_obj_set_event_cb(digit_color, digit_color_cb);
     lv_obj_set_user_data(digit_color, gui_info);
     lv_obj_set_pos(digit_color, LEFT_MARGIN, TOP_MARGIN);
