@@ -326,6 +326,7 @@ CTEST_BEGIN_TEST_SUITE(smartclock_ut)
         STRICT_EXPECTED_CALL(config_mgr_load_alarm(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(gui_mgr_create_win(IGNORED_ARG));
         STRICT_EXPECTED_CALL(config_mgr_get_shade_times(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(config_mgr_is_demo_mode(IGNORED_ARG));
         setup_check_ntp_operation_mocks();
         setup_check_weather_operation_mocks();
         STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_ARG, IGNORED_ARG));
