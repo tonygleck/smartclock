@@ -41,3 +41,8 @@ where n is some value between 0 and 255.
 ### how-to-disable-the-blank-screen
 
 https://www.geeks3d.com/hacklab/20160108/how-to-disable-the-blank-screen-on-raspberry-pi-raspbian/
+
+### smartclock size
+
+may 23 - 93,464 bytes
+Jun 15 - 93,504 bytes
