@@ -1,5 +1,6 @@
 {
     "ntpAddress": "0.north-america.pool.ntp.org",
+    "demo_mode": true,
     "option": 3,
     "timezone": -8,
     "brightness": 10,

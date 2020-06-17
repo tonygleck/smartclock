@@ -40,24 +40,9 @@ static lv_color_t g_image_colors[] =
 {
     LV_COLOR_MAKE(0xFF, 0x33, 0x33),
     LV_COLOR_MAKE(0x33, 0xD5, 0xE5),
-    LV_COLOR_MAKE(0x33, 0xD5, 0xE5),
-    LV_COLOR_MAKE(0x33, 0xD5, 0xE5)
+    LV_COLOR_MAKE(0xFF, 0xFF, 0xFF),
+    LV_COLOR_MAKE(0x3B, 0xB0, 0x3B)
 };
-
-typedef enum CLOCK_FACE_THEME_TAG
-{
-    THEME_FIRE_ENGINE_RED,
-    THEME_COOL_OCEAN_BLUE,
-    THEME_BLACK_AND_WHITE,
-    THEME_MOSS_GREEN
-} CLOCK_FACE_THEME;
-
-typedef enum DAY_NAME_TYPE_TAG
-{
-    DAY_NAME_FULLNAME,
-    DAY_NAME_ABBREV,
-    DAY_NAME_LETTER
-} DAY_NAME_TYPE;
 
 // Declare the font
 LV_FONT_DECLARE(arial_20)
@@ -82,6 +67,32 @@ LV_IMG_DECLARE(light_rain_img)
 LV_IMG_DECLARE(partly_sunny_img)
 LV_IMG_DECLARE(rain_showers_img)
 LV_IMG_DECLARE(sunny_img)
+
+typedef enum CLOCK_FACE_THEME_TAG
+{
+    THEME_FIRE_ENGINE_RED,
+    THEME_COOL_OCEAN_BLUE,
+    THEME_BLACK_AND_WHITE,
+    THEME_MOSS_GREEN
+} CLOCK_FACE_THEME;
+
+typedef enum IMAGE_TYPE_TAG
+{
+    IMAGE_HOUR_1,
+    IMAGE_HOUR_2,
+    IMAGE_ELLIPSIS,
+    IMAGE_MIN_1,
+    IMAGE_MIN_2,
+    IMAGE_FORCAST,
+    IMAGE_COUNT
+} IMAGE_TYPE;
+
+typedef enum DAY_NAME_TYPE_TAG
+{
+    DAY_NAME_FULLNAME,
+    DAY_NAME_ABBREV,
+    DAY_NAME_LETTER
+} DAY_NAME_TYPE;
 
 typedef enum WINDOW_MODE_TAG
 {
@@ -121,14 +132,10 @@ typedef struct GUI_MGR_INFO_TAG
     // Main Window
     lv_obj_t* date_label;
     lv_obj_t* alarm_label;
-    lv_obj_t* hour_1_img;
-    lv_obj_t* hour_2_img;
-    lv_obj_t* ellipsis_img;
-    lv_obj_t* min_1_img;
-    lv_obj_t* min_2_img;
+
+    lv_obj_t* image_items[IMAGE_COUNT];
 
     lv_obj_t* forcast_date_label;
-    lv_obj_t* forcast_img;
     lv_obj_t* curr_temp_label;
     lv_obj_t* forcast_desc_label;
     lv_obj_t* forcast_temp_label;
@@ -164,13 +171,33 @@ static void setup_win_style(GUI_MGR_INFO* gui_info)
                 lv_theme_get_font_small(), lv_theme_get_font_normal(), lv_theme_get_font_subtitle(), lv_theme_get_font_title() );*/
     lv_color_t bg_color = LV_COLOR_BLACK;
 
-    lv_style_set_bg_color(&gui_info->main_win_style, LV_STYLE_BG_COLOR, bg_color);
-    lv_style_set_border_color(&gui_info->main_win_style, LV_STYLE_BORDER_COLOR, bg_color);
-    //lv_style_set_text_color(&gui_info->main_win_style, LV_STYLE_TEXT_COLOR, LV_COLOR_BLACK);
-
     uint32_t digit_color_idx = config_mgr_get_digit_color(gui_info->config_mgr);
     gui_info->digit_color = g_image_colors[digit_color_idx];
     gui_info->intense = 225;
+
+    lv_style_init(&gui_info->main_win_style);
+
+    lv_style_set_radius(&gui_info->main_win_style, LV_STATE_DEFAULT, 10);
+    lv_style_set_bg_opa(&gui_info->main_win_style, LV_STATE_DEFAULT, LV_OPA_COVER);
+    /*lv_style_set_bg_color(&style_btn, LV_STATE_DEFAULT, LV_DEMO_PRINTER_BLUE);
+    lv_style_set_bg_color(&style_btn, LV_STATE_PRESSED, lv_color_darken(LV_DEMO_PRINTER_BLUE, LV_OPA_20));
+    lv_style_set_text_color(&style_btn, LV_STATE_DEFAULT, LV_DEMO_PRINTER_WHITE);
+    lv_style_set_value_color(&style_btn, LV_STATE_DEFAULT, LV_DEMO_PRINTER_WHITE);
+    lv_style_set_pad_top(&style_btn, LV_STATE_DEFAULT, LV_VER_RES / 40);
+    lv_style_set_pad_bottom(&style_btn, LV_STATE_DEFAULT, LV_VER_RES / 40);*/
+
+    lv_style_set_bg_color(&gui_info->main_win_style, LV_STYLE_BG_COLOR, bg_color);
+    lv_style_set_border_color(&gui_info->main_win_style, LV_STYLE_BORDER_COLOR, bg_color);
+    //lv_style_set_text_color(&gui_info->main_win_style, LV_STYLE_TEXT_COLOR, LV_COLOR_BLACK);
+}
+
+static void set_image_color(GUI_MGR_INFO* gui_info)
+{
+    for (size_t index = 0; index < IMAGE_COUNT; index++)
+    {
+        lv_obj_set_style_local_image_recolor_opa(gui_info->image_items[index], LV_IMG_PART_MAIN, LV_STATE_DEFAULT, gui_info->intense);
+        lv_obj_set_style_local_image_recolor(gui_info->image_items[index], LV_IMG_PART_MAIN, LV_STATE_DEFAULT, gui_info->digit_color);
+    }
 }
 
 static DayOfTheWeek get_trigger_day_value(size_t index)
@@ -206,7 +233,7 @@ static DayOfTheWeek get_trigger_day_value(size_t index)
     return result;
 }
 
-static const char* get_day_name(int day, DAY_NAME_TYPE type)
+static const char* get_day_name(uint8_t day, DAY_NAME_TYPE type)
 {
     const char* result;
     switch (day)
@@ -284,13 +311,13 @@ static const char* get_month_name(int month)
     return result;
 }
 
-static void create_time_roller(lv_obj_t* parent, lv_coord_t x_pos, lv_coord_t y_pos, TIME_CONTROL* time_ctrl, const struct tm* curr_time)
+static void create_time_roller(lv_obj_t* parent, lv_coord_t* x_pos, lv_coord_t* y_pos, TIME_CONTROL* time_ctrl, const struct tm* curr_time)
 {
     time_ctrl->hour_roller = lv_roller_create(parent, NULL);
     lv_roller_set_options(time_ctrl->hour_roller,
                     "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12", LV_ROLLER_MODE_INIFINITE);
-    lv_roller_set_visible_row_count(time_ctrl->hour_roller, 3);
-    lv_obj_set_pos(time_ctrl->hour_roller, x_pos, y_pos);
+    lv_obj_set_pos(time_ctrl->hour_roller, *x_pos, *y_pos);
+    lv_obj_set_width(time_ctrl->hour_roller, 20);
     lv_roller_set_selected(time_ctrl->hour_roller, curr_time->tm_hour > 12 ? curr_time->tm_hour - 11 : curr_time->tm_hour - 1, LV_ANIM_OFF);
     lv_coord_t actual_width = lv_obj_get_width(time_ctrl->hour_roller);
     x_pos += actual_width + 5;
@@ -303,18 +330,22 @@ static void create_time_roller(lv_obj_t* parent, lv_coord_t x_pos, lv_coord_t y_
                     "31\n32\n33\n34\n35\n36\n37\n38\n39\n40\n"
                     "41\n42\n43\n44\n45\n46\n47\n48\n49\n50\n"
                     "51\n52\n53\n54\n55\n56\n57\n58\n59", LV_ROLLER_MODE_INIFINITE);
-    lv_obj_set_pos(time_ctrl->min_roller, x_pos += 40, y_pos);
     lv_roller_set_selected(time_ctrl->min_roller, curr_time->tm_min, LV_ANIM_OFF);
-    actual_width = lv_obj_get_width(time_ctrl->min_roller);
-    x_pos += actual_width + 5;
+    lv_obj_set_width(time_ctrl->min_roller, 20);
+    lv_obj_align(time_ctrl->min_roller, time_ctrl->hour_roller, LV_ALIGN_IN_TOP_RIGHT, 75, 0);
 
     time_ctrl->period_roller = lv_roller_create(parent, NULL);
     lv_roller_set_options(time_ctrl->period_roller,
                     "am\npm", LV_ROLLER_MODE_NORMAL);
-    lv_roller_set_visible_row_count(time_ctrl->period_roller, 2);
-    lv_obj_set_pos(time_ctrl->period_roller, x_pos += 40, y_pos);
+    //lv_roller_set_visible_row_count(time_ctrl->period_roller, 2);
+    lv_obj_set_width(time_ctrl->period_roller, 20);
     lv_roller_set_selected(time_ctrl->period_roller, curr_time->tm_hour > 12 ? 1 : 0, LV_ANIM_OFF);
+    lv_obj_align(time_ctrl->period_roller, time_ctrl->min_roller, LV_ALIGN_IN_TOP_RIGHT, 85, 0);
 
+    lv_coord_t coord = lv_obj_get_width(time_ctrl->period_roller);
+    *x_pos += lv_obj_get_x(time_ctrl->period_roller)+coord;
+    coord = lv_obj_get_height(time_ctrl->period_roller);
+    *y_pos += lv_obj_get_y(time_ctrl->period_roller)+coord;
 }
 
 static void add_item_to_table(lv_obj_t* table, uint16_t row, const char* alarm_text, const TIME_INFO* trigger_time, uint32_t trigger_days)
@@ -461,7 +492,7 @@ static void alarm_dlg_day_select(lv_obj_t * obj, lv_event_t event)
 {
     if (event == LV_EVENT_CLICKED)
     {
-        printf("Clicked: %s\n", lv_list_get_btn_text(obj));
+        log_debug("Alarm Clicked: %s\n", lv_list_get_btn_text(obj));
     }
 }
 
@@ -471,9 +502,8 @@ static void digit_color_cb(lv_obj_t* digital_roll, lv_event_t event)
         char buf[32];
         lv_roller_get_selected_str(digital_roll, buf, sizeof(buf));
         uint32_t index_sel = (uint32_t)lv_roller_get_selected(digital_roll);
-        printf("Selected color: %s %d\n", buf, index_sel);
 
-        /*GUI_MGR_INFO* gui_info = (GUI_MGR_INFO*)lv_obj_get_user_data(digital_roll);
+        GUI_MGR_INFO* gui_info = (GUI_MGR_INFO*)lv_obj_get_user_data(digital_roll);
         if (gui_info != NULL)
         {
             if (index_sel >= MAX_CLOCK_FACE_THEMES)
@@ -482,8 +512,8 @@ static void digit_color_cb(lv_obj_t* digital_roll, lv_event_t event)
             }
             else
             {
-                gui_info->main_win_style.image.color = g_image_colors[index_sel];
-                gui_info->main_win_style.image.intense = LV_OPA_80;
+                gui_info->digit_color = g_image_colors[index_sel];
+                set_image_color(gui_info);
 
                 if (config_mgr_get_digit_color(gui_info->config_mgr) != index_sel)
                 {
@@ -491,7 +521,7 @@ static void digit_color_cb(lv_obj_t* digital_roll, lv_event_t event)
                     gui_info->new_alarm_dlg.is_dirty = true;
                 }
             }
-        }*/
+        }
     }
 }
 
@@ -578,17 +608,15 @@ static void create_alarm_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_coord_t win_height = lv_obj_get_height_fit(parent);
 
     gui_info->new_alarm_dlg.table = lv_table_create(parent, NULL);
-    //lv_table_set_style(gui_info->new_alarm_dlg.table, LV_TABLE_STYLE_CELL1, &style_cell1);
-    //lv_table_set_style(gui_info->new_alarm_dlg.table, LV_TABLE_STYLE_CELL2, &style_cell2);
-    //lv_table_set_style(gui_info->new_alarm_dlg.table, LV_TABLE_STYLE_BG, &lv_style_transp_tight);
     lv_table_set_col_cnt(gui_info->new_alarm_dlg.table, 3);
     lv_table_set_row_cnt(gui_info->new_alarm_dlg.table, alarm_count + 1);
-    lv_obj_set_pos(gui_info->new_alarm_dlg.table, LEFT_MARGIN, TOP_MARGIN);
+    lv_obj_set_pos(gui_info->new_alarm_dlg.table, 5, 5);
     //lv_obj_align(gui_info->new_alarm_dlg.table, NULL, LV_ALIGN_CENTER, 0, 0);
+    lv_coord_t tbl_width = lv_obj_get_width(gui_info->new_alarm_dlg.table);
 
     //lv_obj_set_size(gui_info->new_alarm_dlg.table, win_width, win_height);
 
-    uint16_t col_width = (win_width-(LEFT_MARGIN*3))/3;
+    uint16_t col_width = (win_width - (5*10))/3;
     lv_table_set_col_width(gui_info->new_alarm_dlg.table, 0, col_width);
     lv_table_set_col_width(gui_info->new_alarm_dlg.table, 1, col_width);
     lv_table_set_col_width(gui_info->new_alarm_dlg.table, 2, col_width);
@@ -599,7 +627,7 @@ static void create_alarm_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_table_set_cell_align(gui_info->new_alarm_dlg.table, 0, 2, LV_LABEL_ALIGN_CENTER);
 
     // Make the cells of the first row TYPE = 2 (use `style_cell2`)
-    lv_table_set_cell_type(gui_info->new_alarm_dlg.table, 0, 0, 2);
+    lv_table_set_cell_type(gui_info->new_alarm_dlg.table, 0, 0, 1);
     lv_table_set_cell_type(gui_info->new_alarm_dlg.table, 0, 1, 2);
     lv_table_set_cell_type(gui_info->new_alarm_dlg.table, 0, 2, 2);
 
@@ -649,86 +677,74 @@ static void create_new_alarm_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_coord_t win_width = lv_obj_get_width_fit(parent);
     lv_coord_t win_height = lv_obj_get_height_fit(parent);
 
+    gui_info->new_alarm_dlg.parent = parent;
+
+    lv_coord_t left = 5;
+    lv_coord_t top = 5;
     struct tm* curr_time = get_time_value();
-
-    /*gui_info->new_alarm_dlg.alarm_time = lv_roller_create(parent, NULL);
-    lv_roller_set_options(gui_info->new_alarm_dlg.hour_roller,
-                    "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12", LV_ROLLER_MODE_INIFINITE);
-    lv_roller_set_visible_row_count(gui_info->new_alarm_dlg.hour_roller, 3);
-    lv_obj_set_pos(gui_info->new_alarm_dlg.hour_roller, 5, 10);
-    lv_roller_set_selected(gui_info->new_alarm_dlg.hour_roller, curr_time->tm_hour > 12 ? curr_time->tm_hour - 11 : curr_time->tm_hour - 1, LV_ANIM_OFF);
-
-    gui_info->new_alarm_dlg.min_roller = lv_roller_create(parent, NULL);
-    lv_roller_set_options(gui_info->new_alarm_dlg.min_roller,
-                    "00\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n"
-                    "11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n"
-                    "21\n22\n23\n24\n25\n26\n27\n28\n29\n30\n"
-                    "31\n32\n33\n34\n35\n36\n37\n38\n39\n40\n"
-                    "41\n42\n43\n44\n45\n46\n47\n48\n49\n50\n"
-                    "51\n52\n53\n54\n55\n56\n57\n58\n59", LV_ROLLER_MODE_INIFINITE);
-    lv_obj_set_pos(gui_info->new_alarm_dlg.min_roller, 45, 10);
-    lv_roller_set_selected(gui_info->new_alarm_dlg.min_roller, curr_time->tm_min, LV_ANIM_OFF);
-
-    gui_info->new_alarm_dlg.period_roller = lv_roller_create(parent, NULL);
-    lv_roller_set_options(gui_info->new_alarm_dlg.period_roller,
-                    "am\npm", LV_ROLLER_MODE_NORMAL);
-    lv_roller_set_visible_row_count(gui_info->new_alarm_dlg.period_roller, 3);
-    lv_obj_set_pos(gui_info->new_alarm_dlg.period_roller, 85, 10);
-    lv_roller_set_selected(gui_info->new_alarm_dlg.period_roller, curr_time->tm_hour > 12 ? 1 : 0, LV_ANIM_OFF);*/
-
-
-    create_time_roller(parent, 5, 10, &gui_info->new_alarm_dlg.alarm_time, curr_time);
-
-    /*// Create a container
-    lv_obj_t* cont = lv_cont_create(parent, NULL);
-    lv_cont_set_fit(cont, LV_FIT_TIGHT);
-    //lv_cont_set_layout(cont, LV_LAYOUT_PRETTY);
-    lv_obj_set_pos(cont, tab_width/2, 10);
-    lv_obj_set_width(cont, 200);
-
-    gui_info->new_alarm_dlg.alert_day_cb[0] = lv_checkbox_create(cont, NULL);
-    lv_checkbox_set_text(gui_info->new_alarm_dlg.alert_day_cb[0], get_day_name(1, DAY_NAME_ABBREV));
-    gui_info->new_alarm_dlg.alert_day_cb[1] = lv_checkbox_create(cont, NULL);
-    lv_checkbox_set_text(gui_info->new_alarm_dlg.alert_day_cb[1], get_day_name(2, DAY_NAME_ABBREV));
-    gui_info->new_alarm_dlg.alert_day_cb[2] = lv_checkbox_create(cont, NULL);
-    lv_checkbox_set_text(gui_info->new_alarm_dlg.alert_day_cb[2], get_day_name(3, DAY_NAME_ABBREV));
-    gui_info->new_alarm_dlg.alert_day_cb[3] = lv_checkbox_create(cont, NULL);
-    lv_checkbox_set_text(gui_info->new_alarm_dlg.alert_day_cb[3], get_day_name(4, DAY_NAME_ABBREV));
-    gui_info->new_alarm_dlg.alert_day_cb[4] = lv_checkbox_create(cont, NULL);
-    lv_checkbox_set_text(gui_info->new_alarm_dlg.alert_day_cb[4], get_day_name(5, DAY_NAME_ABBREV));
-    gui_info->new_alarm_dlg.alert_day_cb[5] = lv_checkbox_create(cont, NULL);
-    lv_checkbox_set_text(gui_info->new_alarm_dlg.alert_day_cb[5], get_day_name(6, DAY_NAME_ABBREV));
-    gui_info->new_alarm_dlg.alert_day_cb[6] = lv_checkbox_create(cont, NULL);
-    lv_checkbox_set_text(gui_info->new_alarm_dlg.alert_day_cb[6], get_day_name(0, DAY_NAME_ABBREV));
+    create_time_roller(parent, &left, &top, &gui_info->new_alarm_dlg.alarm_time, curr_time);
+    left += 10;
+    top += 10;
 
     lv_obj_t* save_btn = lv_btn_create(parent, NULL);
-    lv_obj_set_pos(save_btn, tab_width - 120, 10);
+    lv_obj_align(save_btn, NULL, LV_ALIGN_IN_TOP_RIGHT, -20, 20);
     lv_obj_t* label = lv_label_create(save_btn, NULL);
     lv_label_set_text(label, LV_SYMBOL_SAVE " Save");
     lv_obj_set_event_cb(save_btn, save_option_callback);
     lv_obj_set_user_data(save_btn, gui_info);
 
-    gui_info->new_alarm_dlg.ringtone_roller = lv_roller_create(parent, NULL);
-    lv_roller_set_options(gui_info->new_alarm_dlg.ringtone_roller,
-                    "chimes\nheavy Metal", LV_ROLLER_MODE_INIFINITE);
-    lv_roller_set_visible_row_count(gui_info->new_alarm_dlg.ringtone_roller, 2);
-    lv_obj_set_pos(gui_info->new_alarm_dlg.ringtone_roller, 5, 80);
-
     gui_info->new_alarm_dlg.alarm_text = lv_textarea_create(parent, NULL);
     lv_textarea_set_one_line(gui_info->new_alarm_dlg.alarm_text, true);
     lv_textarea_set_placeholder_text(gui_info->new_alarm_dlg.alarm_text, "Enter Alarm Text");
     lv_textarea_set_text(gui_info->new_alarm_dlg.alarm_text, "");
-
-    lv_obj_set_width(gui_info->new_alarm_dlg.alarm_text, 200);
-    lv_obj_set_pos(gui_info->new_alarm_dlg.alarm_text, 5, 140);
     lv_textarea_set_text_sel(gui_info->new_alarm_dlg.alarm_text, true);
+    lv_textarea_set_max_length(gui_info->new_alarm_dlg.alarm_text, 32);
     lv_obj_set_event_cb(gui_info->new_alarm_dlg.alarm_text, alarm_text_cb);
     lv_obj_set_user_data(gui_info->new_alarm_dlg.alarm_text, gui_info);
-*/
+    lv_obj_set_width(gui_info->new_alarm_dlg.alarm_text, 300);
+    lv_obj_set_pos(gui_info->new_alarm_dlg.alarm_text, left, 20);
+    //lv_obj_align(gui_info->new_alarm_dlg.alarm_text, NULL, LV_ALIGN_IN_TOP_MID, left, 0);
     // lv_obj_t* keybrd = lv_keyboard_create(parent, NULL);
     // lv_keyboard_set_cursor_manage(keybrd, true);
     // // Set text area with keyboard
     // lv_keyboard_set_textarea(keybrd, gui_info->new_alarm_dlg.alarm_text);
+
+    // Create a container
+    lv_obj_t* cont = lv_cont_create(parent, NULL);
+    lv_obj_set_pos(cont, 20, top);
+    lv_obj_set_size(cont, 400, 100);
+
+    // Days of the Week;
+    uint8_t day;
+    size_t offset = 5;
+    size_t ck_width = 100;
+    size_t ck_height_pos = 0;
+    size_t multiplier = 0;
+    for (size_t index = 0; index < 7; index++, multiplier++)
+    {
+        day = index+1;
+        gui_info->new_alarm_dlg.alert_day_cb[index] = lv_checkbox_create(cont, NULL);
+        if (index == 6)
+        {
+            day = 0;
+        }
+        else if (index == 3)
+        {
+            // Add the second row
+            ck_height_pos = 50;
+            multiplier = 0;
+        }
+        lv_checkbox_set_text(gui_info->new_alarm_dlg.alert_day_cb[index], get_day_name(day, DAY_NAME_ABBREV));
+        lv_obj_align(gui_info->new_alarm_dlg.alert_day_cb[index], NULL, LV_ALIGN_IN_TOP_LEFT, (ck_width*multiplier)+offset, ck_height_pos+offset);
+    }
+
+    gui_info->new_alarm_dlg.ringtone_roller = lv_roller_create(parent, NULL);
+    lv_roller_set_options(gui_info->new_alarm_dlg.ringtone_roller,
+                    "chimes\nheavy Metal", LV_ROLLER_MODE_INIFINITE);
+    lv_roller_set_visible_row_count(gui_info->new_alarm_dlg.ringtone_roller, 2);
+    lv_obj_set_pos(gui_info->new_alarm_dlg.ringtone_roller, 450, top);
+    lv_roller_set_selected(gui_info->new_alarm_dlg.ringtone_roller, 0, LV_ANIM_OFF);
+    //lv_obj_align(save_btn, NULL, LV_ALIGN_IN_TOP_MID, 0, 20);
 }
 
 static void create_options_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
@@ -740,10 +756,11 @@ static void create_options_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
                     "Black & White\n"
                     "Moss Green", LV_ROLLER_MODE_INIFINITE);
     lv_roller_set_visible_row_count(digit_color, 2);
-    //lv_obj_align(digit_color, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 0);
     lv_obj_set_event_cb(digit_color, digit_color_cb);
     lv_obj_set_user_data(digit_color, gui_info);
     lv_obj_set_pos(digit_color, LEFT_MARGIN, TOP_MARGIN);
+    uint32_t color_idx = config_mgr_get_digit_color(gui_info->config_mgr);
+    lv_roller_set_selected(digit_color, color_idx, LV_ANIM_OFF);
 
     lv_obj_t* img1 = lv_img_create(parent, NULL);
     lv_img_set_src(img1, &alarm_img);
@@ -916,8 +933,6 @@ int gui_mgr_create_win(GUI_MGR_HANDLE handle)
         int16_t y_pos = TOP_MARGIN;
 
         // Create the style for the main window
-        lv_style_init(&handle->main_win_style);
-
         setup_win_style(handle);
 
         /*lv_style_copy(&style1, &lv_style_plain);
@@ -951,32 +966,30 @@ int gui_mgr_create_win(GUI_MGR_HANDLE handle)
         //lv_obj_set_opa_scale_enable(win_bkgrd, true); // Enable opacity scaling for the animation */
 
         // Create an image object
-        handle->hour_1_img = lv_img_create(handle->win_bkgrd, NULL);
-        lv_img_set_src(handle->hour_1_img, &zero_img);
-        lv_obj_set_pos(handle->hour_1_img, x_pos, y_pos);
-        lv_obj_set_style_local_image_recolor_opa(handle->hour_1_img, LV_IMG_PART_MAIN, LV_STATE_DEFAULT, handle->intense);
-        lv_obj_set_style_local_image_recolor(handle->hour_1_img, LV_IMG_PART_MAIN, LV_STATE_DEFAULT, handle->digit_color);
+        handle->image_items[IMAGE_HOUR_1] = lv_img_create(handle->win_bkgrd, NULL);
+        lv_img_set_src(handle->image_items[IMAGE_HOUR_1], &zero_img);
+        lv_obj_set_pos(handle->image_items[IMAGE_HOUR_1], x_pos, y_pos);
         x_pos += CLOCK_IMG_WIDTH + VALUE_BUFFER_SIZE;
 
-        handle->hour_2_img = lv_img_create(handle->win_bkgrd, handle->hour_1_img); // Crate an image object
-        lv_img_set_src(handle->hour_2_img, &two_img);
-        lv_obj_set_pos(handle->hour_2_img, x_pos, y_pos);      // Set the positions
+        handle->image_items[IMAGE_HOUR_2] = lv_img_create(handle->win_bkgrd, NULL); // Crate an image object
+        lv_img_set_src(handle->image_items[IMAGE_HOUR_2], &two_img);
+        lv_obj_set_pos(handle->image_items[IMAGE_HOUR_2], x_pos, y_pos);      // Set the positions
         x_pos += CLOCK_IMG_WIDTH + VALUE_BUFFER_SIZE;
 
-        handle->ellipsis_img = lv_img_create(handle->win_bkgrd, handle->hour_1_img); // Crate an image object
-        lv_img_set_src(handle->ellipsis_img, &ellipse_img);
-        lv_obj_set_pos(handle->ellipsis_img, x_pos, y_pos);      // Set the positions
+        handle->image_items[IMAGE_ELLIPSIS] = lv_img_create(handle->win_bkgrd, NULL); // Crate an image object
+        lv_img_set_src(handle->image_items[IMAGE_ELLIPSIS], &ellipse_img);
+        lv_obj_set_pos(handle->image_items[IMAGE_ELLIPSIS], x_pos, y_pos);      // Set the positions
         x_pos += ELLIPSE_IMG_WIDTH + VALUE_BUFFER_SIZE;
 
         int16_t min_x_pos = x_pos;
-        handle->min_1_img = lv_img_create(handle->win_bkgrd, handle->hour_1_img);  // Crate an image object
-        lv_img_set_src(handle->min_1_img, &three_img);
-        lv_obj_set_pos(handle->min_1_img, x_pos, y_pos);      // Set the positions
+        handle->image_items[IMAGE_MIN_1] = lv_img_create(handle->win_bkgrd, NULL);  // Crate an image object
+        lv_img_set_src(handle->image_items[IMAGE_MIN_1], &three_img);
+        lv_obj_set_pos(handle->image_items[IMAGE_MIN_1], x_pos, y_pos);      // Set the positions
         x_pos += CLOCK_IMG_WIDTH + VALUE_BUFFER_SIZE;
 
-        handle->min_2_img = lv_img_create(handle->win_bkgrd, handle->hour_1_img); // Crate an image object
-        lv_img_set_src(handle->min_2_img, &four_img);  /*Set the created file as image (a red flower)*/
-        lv_obj_set_pos(handle->min_2_img, x_pos, y_pos);      // Set the positions
+        handle->image_items[IMAGE_MIN_2] = lv_img_create(handle->win_bkgrd, NULL); // Crate an image object
+        lv_img_set_src(handle->image_items[IMAGE_MIN_2], &four_img);  /*Set the created file as image (a red flower)*/
+        lv_obj_set_pos(handle->image_items[IMAGE_MIN_2], x_pos, y_pos);      // Set the positions
         x_pos += CLOCK_IMG_WIDTH + VALUE_BUFFER_SIZE;
 
         // For Forcast move it a little more on the x
@@ -987,9 +1000,9 @@ int gui_mgr_create_win(GUI_MGR_HANDLE handle)
         //lv_label_set_style(handle->forcast_date_label, LV_LABEL_STYLE_MAIN, &handle->main_win_style);
         y_pos += (VALUE_BUFFER_SIZE*4);
 
-        handle->forcast_img = lv_img_create(handle->win_bkgrd, handle->hour_1_img);
-        lv_img_set_src(handle->forcast_img, &sunny_img);
-        lv_obj_set_pos(handle->forcast_img, temp_x_pos, y_pos);
+        handle->image_items[IMAGE_FORCAST] = lv_img_create(handle->win_bkgrd, NULL);
+        lv_img_set_src(handle->image_items[IMAGE_FORCAST], &sunny_img);
+        lv_obj_set_pos(handle->image_items[IMAGE_FORCAST], temp_x_pos, y_pos);
 
         handle->curr_temp_label = lv_label_create(handle->win_bkgrd, NULL);
         lv_obj_set_pos(handle->curr_temp_label, temp_x_pos + FORCAST_IMG_DIMENSIONS + (VALUE_BUFFER_SIZE*2), y_pos + (FORCAST_IMG_DIMENSIONS/2) - VALUE_BUFFER_SIZE);
@@ -1028,6 +1041,7 @@ int gui_mgr_create_win(GUI_MGR_HANDLE handle)
         handle->alarm_dlg_label = lv_btn_create(handle->win_bkgrd, NULL);
         lv_obj_set_pos(handle->alarm_dlg_label, x_pos, y_pos);
         lv_obj_add_style(handle->alarm_dlg_label, LV_BTN_PART_MAIN, &handle->main_win_style);
+        lv_obj_set_width(handle->alarm_dlg_label, 200);
         lv_obj_t* label = lv_label_create(handle->alarm_dlg_label, NULL);
         lv_label_set_text(label, "Options");
         lv_obj_set_event_cb(handle->alarm_dlg_label, option_btn_callback);
@@ -1053,6 +1067,7 @@ int gui_mgr_create_win(GUI_MGR_HANDLE handle)
         // lv_obj_align(handle->alarm_box, current_scr, LV_ALIGN_CENTER, 0, 0);
         // lv_obj_set_event_cb(handle->alarm_box, alarm_msgbox_callback);
 
+        set_image_color(handle);
         result = 0;
     }
     return result;
@@ -1074,22 +1089,22 @@ void gui_mgr_set_time_item(GUI_MGR_HANDLE handle, const struct tm* curr_time)
                 case 0:
                     if (adjusted_hour > 19)
                     {
-                        lv_img_set_src(handle->hour_1_img, &two_img);
+                        lv_img_set_src(handle->image_items[IMAGE_HOUR_1], &two_img);
                     }
                     else if (adjusted_hour > 9)
                     {
-                        lv_img_set_src(handle->hour_1_img, &one_img);
+                        lv_img_set_src(handle->image_items[IMAGE_HOUR_1], &one_img);
                     }
                     else
                     {
-                        lv_img_set_src(handle->hour_1_img, &blank_img);
+                        lv_img_set_src(handle->image_items[IMAGE_HOUR_1], &blank_img);
                     }
                     break;
                 case 1:
                 {
                     digit = adjusted_hour - ((adjusted_hour / 10)*10);
                     const lv_img_dsc_t* num_img = retrieve_numeral_image(digit);
-                    lv_img_set_src(handle->hour_2_img, num_img);
+                    lv_img_set_src(handle->image_items[IMAGE_HOUR_2], num_img);
                     break;
                 }
                 case 2:
@@ -1098,14 +1113,14 @@ void gui_mgr_set_time_item(GUI_MGR_HANDLE handle, const struct tm* curr_time)
                 {
                     digit = curr_time->tm_min / 10;
                     const lv_img_dsc_t* num_img = retrieve_numeral_image(digit);
-                    lv_img_set_src(handle->min_1_img, num_img);
+                    lv_img_set_src(handle->image_items[IMAGE_MIN_1], num_img);
                     break;
                 }
                 case 4:
                 {
                     digit = curr_time->tm_min - ((curr_time->tm_min / 10)*10);
                     const lv_img_dsc_t* num_img = retrieve_numeral_image(digit);
-                    lv_img_set_src(handle->min_2_img, num_img);
+                    lv_img_set_src(handle->image_items[IMAGE_MIN_2], num_img);
                     break;
                 }
                 case 5:

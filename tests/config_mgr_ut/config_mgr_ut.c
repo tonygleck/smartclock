@@ -43,6 +43,7 @@ MOCKABLE_FUNCTION(, JSON_Array*, json_array_get_array, const JSON_Array*, array,
 MOCKABLE_FUNCTION(, JSON_Value*, json_array_get_value, const JSON_Array*, array, size_t, index);
 MOCKABLE_FUNCTION(, JSON_Value*, json_object_get_value, const JSON_Object *, object, const char *, name);
 MOCKABLE_FUNCTION(, const char*, json_object_get_string, const JSON_Object*, object, const char *, name);
+MOCKABLE_FUNCTION(, int, json_object_get_boolean, const JSON_Object*, object, const char *, name);
 MOCKABLE_FUNCTION(, const char*, json_value_get_string, const JSON_Value*, value);
 MOCKABLE_FUNCTION(, JSON_Object*, json_object_get_object, const JSON_Object*, object, const char*, name);
 MOCKABLE_FUNCTION(, void, json_value_free, JSON_Value*, value);
@@ -102,6 +103,7 @@ static const char* TEST_NTP_ADDRESS = "127.0.0.1";
 static const char* TEST_AUDIO_DIR = "/audio/directory";
 static const char* TEST_SHADE_START = "shadeStart";
 static const char* TEST_SHADE_END = "shadeEnd";
+static const char* TEST_DEMO_MODE = "demo_mode";
 
 static const char* TEST_ALARM_NAME = "alarm text 1";
 static uint8_t TEST_SNOOZE_MIN = 15;
@@ -186,6 +188,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         REGISTER_GLOBAL_MOCK_RETURN(json_array_get_count, 1);
         REGISTER_GLOBAL_MOCK_RETURN(json_array_get_object, TEST_JSON_OBJECT);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_array_get_object, NULL);
+        REGISTER_GLOBAL_MOCK_RETURN(json_object_get_boolean, 1);
 
         REGISTER_GLOBAL_MOCK_RETURN(json_array_get_value, TEST_JSON_VALUE);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_array_get_value, NULL);
@@ -1324,6 +1327,58 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         // cleanup
         config_mgr_destroy(handle);
         umock_c_negative_tests_deinit();
+    }
+
+    CTEST_FUNCTION(config_mgr_is_demo_mode_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        bool result = config_mgr_is_demo_mode(NULL);
+
+        // assert
+        CTEST_ASSERT_IS_TRUE(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    CTEST_FUNCTION(config_mgr_is_demo_mode_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_get_boolean(IGNORED_ARG, TEST_DEMO_MODE));
+
+        // act
+        bool result = config_mgr_is_demo_mode(handle);
+
+        // assert
+        CTEST_ASSERT_IS_TRUE(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_is_demo_mode_is_false_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(json_object_get_boolean(IGNORED_ARG, TEST_DEMO_MODE)).SetReturn(0);
+
+        // act
+        bool result = config_mgr_is_demo_mode(handle);
+
+        // assert
+        CTEST_ASSERT_IS_FALSE(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
     }
 
 CTEST_END_TEST_SUITE(config_mgr_ut)
