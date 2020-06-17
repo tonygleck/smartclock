@@ -319,6 +319,8 @@ static void create_time_roller(lv_obj_t* parent, lv_coord_t* x_pos, lv_coord_t* 
     lv_obj_set_pos(time_ctrl->hour_roller, *x_pos, *y_pos);
     lv_obj_set_width(time_ctrl->hour_roller, 20);
     lv_roller_set_selected(time_ctrl->hour_roller, curr_time->tm_hour > 12 ? curr_time->tm_hour - 11 : curr_time->tm_hour - 1, LV_ANIM_OFF);
+    lv_coord_t actual_width = lv_obj_get_width(time_ctrl->hour_roller);
+    x_pos += actual_width + 5;
 
     time_ctrl->min_roller = lv_roller_create(parent, NULL);
     lv_roller_set_options(time_ctrl->min_roller,
