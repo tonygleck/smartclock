@@ -130,7 +130,7 @@ static void weather_cond_callback(void* user_ctx, WEATHER_OPERATION_RESULT resul
         else
         {
             clock_info->weather_operation = OPERATION_STATE_ERROR;
-            log_error("Failure retrieving weather infor %d", result);
+            log_error("Failure retrieving weather info %d", result);
         }
         (void)alarm_timer_reset(&clock_info->weather_timer);
     }
@@ -161,8 +161,19 @@ static void check_weather_operation(SMARTCLOCK_INFO* clock_info)
     else if (clock_info->weather_operation == OPERATION_STATE_ERROR)
     {
         log_error("Failure getting weather operations");
-        // todo: Need to alert the user and show config dialog
+        // Delete the items
+        weather_client_destroy(clock_info->weather_client);
+        // recreate the item
+        if ((clock_info->weather_client = weather_client_create(clock_info->weather_appid, UNIT_FAHRENHEIGHT)) == NULL)
+        {
+            log_error("Failure creating weather client object during error");
+        }
+        else
+        {
+            clock_info->weather_operation = OPERATION_STATE_IDLE;
+        }
         alarm_timer_reset(&clock_info->weather_timer);
+
     }
     else if (alarm_timer_is_expired(&clock_info->weather_timer))
     {
