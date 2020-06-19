@@ -38,10 +38,10 @@ static const char* g_alarm_buttons[] = {"Snooze", "Dismiss", ""};
 
 static lv_color_t g_image_colors[] =
 {
-    LV_COLOR_MAKE(0xFF, 0x33, 0x33),
-    LV_COLOR_MAKE(0x33, 0xD5, 0xE5),
-    LV_COLOR_MAKE(0xFF, 0xFF, 0xFF),
-    LV_COLOR_MAKE(0x3B, 0xB0, 0x3B)
+    LV_COLOR_MAKE(0xFF, 0x33, 0x33),    // Fire Engine Red
+    LV_COLOR_MAKE(0x33, 0xD5, 0xE5),    // Cool Ocean Blue
+    LV_COLOR_MAKE(0xFF, 0xFF, 0xFF),    // Black & White
+    LV_COLOR_MAKE(0x3B, 0xB0, 0x3B)     // Moss Green
 };
 
 // Declare the font
@@ -122,6 +122,7 @@ typedef struct NEW_ALARM_DLG_TAG
     lv_obj_t* zipcode_text;
     lv_obj_t* ta_keybrd;
     lv_obj_t* parent;
+    lv_obj_t* tab_view;
 
     const char* orig_zipcode;
     bool is_dirty;
@@ -337,7 +338,6 @@ static void create_time_roller(lv_obj_t* parent, lv_coord_t* x_pos, lv_coord_t* 
     time_ctrl->period_roller = lv_roller_create(parent, NULL);
     lv_roller_set_options(time_ctrl->period_roller,
                     "am\npm", LV_ROLLER_MODE_NORMAL);
-    //lv_roller_set_visible_row_count(time_ctrl->period_roller, 2);
     lv_obj_set_width(time_ctrl->period_roller, 20);
     lv_roller_set_selected(time_ctrl->period_roller, curr_time->tm_hour > 12 ? 1 : 0, LV_ANIM_OFF);
     lv_obj_align(time_ctrl->period_roller, time_ctrl->min_roller, LV_ALIGN_IN_TOP_RIGHT, 85, 0);
@@ -394,7 +394,15 @@ static void add_item_to_table(lv_obj_t* table, uint16_t row, const char* alarm_t
 }
 
 // Callbacks
-static void save_option_callback(lv_obj_t* save_btn, lv_event_t event)
+static void delete_alarm_cb(lv_obj_t* btn, lv_event_t event)
+{
+    (void)btn;
+    if (event == LV_EVENT_CLICKED)
+    {
+    }
+}
+
+static void save_alarm_tab_cb(lv_obj_t* save_btn, lv_event_t event)
 {
     if (event == LV_EVENT_CLICKED)
     {
@@ -409,25 +417,25 @@ static void save_option_callback(lv_obj_t* save_btn, lv_event_t event)
                     switch (index)
                     {
                         case 0:
-                            trigger_days |= Monday;
+                            trigger_days |= Sunday;
                             break;
                         case 1:
-                            trigger_days |= Tuesday;
+                            trigger_days |= Monday;
                             break;
                         case 2:
-                            trigger_days |= Wednesday;
+                            trigger_days |= Tuesday;
                             break;
                         case 3:
-                            trigger_days |= Thursday;
+                            trigger_days |= Wednesday;
                             break;
                         case 4:
-                            trigger_days |= Friday;
+                            trigger_days |= Thursday;
                             break;
                         case 5:
-                            trigger_days |= Saturday;
+                            trigger_days |= Friday;
                             break;
                         case 6:
-                            trigger_days |= Sunday;
+                            trigger_days |= Saturday;
                             break;
                     }
                 }
@@ -586,7 +594,53 @@ static void option_btn_callback(lv_obj_t* alarm_dlg_obj, lv_event_t event)
     }
 }
 
-static void create_alarm_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
+static void alarm_tbl_event_cb(lv_obj_t* table_obj, lv_event_t event)
+{
+    switch(event)
+    {
+        case LV_EVENT_PRESSED:
+        {
+            printf("Pressed\n");
+            uint16_t row;
+            uint16_t col;
+            GUI_MGR_INFO* gui_info = (GUI_MGR_INFO*)lv_obj_get_user_data(table_obj);
+            if (gui_info != NULL && lv_table_get_pressed_cell(table_obj, &row, &col) == LV_RES_OK)
+            {
+                size_t alarm_count = alarm_scheduler_get_alarm_count(gui_info->new_alarm_dlg.sched_handle);
+
+                if (row > 0 && row <= alarm_count)
+                {
+                    const ALARM_INFO* alarm_info = alarm_scheduler_get_alarm(gui_info->new_alarm_dlg.sched_handle, row-1);
+                    // load the new alarm tab with info
+                    lv_textarea_set_text(gui_info->new_alarm_dlg.alarm_text, alarm_info->alarm_text);
+                    lv_obj_set_hidden(gui_info->new_alarm_dlg.ta_keybrd, true);
+                    lv_textarea_set_cursor_hidden(gui_info->new_alarm_dlg.alarm_text, true);
+
+                    for (size_t index = 0; index < 7; index++)
+                    {
+                        DayOfTheWeek dow = get_trigger_day_value(index);
+                        lv_checkbox_set_checked(gui_info->new_alarm_dlg.alert_day_cb[index], alarm_info->trigger_days & dow);
+                    }
+                    lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.hour_roller, alarm_info->trigger_time.hour > 12 ? alarm_info->trigger_time.hour - 11 : alarm_info->trigger_time.hour - 1, LV_ANIM_OFF);
+                    lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.min_roller, alarm_info->trigger_time.min, LV_ANIM_OFF);
+                    lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.period_roller, alarm_info->trigger_time.hour > 12 ? 1 : 0, LV_ANIM_OFF);
+
+                    lv_tabview_set_tab_act(gui_info->new_alarm_dlg.tab_view, 1, LV_ANIM_ON);
+                }
+                printf("item press row %d col: %d\n", row, col);
+            }
+            break;
+        }
+        case LV_EVENT_SHORT_CLICKED:
+        case LV_EVENT_CLICKED:
+        case LV_EVENT_LONG_PRESSED:
+        case LV_EVENT_LONG_PRESSED_REPEAT:
+        case LV_EVENT_RELEASED:
+            break;
+    }
+}
+
+static void create_alarm_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
 {
     size_t alarm_count = alarm_scheduler_get_alarm_count(gui_info->new_alarm_dlg.sched_handle);
 
@@ -608,13 +662,13 @@ static void create_alarm_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_coord_t win_height = lv_obj_get_height_fit(parent);
 
     gui_info->new_alarm_dlg.table = lv_table_create(parent, NULL);
+    lv_obj_set_event_cb(gui_info->new_alarm_dlg.table, alarm_tbl_event_cb);
+    lv_obj_set_user_data(gui_info->new_alarm_dlg.table, gui_info);
     lv_table_set_col_cnt(gui_info->new_alarm_dlg.table, 3);
     lv_table_set_row_cnt(gui_info->new_alarm_dlg.table, alarm_count + 1);
     lv_obj_set_pos(gui_info->new_alarm_dlg.table, 5, 5);
     //lv_obj_align(gui_info->new_alarm_dlg.table, NULL, LV_ALIGN_CENTER, 0, 0);
     lv_coord_t tbl_width = lv_obj_get_width(gui_info->new_alarm_dlg.table);
-
-    //lv_obj_set_size(gui_info->new_alarm_dlg.table, win_width, win_height);
 
     uint16_t col_width = (win_width - (5*10))/3;
     lv_table_set_col_width(gui_info->new_alarm_dlg.table, 0, col_width);
@@ -655,24 +709,25 @@ static void alarm_text_cb(lv_obj_t* txt_area, lv_event_t event)
         if (gui_info->new_alarm_dlg.ta_keybrd == NULL)
         {
             gui_info->new_alarm_dlg.ta_keybrd = lv_keyboard_create(gui_info->new_alarm_dlg.parent, NULL);
-            //lv_keyboard_set_cursor_manage(keybrd, true);
         }
 
         if (event == LV_EVENT_FOCUSED)
         {
             // Set text area with keyboard
             lv_keyboard_set_textarea(gui_info->new_alarm_dlg.ta_keybrd, txt_area);
+            lv_obj_set_hidden(gui_info->new_alarm_dlg.ta_keybrd, false);
             lv_textarea_set_cursor_hidden(txt_area, false);
         }
         else if (event == LV_EVENT_DEFOCUSED)
         {
-            // Need a way to
+            // Hide the keyboard once unselected
+            lv_obj_set_hidden(gui_info->new_alarm_dlg.ta_keybrd, true);
             lv_textarea_set_cursor_hidden(txt_area, true);
         }
     }
 }
 
-static void create_new_alarm_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
+static void create_new_alarm_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
 {
     lv_coord_t win_width = lv_obj_get_width_fit(parent);
     lv_coord_t win_height = lv_obj_get_height_fit(parent);
@@ -687,11 +742,20 @@ static void create_new_alarm_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     top += 10;
 
     lv_obj_t* save_btn = lv_btn_create(parent, NULL);
+    lv_obj_set_width(save_btn, 120);
     lv_obj_align(save_btn, NULL, LV_ALIGN_IN_TOP_RIGHT, -20, 20);
     lv_obj_t* label = lv_label_create(save_btn, NULL);
     lv_label_set_text(label, LV_SYMBOL_SAVE " Save");
-    lv_obj_set_event_cb(save_btn, save_option_callback);
+    lv_obj_set_event_cb(save_btn, save_alarm_tab_cb);
     lv_obj_set_user_data(save_btn, gui_info);
+
+    lv_obj_t* delete_btn = lv_btn_create(parent, NULL);
+    lv_obj_set_width(delete_btn, 120);
+    lv_obj_align(delete_btn, save_btn, LV_ALIGN_IN_BOTTOM_MID, 0, 50);
+    lv_obj_t* delete_label = lv_label_create(delete_btn, NULL);
+    lv_label_set_text(delete_label, LV_SYMBOL_TRASH " Delete");
+    lv_obj_set_event_cb(delete_btn, delete_alarm_cb);
+    lv_obj_set_user_data(delete_btn, gui_info);
 
     gui_info->new_alarm_dlg.alarm_text = lv_textarea_create(parent, NULL);
     lv_textarea_set_one_line(gui_info->new_alarm_dlg.alarm_text, true);
@@ -702,8 +766,8 @@ static void create_new_alarm_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_obj_set_event_cb(gui_info->new_alarm_dlg.alarm_text, alarm_text_cb);
     lv_obj_set_user_data(gui_info->new_alarm_dlg.alarm_text, gui_info);
     lv_obj_set_width(gui_info->new_alarm_dlg.alarm_text, 300);
-    lv_obj_set_pos(gui_info->new_alarm_dlg.alarm_text, left, 20);
-    //lv_obj_align(gui_info->new_alarm_dlg.alarm_text, NULL, LV_ALIGN_IN_TOP_MID, left, 0);
+    lv_obj_set_pos(gui_info->new_alarm_dlg.alarm_text, 250, 20);
+    //lv_obj_align(gui_info->new_alarm_dlg.alarm_text, gui_info->new_alarm_dlg.alarm_time.period_roller, LV_ALIGN_OUT_TOP_RIGHT, 0, 0);
     // lv_obj_t* keybrd = lv_keyboard_create(parent, NULL);
     // lv_keyboard_set_cursor_manage(keybrd, true);
     // // Set text area with keyboard
@@ -715,26 +779,20 @@ static void create_new_alarm_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_obj_set_size(cont, 400, 100);
 
     // Days of the Week;
-    uint8_t day;
     size_t offset = 5;
     size_t ck_width = 100;
     size_t ck_height_pos = 0;
     size_t multiplier = 0;
     for (size_t index = 0; index < 7; index++, multiplier++)
     {
-        day = index+1;
         gui_info->new_alarm_dlg.alert_day_cb[index] = lv_checkbox_create(cont, NULL);
-        if (index == 6)
-        {
-            day = 0;
-        }
-        else if (index == 3)
+        if (index == 3)
         {
             // Add the second row
             ck_height_pos = 50;
             multiplier = 0;
         }
-        lv_checkbox_set_text(gui_info->new_alarm_dlg.alert_day_cb[index], get_day_name(day, DAY_NAME_ABBREV));
+        lv_checkbox_set_text(gui_info->new_alarm_dlg.alert_day_cb[index], get_day_name(index, DAY_NAME_ABBREV));
         lv_obj_align(gui_info->new_alarm_dlg.alert_day_cb[index], NULL, LV_ALIGN_IN_TOP_LEFT, (ck_width*multiplier)+offset, ck_height_pos+offset);
     }
 
@@ -747,7 +805,7 @@ static void create_new_alarm_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     //lv_obj_align(save_btn, NULL, LV_ALIGN_IN_TOP_MID, 0, 20);
 }
 
-static void create_options_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
+static void create_option_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
 {
     lv_obj_t* digit_color = lv_roller_create(parent, NULL);
     lv_roller_set_options(digit_color,
@@ -766,13 +824,15 @@ static void create_options_window(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_img_set_src(img1, &alarm_img);
     lv_obj_align(img1, digit_color, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
 
-    const char* zipcode = config_mgr_get_zipcode(gui_info->config_mgr);
+    lv_obj_t* zip_label = lv_label_create(parent, NULL);
+    lv_label_set_text(zip_label, "Zip Code");
+    lv_obj_set_pos(zip_label, LEFT_MARGIN+340, TOP_MARGIN+5);
 
+    const char* zipcode = config_mgr_get_zipcode(gui_info->config_mgr);
     gui_info->new_alarm_dlg.zipcode_text = lv_textarea_create(parent, NULL);
     lv_textarea_set_one_line(gui_info->new_alarm_dlg.zipcode_text, true);
     lv_textarea_set_text(gui_info->new_alarm_dlg.zipcode_text, zipcode);
-    lv_obj_set_pos(gui_info->new_alarm_dlg.zipcode_text, LEFT_MARGIN+400, TOP_MARGIN);
-    //lv_obj_align(gui_info->new_alarm_dlg.zipcode_text, NULL, LV_ALIGN_IN_TOP_MID, 0, TOP_MARGIN);
+    lv_obj_set_pos(gui_info->new_alarm_dlg.zipcode_text, LEFT_MARGIN+460, TOP_MARGIN);
 
     lv_obj_t* num_keybrd = lv_keyboard_create(parent, NULL);
     lv_keyboard_set_cursor_manage(num_keybrd, true);
@@ -934,26 +994,6 @@ int gui_mgr_create_win(GUI_MGR_HANDLE handle)
 
         // Create the style for the main window
         setup_win_style(handle);
-
-        /*lv_style_copy(&style1, &lv_style_plain);
-        style1.text.font = &arial_20; // Set the base font whcih is concatenated with the others*/
-
-        //handle->main_win_theme = lv_theme_night_init(20, &arial_20);
-        //lv_theme_set_current(handle->main_win_theme);
-
-        // Create the style
-        /*lv_style_copy(&handle->main_win_style, &lv_style_plain_color);
-        handle->main_win_style.body.main_color = LV_COLOR_BLACK;//lv_color_hsv_to_rgb();
-        handle->main_win_style.body.grad_color = LV_COLOR_BLACK;
-        handle->main_win_style.image.color = LV_COLOR_MAKE(0xFF, 0x33, 0x33);
-        handle->main_win_style.image.intense = LV_OPA_80;
-
-        handle->main_win_style.text.color = LV_COLOR_MAKE(0xFF, 0x33, 0x33);
-        handle->main_win_style.glass = 0;
-        handle->main_win_style.text.font = &lv_font_roboto_28;*/
-
-        //img_style.image.color = lv_color_make(lv_slider_get_value(red_slider), lv_slider_get_value(green_slider), lv_slider_get_value(blue_slider));
-        //img_style.image.intense = lv_slider_get_value(intense_slider);
 
         lv_obj_t* current_scr = lv_disp_get_scr_act(NULL);
 
@@ -1291,18 +1331,18 @@ void gui_mgr_show_alarm_dlg(GUI_MGR_HANDLE handle, SCHEDULER_HANDLE sched_handle
         lv_obj_set_event_cb(win_btn, alarm_dlg_btn_cb);
         lv_obj_set_user_data(win_btn, handle);
 
-        lv_obj_t* tabview = lv_tabview_create(alarm_opt_win, NULL);
-        lv_obj_t* alarm_tab = lv_tabview_add_tab(tabview, "Alarms");
-        lv_obj_t* new_alarm_tab = lv_tabview_add_tab(tabview, "New Alarm");
-        lv_obj_t* option_tab = lv_tabview_add_tab(tabview, "Options");
+        handle->new_alarm_dlg.tab_view = lv_tabview_create(alarm_opt_win, NULL);
+        lv_obj_t* alarm_tab = lv_tabview_add_tab(handle->new_alarm_dlg.tab_view, "Alarms");
+        lv_obj_t* new_alarm_tab = lv_tabview_add_tab(handle->new_alarm_dlg.tab_view, "New Alarm");
+        lv_obj_t* option_tab = lv_tabview_add_tab(handle->new_alarm_dlg.tab_view, "Options");
 
         // Setup alarm tab
-        create_alarm_window(handle, alarm_tab);
+        create_alarm_tab(handle, alarm_tab);
 
         // Setup New Alarm tab
-        create_new_alarm_window(handle, new_alarm_tab);
+        create_new_alarm_tab(handle, new_alarm_tab);
 
         // Setup Option tab
-        create_options_window(handle, option_tab);
+        create_option_tab(handle, option_tab);
     }
 }
