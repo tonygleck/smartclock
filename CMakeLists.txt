@@ -10,8 +10,7 @@ set(PROJECT_INC_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/inc)
 #option(use_opengl "set the smartclock to run on opengl (default is OFF)" OFF)
 option(smartclock_ut "Include unittest in build" OFF)
 option(smartclock_samples "Include samples in build" OFF)
-option(set_demo_mode "Set up demo mode" OFF)
-option(set_gui_mode "Set the application to run with a gui" OFF)
+option(smartclock_gui "Build the gui using SDL2" OFF)
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT WIN32)
     set(DEBUG_CONFIG ON)
@@ -22,10 +21,6 @@ else()
 endif()
 
 include("${PROJECT_SOURCE_DIR}/cmake_configs/proj_config.cmake")
-
-if (${set_demo_mode})
-    add_definitions(-DDEMO_MODE)
-endif()
 
 # Setup dependencies
 if (NOT TARGET azure_macro_utils_c)
@@ -48,7 +43,8 @@ if (NOT TARGET http_client)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/http_client)
     include_directories(${PROJECT_SOURCE_DIR}/deps/http_client/inc)
 endif()
-if (${set_gui_mode})
+
+if (${smartclock_gui})
     if (NOT TARGET lvgl)
         add_subdirectory(${PROJECT_SOURCE_DIR}/deps/gui)
         include_directories(${PROJECT_SOURCE_DIR}/deps/gui)
@@ -95,7 +91,7 @@ else()
         )
 endif()
 
-if(${set_gui_mode})
+if (${smartclock_gui})
     set(smartclock_src_files
         ${smartclock_src_files}
         ${PROJECT_SOURCE_DIR}/src/gui_mgr_lvgl.c
@@ -152,9 +148,9 @@ add_executable(smartclock_exe ${smartclock_src_files})
 target_include_directories(smartclock_exe PUBLIC ${PROJECT_SOURCE_DIR}/deps/parson)
 target_link_libraries(smartclock_exe clock_util lib-util-c patchcords)
 
-if(${set_gui_mode})
+if (${smartclock_gui})
     target_link_libraries(smartclock_exe lvgl SDL2)
-else() # Linux
+else()
     target_link_libraries(smartclock_exe ncurses)
     target_link_libraries(smartclock_exe m)
 endif()
