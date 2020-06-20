@@ -10,6 +10,7 @@ set(PROJECT_INC_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/inc)
 #option(use_opengl "set the smartclock to run on opengl (default is OFF)" OFF)
 option(smartclock_ut "Include unittest in build" OFF)
 option(smartclock_samples "Include samples in build" OFF)
+option(smartclock_gui "Build the gui using SDL2" OFF)
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug" AND NOT WIN32)
     set(DEBUG_CONFIG ON)
@@ -42,11 +43,12 @@ if (NOT TARGET http_client)
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/deps/http_client)
     include_directories(${PROJECT_SOURCE_DIR}/deps/http_client/inc)
 endif()
-message("looking @ lvgl")
-if (NOT TARGET lvgl)
-message("Not target lvgl")
-    add_subdirectory(${PROJECT_SOURCE_DIR}/deps/gui)
-    include_directories(${PROJECT_SOURCE_DIR}/deps/gui)
+
+if (${smartclock_gui})
+    if (NOT TARGET lvgl)
+        add_subdirectory(${PROJECT_SOURCE_DIR}/deps/gui)
+        include_directories(${PROJECT_SOURCE_DIR}/deps/gui)
+    endif()
 endif()
 
 set(smartclock_include_files
@@ -89,41 +91,42 @@ else()
         )
 endif()
 
-set(smartclock_src_files
-    ${smartclock_src_files}
-    ${PROJECT_SOURCE_DIR}/src/gui_mgr_lvgl.c
+if (${smartclock_gui})
+    set(smartclock_src_files
+        ${smartclock_src_files}
+        ${PROJECT_SOURCE_DIR}/src/gui_mgr_lvgl.c
 
-    # Add the Font files
-    ${PROJECT_SOURCE_DIR}/fonts/arial_20.c
+        # Add the Font files
+        ${PROJECT_SOURCE_DIR}/fonts/arial_20.c
 
-    ${PROJECT_SOURCE_DIR}/media/img/alarm_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/alarm_img.c
 
-    # Add the Image files
-    ${PROJECT_SOURCE_DIR}/media/img/zero_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/one_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/two_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/three_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/four_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/five_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/six_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/seven_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/eight_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/nine_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/ellipse_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/blank_img.c
+        # Add the Image files
+        ${PROJECT_SOURCE_DIR}/media/img/zero_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/one_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/two_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/three_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/four_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/five_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/six_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/seven_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/eight_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/nine_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/ellipse_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/blank_img.c
 
-    ${PROJECT_SOURCE_DIR}/media/img/cloudy_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/light_rain_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/partly_sunny_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/rain_showers_img.c
-    ${PROJECT_SOURCE_DIR}/media/img/sunny_img.c
-)
-
-# // Cmd project is deprecated
-# set(smartclock_src_files
-#     ${smartclock_src_files}
-#     ${PROJECT_SOURCE_DIR}/src/gui_mgr_cmd.c
-# )
+        ${PROJECT_SOURCE_DIR}/media/img/cloudy_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/light_rain_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/partly_sunny_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/rain_showers_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/sunny_img.c
+    )
+else()
+    set(smartclock_src_files
+        ${smartclock_src_files}
+        ${PROJECT_SOURCE_DIR}/src/gui_mgr_cmd.c
+    )
+endif()
 
 add_library(clock_util SHARED ${clockutil_src_files} ${clockutil_h_files})
 target_include_directories(clock_util PRIVATE ./deps/parson)
@@ -145,9 +148,12 @@ add_executable(smartclock_exe ${smartclock_src_files})
 target_include_directories(smartclock_exe PUBLIC ${PROJECT_SOURCE_DIR}/deps/parson)
 target_link_libraries(smartclock_exe clock_util lib-util-c patchcords)
 
-target_link_libraries(smartclock_exe lvgl SDL2)
-    # target_link_libraries(smartclock_exe ncurses)
-    # target_link_libraries(smartclock_exe m)
+if (${smartclock_gui})
+    target_link_libraries(smartclock_exe lvgl SDL2)
+else()
+    target_link_libraries(smartclock_exe ncurses)
+    target_link_libraries(smartclock_exe m)
+endif()
 
 target_include_directories(smartclock_exe PRIVATE ./deps/parson)
 target_include_directories(smartclock_exe PUBLIC ${PROJECT_SOURCE_DIR}/inc)
