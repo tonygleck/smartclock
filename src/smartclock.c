@@ -182,6 +182,7 @@ static void check_weather_operation(SMARTCLOCK_INFO* clock_info, uint8_t curr_da
     }
     else if (alarm_timer_is_expired(&clock_info->weather_timer) || clock_info->last_weather_day != curr_day)
     {
+        clock_info->last_weather_day = curr_day;
         log_debug("Calling Weather service");
         const char* zipcode = config_mgr_get_zipcode(clock_info->config_mgr);
         if (zipcode == NULL)
