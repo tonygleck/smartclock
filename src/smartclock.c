@@ -40,6 +40,7 @@ typedef struct SMARTCLOCK_INFO_TAG
     GUI_MGR_HANDLE gui_mgr;
 
     uint8_t last_alarm_min;
+    uint8_t last_weather_day;
 
     NTP_CLIENT_HANDLE ntp_client;
     OPERATION_STATE ntp_operation;
@@ -136,7 +137,7 @@ static void weather_cond_callback(void* user_ctx, WEATHER_OPERATION_RESULT resul
     }
 }
 
-static void check_weather_operation(SMARTCLOCK_INFO* clock_info)
+static void check_weather_operation(SMARTCLOCK_INFO* clock_info, uint8_t curr_day)
 {
     if (clock_info->weather_operation == OPERATION_STATE_IN_PROCESS)
     {
@@ -175,12 +176,16 @@ static void check_weather_operation(SMARTCLOCK_INFO* clock_info)
         alarm_timer_reset(&clock_info->weather_timer);
 
     }
-    else if (alarm_timer_is_expired(&clock_info->weather_timer))
+    else if (clock_info->weather_operation == OPERATION_STATE_SUCCESS)
     {
+        clock_info->weather_operation = OPERATION_STATE_IDLE;
+    }
+    else if (alarm_timer_is_expired(&clock_info->weather_timer) || clock_info->last_weather_day != curr_day)
+    {
+        log_debug("Calling Weather service");
         const char* zipcode = config_mgr_get_zipcode(clock_info->config_mgr);
         if (zipcode == NULL)
         {
-            // todo: Need to alert the user and show config dialog
             clock_info->weather_operation = OPERATION_STATE_ERROR;
             log_error("Invalid zipcode specfied");
         }
@@ -562,6 +567,7 @@ int run_application(int argc, char* argv[])
         }
         else
         {
+            struct tm* curr_time = get_time_value();
             size_t refresh_time = 0;
             clock_info.ntp_operation = OPERATION_STATE_IDLE;
             clock_info.weather_operation = OPERATION_STATE_IDLE;
@@ -577,7 +583,7 @@ int run_application(int argc, char* argv[])
 
             // Get the inital weather
             check_ntp_operation(&clock_info);
-            check_weather_operation(&clock_info);
+            check_weather_operation(&clock_info, curr_time->tm_yday);
 
             (void)alarm_timer_start(&clock_info.ntp_alarm, MAX_TIME_DIFFERENCE);
             (void)alarm_timer_start(&clock_info.weather_timer, MAX_WEATHER_DIFF);
@@ -588,13 +594,14 @@ int run_application(int argc, char* argv[])
 
             do
             {
+                curr_time = get_time_value();
+
                 // Check against the Ntp server
                 check_ntp_operation(&clock_info);
 
-                check_weather_operation(&clock_info);
+                check_weather_operation(&clock_info, curr_time->tm_yday);
 
                 // Get the current time value
-                struct tm* curr_time = get_time_value();
                 check_alarm_operation(&clock_info, curr_time);
 
                 // Check the shades

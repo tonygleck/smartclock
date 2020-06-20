@@ -325,6 +325,7 @@ CTEST_BEGIN_TEST_SUITE(smartclock_ut)
         setup_initialize_mocks();
         STRICT_EXPECTED_CALL(config_mgr_load_alarm(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(gui_mgr_create_win(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(get_time_value());
         STRICT_EXPECTED_CALL(config_mgr_get_shade_times(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(config_mgr_is_demo_mode(IGNORED_ARG));
         setup_check_ntp_operation_mocks();
@@ -334,9 +335,9 @@ CTEST_BEGIN_TEST_SUITE(smartclock_ut)
         STRICT_EXPECTED_CALL(alarm_scheduler_get_next_alarm(IGNORED_ARG));
         STRICT_EXPECTED_CALL(gui_mgr_set_next_alarm(IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(gui_mgr_get_refresh_resolution());
+        STRICT_EXPECTED_CALL(get_time_value());
         setup_check_ntp_operation_mocks();
         setup_check_weather_operation_mocks();
-        STRICT_EXPECTED_CALL(get_time_value());
         setup_check_alarm_operation_mocks(NULL);
         STRICT_EXPECTED_CALL(gui_mgr_set_time_item(IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(gui_mgr_process_items(IGNORED_ARG));

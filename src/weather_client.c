@@ -43,6 +43,7 @@ typedef enum WEATHER_CLIENT_STATE_TAG
     WEATHER_CLIENT_STATE_SEND,
     WEATHER_CLIENT_STATE_SENT,
     WEATHER_CLIENT_STATE_RECV,
+    WEATHER_CLIENT_STATE_CLOSE,
     WEATHER_CLIENT_STATE_ERROR,
     WEATHER_CLIENT_STATE_CALLBACK,
 } WEATHER_CLIENT_STATE;
@@ -524,6 +525,23 @@ void weather_client_destroy(WEATHER_CLIENT_HANDLE handle)
     }
 }
 
+int weather_client_close(WEATHER_CLIENT_HANDLE handle)
+{
+    int result;
+    if (handle == NULL)
+    {
+        log_error("Invalid parameter specified: handle: NULL");
+        result = __LINE__;
+    }
+    else
+    {
+        close_http_connection(handle);
+        handle->state = WEATHER_CLIENT_STATE_IDLE;
+        result = 0;
+    }
+    return result;
+}
+
 int weather_client_get_by_coordinate(WEATHER_CLIENT_HANDLE handle, const WEATHER_LOCATION* location, size_t timeout, WEATHER_CONDITIONS_CALLBACK conditions_callback, void* user_ctx)
 {
     int result;
@@ -642,41 +660,6 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
 {
     if (handle != NULL)
     {
-#ifdef DEMO_MODE
-        switch (handle->state)
-        {
-            case WEATHER_CLIENT_STATE_IDLE:
-                break;
-            case WEATHER_CLIENT_STATE_CONNECTED:
-            case WEATHER_CLIENT_STATE_CONNECTING:
-            case WEATHER_CLIENT_STATE_SEND:
-            case WEATHER_CLIENT_STATE_SENT:
-                on_http_reply_recv(handle, HTTP_CALLBACK_REASON_OK, DEMO_ACTUAL_WEATHER, strlen(DEMO_ACTUAL_WEATHER), 200, NULL);
-                break;
-            case WEATHER_CLIENT_STATE_RECV:
-            {
-                WEATHER_CONDITIONS weather_cond = {0};
-                if (parse_weather_data(handle, &weather_cond) != 0)
-                {
-                    log_error("Failure parsing weather data");
-                    handle->conditions_callback(handle->condition_ctx, WEATHER_OP_RESULT_INVALID_DATA_ERR, NULL);
-                    handle->state = WEATHER_CLIENT_STATE_ERROR;
-                }
-                else
-                {
-                    handle->conditions_callback(handle->condition_ctx, WEATHER_OP_RESULT_SUCCESS, &weather_cond);
-                    free(weather_cond.description);
-                    handle->state = WEATHER_CLIENT_STATE_IDLE;
-                }
-                break;
-            }
-            case WEATHER_CLIENT_STATE_ERROR:
-            case WEATHER_CLIENT_STATE_CALLBACK:
-                handle->conditions_callback(handle->condition_ctx, handle->op_result, NULL);
-                handle->state = WEATHER_CLIENT_STATE_IDLE;
-                break;
-        }
-#else
         http_client_process_item(handle->http_handle);
 
         switch (handle->state)
@@ -719,10 +702,11 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
                 else
                 {
                     handle->conditions_callback(handle->condition_ctx, WEATHER_OP_RESULT_SUCCESS, &weather_cond);
-                    handle->state = WEATHER_CLIENT_STATE_IDLE;
+                    handle->state = WEATHER_CLIENT_STATE_CLOSE;
 
                     // Clear the weather data info
                     free((void*)weather_cond.description);
+
                 }
                 if (handle->weather_data != NULL)
                 {
@@ -740,8 +724,10 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
                     free(handle->weather_query.value);
                     handle->weather_query.value = NULL;
                 }
+                // fall through
+            case WEATHER_CLIENT_STATE_CLOSE:
+                close_http_connection(handle);
                 break;
         }
-#endif
     }
 }
