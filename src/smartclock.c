@@ -251,25 +251,36 @@ static void configure_alarms(SMARTCLOCK_INFO* clock_info)
 
 static void adjust_shades(SMARTCLOCK_INFO* clock_info, const struct tm* curr_time)
 {
-    if (clock_info->shade_start.hours < INVALID_HOUR_VALUE && clock_info->shade_start.hours < INVALID_HOUR_VALUE)
+    if ((clock_info->shade_start.hours < INVALID_HOUR_VALUE && clock_info->shade_start.hours < INVALID_HOUR_VALUE) || clock_info->alarm_op_state == ALARM_STATE_TRIGGERED)
     {
         // Check shade
-        if (clock_info->shades_down)
+        if (clock_info->alarm_op_state == ALARM_STATE_TRIGGERED)
         {
-            if (curr_time->tm_hour == clock_info->shade_start.hours && curr_time->tm_min == clock_info->shade_start.minutes)
+            if (clock_info->shades_down)
             {
-                // TODO: Turn up the shades
                 log_debug("Turning shades on");
                 clock_info->shades_down = false;
             }
         }
         else
         {
-            if (curr_time->tm_hour == clock_info->shade_end.hours && curr_time->tm_min == clock_info->shade_end.minutes)
+            if (clock_info->shades_down)
             {
-                // TODO: Turn down the shades
-                log_debug("Turning shades off");
-                clock_info->shades_down = true;
+                if (curr_time->tm_hour == clock_info->shade_start.hours && curr_time->tm_min == clock_info->shade_start.minutes)
+                {
+                    // TODO: Turn up the shades
+                    log_debug("Turning shades on");
+                    clock_info->shades_down = false;
+                }
+            }
+            else
+            {
+                if (curr_time->tm_hour == clock_info->shade_end.hours && curr_time->tm_min == clock_info->shade_end.minutes)
+                {
+                    // TODO: Turn down the shades
+                    log_debug("Turning shades off");
+                    clock_info->shades_down = true;
+                }
             }
         }
     }
@@ -365,6 +376,7 @@ static void check_alarm_operation(SMARTCLOCK_INFO* clock_info, const struct tm* 
         const ALARM_INFO* triggered = alarm_scheduler_is_triggered(clock_info->sched_mgr, time_value);
         if (triggered != NULL)
         {
+            // Trigger Alarm to fire
             gui_mgr_set_alarm_triggered(clock_info->gui_mgr, triggered);
 
             play_alarm_sound(clock_info, triggered);

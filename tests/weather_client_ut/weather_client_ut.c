@@ -147,6 +147,12 @@ static void my_http_client_destroy(HTTP_CLIENT_HANDLE handle)
     my_mem_shim_free(handle);
 }
 
+static int my_http_client_close(HTTP_CLIENT_HANDLE handle, ON_HTTP_CLIENT_CLOSE on_close_cb, void* user_ctx)
+{
+    (void)handle;
+    on_close_cb(user_ctx);
+}
+
 static int my_http_client_execute_request(HTTP_CLIENT_HANDLE handle, HTTP_CLIENT_REQUEST_TYPE request_type, const char* relative_path,
     HTTP_HEADERS_HANDLE http_header, const unsigned char* content, size_t content_length, ON_HTTP_REQUEST_CALLBACK on_request_callback, void* callback_ctx)
 {
@@ -167,18 +173,6 @@ static int my_clone_string(char** target, const char* source)
     *target = my_mem_shim_malloc(len+1);
     strcpy(*target, source);
     return 0;
-}
-
-static void sleep_for_now(unsigned int milliseconds)
-{
-#ifdef WIN32
-    Sleep(milliseconds);
-#else
-    time_t seconds = milliseconds / 1000;
-    long nsRemainder = (milliseconds % 1000) * 1000000;
-    struct timespec timeToSleep = { seconds, nsRemainder };
-    (void)nanosleep(&timeToSleep, NULL);
-#endif
 }
 
 CTEST_BEGIN_TEST_SUITE(weather_client_ut)
@@ -219,6 +213,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(http_client_create, NULL);
         REGISTER_GLOBAL_MOCK_HOOK(http_client_create, my_http_client_create);
         REGISTER_GLOBAL_MOCK_HOOK(http_client_destroy, my_http_client_destroy);
+        REGISTER_GLOBAL_MOCK_HOOK(http_client_close, my_http_client_close);
         REGISTER_GLOBAL_MOCK_HOOK(http_client_open, my_http_client_open);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(http_client_open, HTTP_CLIENT_ERROR);
         REGISTER_GLOBAL_MOCK_HOOK(http_client_execute_request, my_http_client_execute_request)
@@ -319,11 +314,39 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     static void setup_close_connection(void)
     {
         STRICT_EXPECTED_CALL(http_client_close(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
-        for (size_t index = 0; index < 10; index++)
-        {
-            STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
-        }
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
         STRICT_EXPECTED_CALL(http_client_destroy(IGNORED_ARG));
+    }
+
+    static void setup_weather_desc(void)
+    {
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_parse_string(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_value_get_object(IGNORED_ARG));
+
+        STRICT_EXPECTED_CALL(json_object_get_array(IGNORED_ARG, "weather"));
+        STRICT_EXPECTED_CALL(json_array_get_count(IGNORED_ARG)).CallCannotFail().SetReturn(1);
+        STRICT_EXPECTED_CALL(json_array_get_value(IGNORED_ARG, 0));
+        STRICT_EXPECTED_CALL(json_value_get_object(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "description")).SetReturn(TEST_DESCRIPTION);
+        STRICT_EXPECTED_CALL(clone_string(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "icon")).SetReturn(TEST_ICON);
+
+        STRICT_EXPECTED_CALL(json_object_get_object(IGNORED_ARG, "main"));
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "temp")).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "pressure")).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "humidity")).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "temp_min")).CallCannotFail();
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "temp_max")).CallCannotFail();
+
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "dt"));
+
+        STRICT_EXPECTED_CALL(json_value_free(IGNORED_ARG));
+
+        //STRICT_EXPECTED_CALL(condition_callback(IGNORED_ARG, WEATHER_OP_RESULT_SUCCESS, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_ARG));
+        STRICT_EXPECTED_CALL(free(IGNORED_ARG));
+
     }
 
     CTEST_FUNCTION(weather_client_create_api_key_NULL_fail)
@@ -678,6 +701,37 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         weather_client_destroy(client_handle);
     }
 
+    CTEST_FUNCTION(weather_client_get_by_zipcode_2nd_call_succeed)
+    {
+        // arrange
+
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        int result = weather_client_get_by_zipcode(client_handle, TEST_ZIPCODE, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
+        weather_client_process(client_handle);
+        size_t len = strlen(TEST_ACTUAL_WEATHER);
+        g_on_request_callback(g_on_request_context, HTTP_CLIENT_OK, TEST_ACTUAL_WEATHER, len, 200, TEST_HTTP_HEADER);
+        umock_c_reset_all_calls();
+
+        setup_weather_desc();
+        weather_client_process(client_handle);
+        weather_client_process(client_handle);
+        umock_c_reset_all_calls();
+
+        setup_open_connection_mocks();
+        STRICT_EXPECTED_CALL(clone_string(IGNORED_ARG, IGNORED_ARG));
+
+        // act
+        result = weather_client_get_by_zipcode(client_handle, TEST_ZIPCODE, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        weather_client_destroy(client_handle);
+    }
+
     CTEST_FUNCTION(weather_client_get_by_zipcode_invalid_stat_fail)
     {
         // arrange
@@ -1015,31 +1069,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         // act
         STRICT_EXPECTED_CALL(malloc(IGNORED_ARG));
 
-        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
-        STRICT_EXPECTED_CALL(json_parse_string(IGNORED_ARG));
-        STRICT_EXPECTED_CALL(json_value_get_object(IGNORED_ARG));
-        STRICT_EXPECTED_CALL(json_object_get_array(IGNORED_ARG, IGNORED_ARG));
-        STRICT_EXPECTED_CALL(json_array_get_count(IGNORED_ARG)).CallCannotFail().SetReturn(1);
-        STRICT_EXPECTED_CALL(json_array_get_value(IGNORED_ARG, 0));
-        STRICT_EXPECTED_CALL(json_value_get_object(IGNORED_ARG));
-        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "description")).SetReturn(TEST_DESCRIPTION);
-        STRICT_EXPECTED_CALL(clone_string(IGNORED_ARG, IGNORED_ARG));
-        STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "icon")).SetReturn(TEST_ICON);
-
-        STRICT_EXPECTED_CALL(json_object_get_object(IGNORED_ARG, "main"));
-        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "temp")).CallCannotFail();
-        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "pressure")).CallCannotFail();
-        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "humidity")).CallCannotFail();
-        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "temp_min")).CallCannotFail();
-        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "temp_max")).CallCannotFail();
-
-        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "dt"));
-
-        STRICT_EXPECTED_CALL(json_value_free(IGNORED_ARG));
-
-        //STRICT_EXPECTED_CALL(condition_callback(IGNORED_ARG, WEATHER_OP_RESULT_SUCCESS, IGNORED_ARG));
-        STRICT_EXPECTED_CALL(free(IGNORED_ARG));
-        STRICT_EXPECTED_CALL(free(IGNORED_ARG));
+        setup_weather_desc();
 
         size_t len = strlen(TEST_ACTUAL_WEATHER);
         g_on_request_callback(g_on_request_context, HTTP_CLIENT_OK, TEST_ACTUAL_WEATHER, len, 200, TEST_HTTP_HEADER);
