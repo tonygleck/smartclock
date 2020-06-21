@@ -550,7 +550,7 @@ int weather_client_get_by_coordinate(WEATHER_CLIENT_HANDLE handle, const WEATHER
         log_error("Invalid parameter specified: handle: %p, location: %p, conditions_callback: %p", handle, location, conditions_callback);
         result = __LINE__;
     }
-    else if (handle->state != WEATHER_CLIENT_STATE_IDLE && handle->state != WEATHER_CLIENT_STATE_CONNECTED)
+    else if ((handle->state != WEATHER_CLIENT_STATE_IDLE && handle->state != WEATHER_CLIENT_STATE_CLOSE) && handle->state != WEATHER_CLIENT_STATE_CONNECTED)
     {
         log_error("Invalid State specified, operation must be complete to add another call");
         result = __LINE__;
@@ -586,7 +586,7 @@ int weather_client_get_by_zipcode(WEATHER_CLIENT_HANDLE handle, const char* zipc
         log_error("Invalid parameter specified: handle: %p, zipcode: %s, conditions_callback: %p", handle, zipcode, conditions_callback);
         result = __LINE__;
     }
-    else if (handle->state != WEATHER_CLIENT_STATE_IDLE && handle->state != WEATHER_CLIENT_STATE_CONNECTED)
+    else if ((handle->state != WEATHER_CLIENT_STATE_IDLE && handle->state != WEATHER_CLIENT_STATE_CLOSE) && handle->state != WEATHER_CLIENT_STATE_CONNECTED)
     {
         log_error("Invalid State specified, operation must be complete to add another call");
         result = __LINE__;
@@ -625,7 +625,7 @@ int weather_client_get_by_city(WEATHER_CLIENT_HANDLE handle, const char* city_na
         log_error("Invalid parameter specified: handle: %p, city_name: %p, conditions_callback: %p", handle, city_name, conditions_callback);
         result = __LINE__;
     }
-    else if (handle->state != WEATHER_CLIENT_STATE_IDLE && handle->state != WEATHER_CLIENT_STATE_CONNECTED)
+    else if ((handle->state != WEATHER_CLIENT_STATE_IDLE && handle->state != WEATHER_CLIENT_STATE_CLOSE) && handle->state != WEATHER_CLIENT_STATE_CONNECTED)
     {
         log_error("Invalid State specified, operation must be complete to add another call");
         result = __LINE__;
