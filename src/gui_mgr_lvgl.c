@@ -1195,6 +1195,50 @@ void gui_mgr_set_forcast(GUI_MGR_HANDLE handle, FORCAST_TIME timeframe, const WE
 
         sprintf(forcast_line, "Hi: %.0f/Lo: %.0f", weather_cond->hi_temp, weather_cond->lo_temp);
         lv_label_set_text(handle->forcast_temp_label, forcast_line);
+
+        if (weather_cond->weather_icon[0] == 0)
+        {
+            if (weather_cond->weather_icon[1] == 1)
+            {
+                // Clear Skys
+                lv_img_set_src(handle->image_items[IMAGE_FORCAST], &sunny_img);
+            }
+            else if (weather_cond->weather_icon[1] == 2)
+            {
+                // Few clouds
+                lv_img_set_src(handle->image_items[IMAGE_FORCAST], &partly_sunny_img);
+            }
+            else if (weather_cond->weather_icon[1] == 3 || weather_cond->weather_icon[1] == 4)
+            {
+                // Scattered Clouds
+                lv_img_set_src(handle->image_items[IMAGE_FORCAST], &cloudy_img);
+            }
+            else if (weather_cond->weather_icon[1] == 9)
+            {
+                // Rain Showers
+                lv_img_set_src(handle->image_items[IMAGE_FORCAST], &rain_showers_img);
+            }
+        }
+        else if (weather_cond->weather_icon[0] == 1)
+        {
+            if (weather_cond->weather_icon[1] == 0)
+            {
+                // Rain
+                lv_img_set_src(handle->image_items[IMAGE_FORCAST], &rain_showers_img);
+            }
+            else if (weather_cond->weather_icon[1] == 1)
+            {
+                // Thunderstorm
+            }
+            else if (weather_cond->weather_icon[1] == 3)
+            {
+                // snow
+            }
+        }
+        else if (weather_cond->weather_icon[0] == 5)
+        {
+            // mist
+        }
     }
 }
 

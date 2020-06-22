@@ -73,7 +73,7 @@ typedef enum ARGUEMENT_TYPE_TAG
 
 #define OPERATION_TIMEOUT       5
 #define MAX_TIME_DIFFERENCE     50
-#define MAX_WEATHER_DIFF        6*60*60 // Every 6 hours
+#define MAX_WEATHER_DIFF        3*60*60 // Every 3 hours
 #define MAX_TIME_OFFSET         2*60    // 2 min
 #define MAX_ALARM_RING_TIME     2*60    // 2 min
 #define INVALID_HOUR_VALUE      24      // Invalid hour

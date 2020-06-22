@@ -270,6 +270,9 @@ static void on_http_error(void* user_ctx, HTTP_CLIENT_RESULT error_result)
     }
     else
     {
+        log_error("underlying socket failure encountered %d", (int)error_result);
+        client_info->state = WEATHER_CLIENT_STATE_ERROR;
+        client_info->op_result = WEATHER_OP_RESULT_COMM_ERR;
     }
 }
 
@@ -423,6 +426,11 @@ static void close_http_connection(WEATHER_CLIENT_INFO* client_info)
             // Make sure we don't just spin here forever
             attempt++;
         } while (client_info->is_open && attempt < MAX_CLOSE_ATTEMPTS);
+        if (attempt == MAX_CLOSE_ATTEMPTS)
+        {
+            log_error("On close callback never called hard close encountered");
+            client_info->is_open = false;
+        }
     }
     http_client_destroy(client_info->http_handle);
     client_info->http_handle = NULL;
