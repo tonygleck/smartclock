@@ -303,6 +303,7 @@ static void on_http_connected(void* user_ctx, HTTP_CLIENT_RESULT open_result)
             // Set Error
             log_error("Failure connecting to server %d", (int)open_result);
             client_info->state = WEATHER_CLIENT_STATE_ERROR;
+            client_info->op_result = WEATHER_OP_RESULT_COMM_ERR;
         }
     }
 }
@@ -735,7 +736,7 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
                 close_http_connection(handle);
                 break;
         }
-        if (handle->state != WEATHER_CLIENT_STATE_CLOSE)
+        if (handle->state != WEATHER_CLIENT_STATE_CLOSE && handle->http_handle != NULL)
         {
             http_client_process_item(handle->http_handle);
         }

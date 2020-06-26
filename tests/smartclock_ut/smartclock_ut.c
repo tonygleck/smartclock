@@ -363,6 +363,8 @@ CTEST_BEGIN_TEST_SUITE(smartclock_ut)
             "/usr/bin/smartclock_exe"
             };
 
+        STRICT_EXPECTED_CALL(free(IGNORED_ARG));
+
         // act
         int result = run_application(argc, argv);
 
