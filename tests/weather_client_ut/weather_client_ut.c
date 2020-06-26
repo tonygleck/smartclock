@@ -1009,7 +1009,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         umock_c_reset_all_calls();
 
-        setup_close_connection();
+        STRICT_EXPECTED_CALL(http_client_destroy(IGNORED_ARG));
 
         // act
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_ERROR);
