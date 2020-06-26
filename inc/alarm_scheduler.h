@@ -56,7 +56,7 @@ MOCKABLE_FUNCTION(, void, alarm_scheduler_destroy, SCHEDULER_HANDLE, handle);
 
 MOCKABLE_FUNCTION(, int, alarm_scheduler_add_alarm, SCHEDULER_HANDLE, handle, const char*, alarm_text, const TIME_INFO*, time, uint32_t, trigger_days, const char*, sound_file, uint8_t, snooze_min);
 MOCKABLE_FUNCTION(, int, alarm_scheduler_add_alarm_info, SCHEDULER_HANDLE, handle, const ALARM_INFO*, alarm_info);
-MOCKABLE_FUNCTION(, int, alarm_scheduler_remove_alarm, SCHEDULER_HANDLE, handle, const char*, alarm_text);
+MOCKABLE_FUNCTION(, int, alarm_scheduler_remove_alarm, SCHEDULER_HANDLE, handle, size_t, alarm_index);
 
 MOCKABLE_FUNCTION(, size_t, alarm_scheduler_get_alarm_count, SCHEDULER_HANDLE, handle);
 MOCKABLE_FUNCTION(, const ALARM_INFO*, alarm_scheduler_get_alarm, SCHEDULER_HANDLE, handle, size_t, index);

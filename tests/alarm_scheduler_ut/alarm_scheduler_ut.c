@@ -660,7 +660,7 @@ CTEST_BEGIN_TEST_SUITE(alarm_scheduler_ut)
         // arrange
 
         // act
-        int result = alarm_scheduler_remove_alarm(NULL, TEST_ALARM_TEXT);
+        int result = alarm_scheduler_remove_alarm(NULL, 0);
 
         // assert
         CTEST_ASSERT_ARE_NOT_EQUAL(int, result, 0);
@@ -669,7 +669,7 @@ CTEST_BEGIN_TEST_SUITE(alarm_scheduler_ut)
         // cleanup
     }
 
-    CTEST_FUNCTION(alarm_scheduler_remove_alarm_no_items_success)
+    CTEST_FUNCTION(alarm_scheduler_remove_alarm_no_items_fail)
     {
         // arrange
         struct tm test_tm = {0};
@@ -682,10 +682,10 @@ CTEST_BEGIN_TEST_SUITE(alarm_scheduler_ut)
         STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(0);
 
         // act
-        int result = alarm_scheduler_remove_alarm(handle, TEST_ALARM_TEXT);
+        int result = alarm_scheduler_remove_alarm(handle, 2);
 
         // assert
-        CTEST_ASSERT_ARE_EQUAL(int, result, 0);
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, result, 0);
         CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
@@ -703,14 +703,37 @@ CTEST_BEGIN_TEST_SUITE(alarm_scheduler_ut)
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(1);
-        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(item_list_remove_item(IGNORED_ARG, IGNORED_ARG));
 
         // act
-        int result = alarm_scheduler_remove_alarm(handle, TEST_ALARM_TEXT);
+        int result = alarm_scheduler_remove_alarm(handle, 0);
 
         // assert
         CTEST_ASSERT_ARE_EQUAL(int, result, 0);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        alarm_scheduler_destroy(handle);
+    }
+
+    CTEST_FUNCTION(alarm_scheduler_remove_alarm_remove_fail)
+    {
+        // arrange
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
+        SCHEDULER_HANDLE handle = alarm_scheduler_create();
+        setup_alarm_time_info(&g_alarm_info, &test_tm);
+        (void)alarm_scheduler_add_alarm_info(handle, &g_alarm_info);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(1);
+        STRICT_EXPECTED_CALL(item_list_remove_item(IGNORED_ARG, IGNORED_ARG)).SetReturn(__LINE__);
+
+        // act
+        int result = alarm_scheduler_remove_alarm(handle, 0);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, result, 0);
         CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup

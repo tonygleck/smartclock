@@ -480,6 +480,7 @@ static int parse_command_line(int argc, char* argv[], SMARTCLOCK_INFO* clock_inf
                     clock_info->weather_appid = argv[index];
                     break;
                 case ARGUEMENT_TYPE_UNKNOWN:
+                    free(clock_info->config_path);
                     result = __LINE__;
                     break;
             }
@@ -489,6 +490,7 @@ static int parse_command_line(int argc, char* argv[], SMARTCLOCK_INFO* clock_inf
     if (clock_info->weather_appid == NULL)
     {
         log_error("Invalid weather app Id specified");
+        free(clock_info->config_path);
         result = __LINE__;
     }
     return result;

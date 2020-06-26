@@ -63,7 +63,6 @@ MOCKABLE_FUNCTION(, double, json_value_get_number, const JSON_Value*, value);
 
 #define ENABLE_MOCKS
 //MOCKABLE_FUNCTION(, void, condition_callback, void*, user_ctx, WEATHER_OPERATION_RESULT, result, const WEATHER_CONDITIONS*, conditions);
-
 #undef ENABLE_MOCKS
 
 static JSON_Value* TEST_JSON_VALUE = (JSON_Value*)0x11111117;
@@ -306,9 +305,9 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
 
     static void setup_weather_client_process_send_mocks(void)
     {
-        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
         STRICT_EXPECTED_CALL(http_client_execute_request(IGNORED_ARG, HTTP_CLIENT_REQUEST_GET, IGNORED_ARG, NULL, NULL, 0, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_ARG, TEST_DEFAULT_TIMEOUT_VALUE));
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
     }
 
     static void setup_close_connection(void)
@@ -320,7 +319,6 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
 
     static void setup_weather_desc(void)
     {
-        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
         STRICT_EXPECTED_CALL(json_parse_string(IGNORED_ARG));
         STRICT_EXPECTED_CALL(json_value_get_object(IGNORED_ARG));
 
@@ -346,7 +344,6 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         //STRICT_EXPECTED_CALL(condition_callback(IGNORED_ARG, WEATHER_OP_RESULT_SUCCESS, IGNORED_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_ARG));
         STRICT_EXPECTED_CALL(free(IGNORED_ARG));
-
     }
 
     CTEST_FUNCTION(weather_client_create_api_key_NULL_fail)
@@ -797,9 +794,9 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         const char* TEST_ZIP_CODE_PATH = "/data/2.5/weather?zip=98077,us&units=metric&appid=test_key";
         setup_open_connection_mocks();
         STRICT_EXPECTED_CALL(clone_string(IGNORED_ARG, IGNORED_ARG));
-        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
         STRICT_EXPECTED_CALL(http_client_execute_request(IGNORED_ARG, HTTP_CLIENT_REQUEST_GET, TEST_ZIP_CODE_PATH, NULL, NULL, 0, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
 
         // act
         int result = weather_client_get_by_zipcode(client_handle, TEST_ZIPCODE, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
@@ -951,11 +948,9 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     CTEST_FUNCTION(weather_client_process_idle_succeed)
     {
         // arrange
-
+        WEATHER_LOCATION location = { 1.0, 2.0 };
         WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
         umock_c_reset_all_calls();
-
-        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
 
         // act
         weather_client_process(client_handle);
@@ -980,6 +975,104 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
 
         // act
         weather_client_process(client_handle);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        weather_client_destroy(client_handle);
+    }
+
+    CTEST_FUNCTION(on_http_open_succeed)
+    {
+        // arrange
+        WEATHER_LOCATION location = { 1.0, 2.0 };
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+        umock_c_reset_all_calls();
+
+        // act
+        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        weather_client_destroy(client_handle);
+    }
+
+    CTEST_FUNCTION(on_http_open_fail)
+    {
+        // arrange
+        WEATHER_LOCATION location = { 1.0, 2.0 };
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(http_client_destroy(IGNORED_ARG));
+
+        // act
+        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_ERROR);
+        weather_client_process(client_handle);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        weather_client_destroy(client_handle);
+    }
+
+    CTEST_FUNCTION(on_http_open_user_ctx_NULL_succeed)
+    {
+        // arrange
+        WEATHER_LOCATION location = { 1.0, 2.0 };
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+        umock_c_reset_all_calls();
+
+        // act
+        g_on_http_open_complete(NULL, HTTP_CLIENT_OK);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        weather_client_destroy(client_handle);
+    }
+
+    CTEST_FUNCTION(on_http_error_succeed)
+    {
+        // arrange
+        WEATHER_LOCATION location = { 1.0, 2.0 };
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
+        umock_c_reset_all_calls();
+
+        setup_close_connection();
+
+        // act
+        g_on_io_error(g_on_io_error_context, HTTP_CLIENT_DISCONNECTION);
+        weather_client_process(client_handle);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        weather_client_destroy(client_handle);
+    }
+
+    CTEST_FUNCTION(on_http_error_user_ctx_NULL_fail)
+    {
+        // arrange
+        WEATHER_LOCATION location = { 1.0, 2.0 };
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
+        g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
+        umock_c_reset_all_calls();
+
+        // act
+        g_on_io_error(NULL, HTTP_CLIENT_DISCONNECTION);
 
         // assert
         CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
@@ -1019,7 +1112,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
                 weather_client_process(client_handle);
 
                 // assert
-                CTEST_ASSERT_IS_TRUE(g_error_condition_called);
+                CTEST_ASSERT_IS_TRUE(g_error_condition_called, "weather_client_process_send failure %zu/%zu", index, count);
             }
         }
 
@@ -1039,7 +1132,6 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         umock_c_reset_all_calls();
 
         // act
-        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_is_expired(IGNORED_ARG)).SetReturn(true);
         STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
         //STRICT_EXPECTED_CALL(condition_callback(IGNORED_ARG, WEATHER_OP_RESULT_TIMEOUT, NULL));
@@ -1092,7 +1184,6 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         weather_client_process(client_handle);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
         setup_close_connection();
 
         // act
@@ -1116,9 +1207,8 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         weather_client_process(client_handle);
         umock_c_reset_all_calls();
 
-        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
-        setup_close_connection();
         //STRICT_EXPECTED_CALL(condition_callback(IGNORED_ARG, WEATHER_OP_RESULT_INVALID_DATA_ERR, NULL));
+        setup_close_connection();
 
         // act
         g_on_request_callback(g_on_request_context, HTTP_CLIENT_ERROR, NULL, 0, 200, TEST_HTTP_HEADER);
