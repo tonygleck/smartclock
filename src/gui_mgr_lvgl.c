@@ -111,10 +111,12 @@ typedef struct TIME_CONTROL_TAG
 
 typedef struct NEW_ALARM_DLG_TAG
 {
+    int edit_index;
     SCHEDULER_HANDLE sched_handle;
     TIME_CONTROL alarm_time;
     TIME_CONTROL start_shade;
     TIME_CONTROL end_shade;
+    lv_obj_t* delete_btn;
     lv_obj_t* ringtone_roller;
     lv_obj_t* alarm_text;
     lv_obj_t* alert_day_cb[7];
@@ -393,12 +395,45 @@ static void add_item_to_table(lv_obj_t* table, uint16_t row, const char* alarm_t
 
 }
 
-// Callbacks
-static void delete_alarm_cb(lv_obj_t* btn, lv_event_t event)
+static void clear_new_alarm_tab(GUI_MGR_INFO* gui_info)
 {
-    (void)btn;
+    lv_textarea_set_text(gui_info->new_alarm_dlg.alarm_text, "");
+    for (size_t index = 0; index < 7; index++)
+    {
+        lv_checkbox_set_checked(gui_info->new_alarm_dlg.alert_day_cb[index], false);
+    }
+    struct tm* curr_time = get_time_value();
+    lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.hour_roller, curr_time->tm_hour > 12 ? curr_time->tm_hour - 11 : curr_time->tm_hour - 1, LV_ANIM_OFF);
+    lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.min_roller, curr_time->tm_min, LV_ANIM_OFF);
+    lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.period_roller, curr_time->tm_hour > 12 ? 1 : 0, LV_ANIM_OFF);
+
+    gui_info->new_alarm_dlg.is_dirty = false;
+
+    gui_info->new_alarm_dlg.edit_index = -1;
+    lv_obj_set_hidden(gui_info->new_alarm_dlg.delete_btn, true);
+}
+
+// Callbacks
+static void delete_alarm_cb(lv_obj_t* delete_btn, lv_event_t event)
+{
     if (event == LV_EVENT_CLICKED)
     {
+        GUI_MGR_INFO* gui_info = (GUI_MGR_INFO*)lv_obj_get_user_data(delete_btn);
+        if (gui_info != NULL)
+        {
+            if (gui_info->new_alarm_dlg.edit_index-1 >= 0)
+            {
+                if (alarm_scheduler_remove_alarm(gui_info->new_alarm_dlg.sched_handle, gui_info->new_alarm_dlg.edit_index-1) != 0)
+                {
+                    log_error("Failure attempting to delete alarm");
+                }
+                else
+                {
+                    // Clear the items
+                    clear_new_alarm_tab(gui_info);
+                }
+            }
+        }
     }
 }
 
@@ -457,6 +492,7 @@ static void save_alarm_tab_cb(lv_obj_t* save_btn, lv_event_t event)
             alarm_text_value = lv_textarea_get_text(gui_info->new_alarm_dlg.alarm_text);
             if (alarm_text_value == NULL || strlen(alarm_text_value) == 0)
             {
+                // TODO: Create a good default text
                 alarm_text_value = "New alarm text";
             }
 
@@ -476,17 +512,7 @@ static void save_alarm_tab_cb(lv_obj_t* save_btn, lv_event_t event)
                 add_item_to_table(gui_info->new_alarm_dlg.table, row_cnt+1, alarm_text_value, &alarm_time, trigger_days);
 
                 // Clear the items
-                lv_textarea_set_text(gui_info->new_alarm_dlg.alarm_text, "");
-                for (size_t index = 0; index < 7; index++)
-                {
-                    lv_checkbox_set_checked(gui_info->new_alarm_dlg.alert_day_cb[index], false);
-                }
-                struct tm* curr_time = get_time_value();
-                lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.hour_roller, curr_time->tm_hour > 12 ? curr_time->tm_hour - 11 : curr_time->tm_hour - 1, LV_ANIM_OFF);
-                lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.min_roller, curr_time->tm_min, LV_ANIM_OFF);
-                lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.period_roller, curr_time->tm_hour > 12 ? 1 : 0, LV_ANIM_OFF);
-
-                gui_info->new_alarm_dlg.is_dirty = true;
+                clear_new_alarm_tab(gui_info);
             }
         }
         else
@@ -600,7 +626,6 @@ static void alarm_tbl_event_cb(lv_obj_t* table_obj, lv_event_t event)
     {
         case LV_EVENT_PRESSED:
         {
-            printf("Pressed\n");
             uint16_t row;
             uint16_t col;
             GUI_MGR_INFO* gui_info = (GUI_MGR_INFO*)lv_obj_get_user_data(table_obj);
@@ -610,7 +635,8 @@ static void alarm_tbl_event_cb(lv_obj_t* table_obj, lv_event_t event)
 
                 if (row > 0 && row <= alarm_count)
                 {
-                    const ALARM_INFO* alarm_info = alarm_scheduler_get_alarm(gui_info->new_alarm_dlg.sched_handle, row-1);
+                    gui_info->new_alarm_dlg.edit_index = row-1;
+                    const ALARM_INFO* alarm_info = alarm_scheduler_get_alarm(gui_info->new_alarm_dlg.sched_handle, gui_info->new_alarm_dlg.edit_index);
                     // load the new alarm tab with info
                     lv_textarea_set_text(gui_info->new_alarm_dlg.alarm_text, alarm_info->alarm_text);
                     lv_obj_set_hidden(gui_info->new_alarm_dlg.ta_keybrd, true);
@@ -626,8 +652,10 @@ static void alarm_tbl_event_cb(lv_obj_t* table_obj, lv_event_t event)
                     lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.period_roller, alarm_info->trigger_time.hour > 12 ? 1 : 0, LV_ANIM_OFF);
 
                     lv_tabview_set_tab_act(gui_info->new_alarm_dlg.tab_view, 1, LV_ANIM_ON);
+
+                    // Show the delete button
+                    lv_obj_set_hidden(gui_info->new_alarm_dlg.delete_btn, false);
                 }
-                printf("item press row %d col: %d\n", row, col);
             }
             break;
         }
@@ -749,13 +777,14 @@ static void create_new_alarm_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_obj_set_event_cb(save_btn, save_alarm_tab_cb);
     lv_obj_set_user_data(save_btn, gui_info);
 
-    lv_obj_t* delete_btn = lv_btn_create(parent, NULL);
-    lv_obj_set_width(delete_btn, 120);
-    lv_obj_align(delete_btn, save_btn, LV_ALIGN_IN_BOTTOM_MID, 0, 50);
-    lv_obj_t* delete_label = lv_label_create(delete_btn, NULL);
+    gui_info->new_alarm_dlg.delete_btn = lv_btn_create(parent, NULL);
+    lv_obj_set_width(gui_info->new_alarm_dlg.delete_btn, 120);
+    lv_obj_align(gui_info->new_alarm_dlg.delete_btn, save_btn, LV_ALIGN_IN_BOTTOM_MID, 0, 50);
+    lv_obj_t* delete_label = lv_label_create(gui_info->new_alarm_dlg.delete_btn, NULL);
     lv_label_set_text(delete_label, LV_SYMBOL_TRASH " Delete");
-    lv_obj_set_event_cb(delete_btn, delete_alarm_cb);
-    lv_obj_set_user_data(delete_btn, gui_info);
+    lv_obj_set_event_cb(gui_info->new_alarm_dlg.delete_btn, delete_alarm_cb);
+    lv_obj_set_user_data(gui_info->new_alarm_dlg.delete_btn, gui_info);
+    lv_obj_set_hidden(gui_info->new_alarm_dlg.delete_btn, true);
 
     gui_info->new_alarm_dlg.alarm_text = lv_textarea_create(parent, NULL);
     lv_textarea_set_one_line(gui_info->new_alarm_dlg.alarm_text, true);
@@ -953,6 +982,7 @@ GUI_MGR_HANDLE gui_mgr_create(CONFIG_MGR_HANDLE config_mgr, GUI_MGR_NOTIFICATION
     else
     {
         memset(result, 0, sizeof(GUI_MGR_INFO));
+        result->new_alarm_dlg.edit_index = -1;
 
         lv_init();
         hal_init();
@@ -1196,46 +1226,46 @@ void gui_mgr_set_forcast(GUI_MGR_HANDLE handle, FORCAST_TIME timeframe, const WE
         sprintf(forcast_line, "Hi: %.0f/Lo: %.0f", weather_cond->hi_temp, weather_cond->lo_temp);
         lv_label_set_text(handle->forcast_temp_label, forcast_line);
 
-        if (weather_cond->weather_icon[0] == 0)
+        if (weather_cond->weather_icon[0] == '0')
         {
-            if (weather_cond->weather_icon[1] == 1)
+            if (weather_cond->weather_icon[1] == '1')
             {
                 // Clear Skys
                 lv_img_set_src(handle->image_items[IMAGE_FORCAST], &sunny_img);
             }
-            else if (weather_cond->weather_icon[1] == 2)
+            else if (weather_cond->weather_icon[1] == '2')
             {
                 // Few clouds
                 lv_img_set_src(handle->image_items[IMAGE_FORCAST], &partly_sunny_img);
             }
-            else if (weather_cond->weather_icon[1] == 3 || weather_cond->weather_icon[1] == 4)
+            else if (weather_cond->weather_icon[1] == '3' || weather_cond->weather_icon[1] == '4')
             {
                 // Scattered Clouds
                 lv_img_set_src(handle->image_items[IMAGE_FORCAST], &cloudy_img);
             }
-            else if (weather_cond->weather_icon[1] == 9)
+            else if (weather_cond->weather_icon[1] == '9')
             {
                 // Rain Showers
                 lv_img_set_src(handle->image_items[IMAGE_FORCAST], &rain_showers_img);
             }
         }
-        else if (weather_cond->weather_icon[0] == 1)
+        else if (weather_cond->weather_icon[0] == '1')
         {
-            if (weather_cond->weather_icon[1] == 0)
+            if (weather_cond->weather_icon[1] == '0')
             {
                 // Rain
                 lv_img_set_src(handle->image_items[IMAGE_FORCAST], &rain_showers_img);
             }
-            else if (weather_cond->weather_icon[1] == 1)
+            else if (weather_cond->weather_icon[1] == '1')
             {
                 // Thunderstorm
             }
-            else if (weather_cond->weather_icon[1] == 3)
+            else if (weather_cond->weather_icon[1] == '3')
             {
                 // snow
             }
         }
-        else if (weather_cond->weather_icon[0] == 5)
+        else if (weather_cond->weather_icon[0] == '5')
         {
             // mist
         }
@@ -1330,13 +1360,6 @@ void gui_mgr_process_items(GUI_MGR_HANDLE handle)
         SDL_Event event;
         lv_task_handler();
         mouse_handler(&event);
-
-        // if (handle->alarm_state == ALARM_STATE_TRIGGERED)
-        // {
-        // }
-        // else if (handle->alarm_state == ALARM_STATE_SNOOZE)
-        // {
-        // }
 
         GUI_OPTION_DLG_INFO option_info = {0};
         if (handle->window_mode == WINDOW_MODE_SHOW_OPTIONS)

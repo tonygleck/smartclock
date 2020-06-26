@@ -668,8 +668,6 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
 {
     if (handle != NULL)
     {
-        http_client_process_item(handle->http_handle);
-
         switch (handle->state)
         {
             case WEATHER_CLIENT_STATE_IDLE:
@@ -736,6 +734,10 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
             case WEATHER_CLIENT_STATE_CLOSE:
                 close_http_connection(handle);
                 break;
+        }
+        if (handle->state != WEATHER_CLIENT_STATE_CLOSE)
+        {
+            http_client_process_item(handle->http_handle);
         }
     }
 }

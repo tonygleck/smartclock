@@ -374,33 +374,34 @@ int alarm_scheduler_add_alarm(SCHEDULER_HANDLE handle, const char* alarm_text, c
     return result;
 }
 
-int alarm_scheduler_remove_alarm(SCHEDULER_HANDLE handle, const char* alarm_text)
+int alarm_scheduler_remove_alarm(SCHEDULER_HANDLE handle, size_t alarm_index)
 {
     int result;
-    if (handle == NULL || alarm_text == NULL)
+    if (handle == NULL)
     {
-        log_error("Invalid argument handle:%p alarm_text: %p", handle, alarm_text);
+        log_error("Invalid argument handle:%p", handle);
         result = __LINE__;
     }
     else
     {
         result = 0;
         size_t alarm_cnt = item_list_item_count(handle->sched_list);
-        for (size_t index = 0; index < alarm_cnt; index++)
+        if (alarm_cnt >= alarm_index)
         {
-            ALARM_STORAGE_ITEM* alarm_info = (ALARM_STORAGE_ITEM*)item_list_get_item(handle->sched_list, index);
-            if (alarm_info != NULL)
+            if (item_list_remove_item(handle->sched_list, alarm_index) != 0)
             {
-                if (strcmp(alarm_info->alarm_info.alarm_text, alarm_text) == 0)
-                {
-                    if (item_list_remove_item(handle->sched_list, index) != 0)
-                    {
-                        log_error("Failure removing item %s", alarm_text);
-                        result = __LINE__;
-                    }
-                    break;
-                }
+                log_error("Failure removing item %d", (int)alarm_index);
+                result = __LINE__;
             }
+            else
+            {
+                result = 0;
+            }
+        }
+        else
+        {
+            log_error("remove item index is out of range");
+            result = __LINE__;
         }
     }
     return result;
