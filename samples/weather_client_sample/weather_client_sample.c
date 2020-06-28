@@ -1,5 +1,9 @@
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 #include "stdio.h"
 #include "stdbool.h"
+
+#include "lib-util-c/thread_mgr.h"
 
 #include "weather_client.h"
 
@@ -33,18 +37,25 @@ int main(int argc, char* argv[])
         {
             printf("Failure creating weather client\n");
         }
-        else if (weather_client_get_by_zipcode(handle, zipcode, WEATHER_TIMEOUT, weather_condition_result, &operation_complete) != 0)
-        {
-            printf("Failure getting weather client by zipcode\n");
-        }
         else
         {
-            do
+            for (size_t index = 0; index < 2; index++)
             {
-                weather_client_process(handle);
-            } while (!operation_complete);
+                if (weather_client_get_by_zipcode(handle, zipcode, WEATHER_TIMEOUT, weather_condition_result, &operation_complete) != 0)
+                {
+                    printf("Failure getting weather client by zipcode\n");
+                }
+                else
+                {
+                    do
+                    {
+                        weather_client_process(handle);
+                    } while (!operation_complete);
 
-            weather_client_destroy(handle);
+                    weather_client_destroy(handle);
+                }
+                thread_mgr_sleep(5000);
+            }
         }
     }
     return 0;

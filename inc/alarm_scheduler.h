@@ -1,3 +1,5 @@
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 #ifndef ALARM_SCHEDULER_H
 #define ALARM_SCHEDULER_H
 
@@ -37,6 +39,7 @@ typedef enum DayOfTheWeek_TAG
     Friday = 0x10,
     Saturday = 0x20,
     Sunday = 0x40,
+    OneTime = 0x80,
     Everyday = 0x7F
 } DayOfTheWeek;
 

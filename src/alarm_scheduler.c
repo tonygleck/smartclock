@@ -1,4 +1,6 @@
 
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -14,8 +16,17 @@
 
 #define INVALID_TRIGGERED_DATE      400
 
+typedef enum ALARM_TYPE_TAG
+{
+    ALARM_TYPE_ACTIVE,
+    ALARM_TYPE_INACTIVE,
+    ALARM_TYPE_SNOOZE,
+    ALARM_TYPE_ONE_TIME
+} ALARM_TYPE;
+
 typedef struct ALARM_STORAGE_ITEM_TAG
 {
+    ALARM_TYPE type;
     ALARM_INFO alarm_info;
     uint16_t triggered_date;
 } ALARM_STORAGE_ITEM;
@@ -206,6 +217,28 @@ static bool is_alarm_initial_sooner(const ALARM_INFO* ai_initial, const ALARM_IN
     return result;
 }
 
+static void calculate_snooze_time(const TIME_INFO* time_info, uint8_t snooze_min, TIME_INFO* snooze)
+{
+    snooze->sec = 0;
+    if ((time_info->min + snooze_min) > 59)
+    {
+        snooze->min = 60 - (time_info->min - snooze_min);
+        if (time_info->hour + 1 > 23)
+        {
+            snooze->hour = 00;
+        }
+        else
+        {
+            snooze->hour = time_info->hour + 1;
+        }
+    }
+    else
+    {
+        snooze->min = time_info->min + snooze_min;
+        snooze->hour = time_info->hour;
+    }
+}
+
 static bool is_alarm_triggered(const ALARM_INFO* alarm_info, const struct tm* curr_time)
 {
     bool result = false;
@@ -223,7 +256,7 @@ static bool is_alarm_triggered(const ALARM_INFO* alarm_info, const struct tm* cu
     return result;
 }
 
-static int store_time_object(ALARM_SCHEDULER* scheduler, const char* alarm_text, const TIME_INFO* time_info, uint32_t trigger_days, const char* sound_file, uint8_t snooze_min)
+static int store_time_object(ALARM_SCHEDULER* scheduler, ALARM_TYPE type, const char* alarm_text, const TIME_INFO* time_info, uint32_t trigger_days, const char* sound_file, uint8_t snooze_min)
 {
     int result;
     ALARM_STORAGE_ITEM* tm_info;
@@ -240,6 +273,7 @@ static int store_time_object(ALARM_SCHEDULER* scheduler, const char* alarm_text,
     }
     else
     {
+        tm_info->type = type;
         tm_info->triggered_date = INVALID_TRIGGERED_DATE;
         tm_info->alarm_info.trigger_days = trigger_days;
         memcpy(&tm_info->alarm_info.trigger_time, time_info, sizeof(TIME_INFO) );
@@ -271,6 +305,25 @@ static int store_time_object(ALARM_SCHEDULER* scheduler, const char* alarm_text,
         }
     }
     return result;
+}
+
+static void purge_alarms(ALARM_SCHEDULER* scheduler)
+{
+    const ALARM_STORAGE_ITEM* alarm_info;
+    ITERATOR_HANDLE iterator = item_list_iterator(scheduler->sched_list);
+    if (iterator != NULL)
+    {
+        if ((alarm_info = (ALARM_STORAGE_ITEM*)item_list_get_next(scheduler->sched_list, &iterator)) == NULL)
+        {
+            if (alarm_info->type == ALARM_TYPE_SNOOZE || alarm_info->type == ALARM_TYPE_ONE_TIME)
+            {
+                if (item_list_remove_item(scheduler->sched_list, 0) != 0)
+                {
+                    log_warning("Failure removing alarm info %s", alarm_info->alarm_info.alarm_text);
+                }
+            }
+        }
+    }
 }
 
 SCHEDULER_HANDLE alarm_scheduler_create(void)
@@ -311,6 +364,8 @@ const ALARM_INFO* alarm_scheduler_is_triggered(SCHEDULER_HANDLE handle, const st
     }
     else
     {
+        purge_alarms(handle);
+
         // Loop through the available alarms and see if any are triggered
         size_t alarm_cnt = item_list_item_count(handle->sched_list);
         for (size_t index = 0; index < alarm_cnt; index++)
@@ -342,14 +397,26 @@ int alarm_scheduler_add_alarm_info(SCHEDULER_HANDLE handle, const ALARM_INFO* al
         log_error("Invalid argument value: handle: %p, alarm_info: %p", handle, alarm_info);
         result = __LINE__;
     }
-    else if (store_time_object(handle, alarm_info->alarm_text, &alarm_info->trigger_time, alarm_info->trigger_days, alarm_info->sound_file, alarm_info->snooze_min) != 0)
-    {
-        log_error("Invalid time value specified");
-        result = __LINE__;
-    }
     else
     {
-        result = 0;
+        ALARM_TYPE type = ALARM_TYPE_ACTIVE;
+        if (alarm_info->trigger_days == NoDay)
+        {
+            type = ALARM_TYPE_INACTIVE;
+        }
+        else if (alarm_info->trigger_days == NoDay)
+        {
+            type = ALARM_TYPE_ONE_TIME;
+        }
+        if (store_time_object(handle, type, alarm_info->alarm_text, &alarm_info->trigger_time, alarm_info->trigger_days, alarm_info->sound_file, alarm_info->snooze_min) != 0)
+        {
+            log_error("Invalid time value specified");
+            result = __LINE__;
+        }
+        else
+        {
+            result = 0;
+        }
     }
     return result;
 }
@@ -362,14 +429,26 @@ int alarm_scheduler_add_alarm(SCHEDULER_HANDLE handle, const char* alarm_text, c
         log_error("Invalid argument value: handle: %p, time: %p", handle, time_info);
         result = __LINE__;
     }
-    else if (store_time_object(handle, alarm_text, time_info, trigger_days, sound_file, snooze_min) != 0)
-    {
-        log_error("Invalid time value specified");
-        result = __LINE__;
-    }
     else
     {
-        result = 0;
+        ALARM_TYPE type = ALARM_TYPE_ACTIVE;
+        if (trigger_days == NoDay)
+        {
+            type = ALARM_TYPE_INACTIVE;
+        }
+        else if (trigger_days == NoDay)
+        {
+            type = ALARM_TYPE_ONE_TIME;
+        }
+        if (store_time_object(handle, type, alarm_text, time_info, trigger_days, sound_file, snooze_min) != 0)
+        {
+            log_error("Invalid time value specified");
+            result = __LINE__;
+        }
+        else
+        {
+            result = 0;
+        }
     }
     return result;
 }
@@ -503,7 +582,18 @@ int alarm_scheduler_snooze_alarm(SCHEDULER_HANDLE handle, const ALARM_INFO* alar
     }
     else
     {
-        result = 0;
+        // Calculate snooze time
+        TIME_INFO snooze;
+        calculate_snooze_time(&alarm_info->trigger_time, alarm_info->snooze_min, &snooze);
+        if (store_time_object(handle, ALARM_TYPE_SNOOZE, alarm_info->alarm_text, &snooze, Everyday, alarm_info->sound_file, alarm_info->snooze_min) != 0)
+        {
+            log_error("Failure snoozing time object");
+            result = __LINE__;
+        }
+        else
+        {
+            result = 0;
+        }
     }
     return result;
 }

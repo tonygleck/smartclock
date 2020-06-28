@@ -289,14 +289,7 @@ static void on_http_connected(void* user_ctx, HTTP_CLIENT_RESULT open_result)
         {
             client_info->is_open = true;
             // If the query type is not None then set the state as send
-            if (client_info->query_type != QUERY_TYPE_NONE)
-            {
-                if (client_info->state == WEATHER_CLIENT_STATE_CONNECTING)
-                {
-                    client_info->state = WEATHER_CLIENT_STATE_CONNECTED;
-                }
-            }
-            else
+            if (client_info->state == WEATHER_CLIENT_STATE_CONNECTING)
             {
                 client_info->state = WEATHER_CLIENT_STATE_CONNECTED;
             }
