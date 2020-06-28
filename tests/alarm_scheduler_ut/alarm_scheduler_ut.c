@@ -553,6 +553,7 @@ CTEST_BEGIN_TEST_SUITE(alarm_scheduler_ut)
         (void)alarm_scheduler_add_alarm_info(handle, &g_alarm_info);
         umock_c_reset_all_calls();
 
+        STRICT_EXPECTED_CALL(item_list_iterator(IGNORED_ARG));
         STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(1);
         STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
 
@@ -639,6 +640,7 @@ CTEST_BEGIN_TEST_SUITE(alarm_scheduler_ut)
         (void)alarm_scheduler_add_alarm_info(handle, &alarm_info1);
         umock_c_reset_all_calls();
 
+        STRICT_EXPECTED_CALL(item_list_iterator(IGNORED_ARG));
         STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(2);
         STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
@@ -1459,6 +1461,8 @@ CTEST_BEGIN_TEST_SUITE(alarm_scheduler_ut)
         SCHEDULER_HANDLE handle = alarm_scheduler_create();
         setup_alarm_time_info(&g_alarm_info, &test_tm);
         umock_c_reset_all_calls();
+
+        setup_alarm_scheduler_add_alarm_info_mocks();
 
         // act
         int result = alarm_scheduler_snooze_alarm(handle, &g_alarm_info);
