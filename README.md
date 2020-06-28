@@ -4,12 +4,28 @@ Clock that knows
 
 ## installing
 
+### Installing SDL2
+
+#### Easy way
+
+sudo apt-get install libsdl2-2.0
+sudo apt-get install libsdl2-dev
+
+hg clone https://hg.libsdl.org/SDL SDL
+cd SDL
+mkdir build
+cd build
+../configure
+make
+sudo make install
+
 ### development
 
 May not be necessary
+
 sudo apt-get install libasound2-dev
 
-sudo apt-get install libopenal-dev  libalut-dev libncurses-dev
+sudo apt-get install libopenal-dev libalut-dev libncurses-dev
 
 ### production
 

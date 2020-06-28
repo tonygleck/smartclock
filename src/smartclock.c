@@ -398,7 +398,9 @@ static void check_alarm_operation(SMARTCLOCK_INFO* clock_info, const struct tm* 
         }
         else
         {
-            //clock_info->alarm_volume;
+            gui_mgr_set_next_alarm(clock_info->gui_mgr, alarm_scheduler_get_next_alarm(clock_info->sched_mgr));
+            stop_alarm_sound(clock_info);
+            clock_info->alarm_op_state = ALARM_STATE_STOPPED;
         }
     }
 }

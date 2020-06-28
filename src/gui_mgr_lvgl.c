@@ -571,13 +571,12 @@ static void alarm_msgbox_callback(lv_obj_t* alarm_box_obj, lv_event_t event)
             if (strcmp(active_btn, g_alarm_buttons[0]) == 0)
             {
                 alarm_res = ALARM_STATE_SNOOZE;
-                gui_info->notify_cb(gui_info->user_ctx, NOTIFICATION_ALARM_RESULT, &alarm_res);
             }
             else
             {
                 alarm_res = ALARM_STATE_STOPPED;
-                gui_info->notify_cb(gui_info->user_ctx, NOTIFICATION_ALARM_RESULT, &alarm_res);
             }
+            gui_info->notify_cb(gui_info->user_ctx, NOTIFICATION_ALARM_RESULT, &alarm_res);
         }
         else
         {
@@ -1332,6 +1331,7 @@ int gui_mgr_set_alarm_triggered(GUI_MGR_HANDLE handle, const ALARM_INFO* alarm_t
             sprintf(alarm_line, "Alarm: %s", alarm_triggered->alarm_text);
 
             handle->alarm_box = lv_msgbox_create(model_shade, NULL);
+
             lv_msgbox_add_btns(handle->alarm_box, g_alarm_buttons);
             lv_msgbox_set_text(handle->alarm_box, alarm_line);
             lv_obj_align(handle->alarm_box, NULL, LV_ALIGN_CENTER, 0, 0);
