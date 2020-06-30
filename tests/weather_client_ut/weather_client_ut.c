@@ -341,9 +341,9 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
 
         STRICT_EXPECTED_CALL(json_value_free(IGNORED_ARG));
 
+        STRICT_EXPECTED_CALL(free(IGNORED_ARG));
         //STRICT_EXPECTED_CALL(condition_callback(IGNORED_ARG, WEATHER_OP_RESULT_SUCCESS, IGNORED_ARG));
-        STRICT_EXPECTED_CALL(free(IGNORED_ARG));
-        STRICT_EXPECTED_CALL(free(IGNORED_ARG));
+        //STRICT_EXPECTED_CALL(free(IGNORED_ARG));
     }
 
     CTEST_FUNCTION(weather_client_create_api_key_NULL_fail)
@@ -351,7 +351,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         // arrange
 
         // act
-        WEATHER_CLIENT_HANDLE handle = weather_client_create(NULL, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE handle = weather_client_create(NULL);
 
         // assert
         CTEST_ASSERT_IS_NULL(handle);
@@ -379,7 +379,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
                 umock_c_negative_tests_reset();
                 umock_c_negative_tests_fail_call(index);
 
-                WEATHER_CLIENT_HANDLE handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+                WEATHER_CLIENT_HANDLE handle = weather_client_create(TEST_WEATHER_API_KEY);
 
                 // assert
                 CTEST_ASSERT_IS_NULL(handle);
@@ -396,7 +396,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         setup_weather_client_create_mocks();
 
         // act
-        WEATHER_CLIENT_HANDLE handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE handle = weather_client_create(TEST_WEATHER_API_KEY);
 
         // assert
         CTEST_ASSERT_IS_NOT_NULL(handle);
@@ -409,7 +409,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     CTEST_FUNCTION(weather_client_destroy_not_open_succeed)
     {
         // arrange
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_FAHRENHEIGHT);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(http_client_destroy(IGNORED_ARG));
@@ -430,7 +430,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         umock_c_reset_all_calls();
@@ -466,7 +466,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         umock_c_reset_all_calls();
@@ -498,6 +498,87 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         // cleanup
     }
 
+    CTEST_FUNCTION(weather_client_set_units_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        int result = weather_client_set_units(NULL, UNIT_KELVIN);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    CTEST_FUNCTION(weather_client_set_units_kelvin_succeed)
+    {
+        // arrange
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
+        umock_c_reset_all_calls();
+
+        // act
+        int result = weather_client_set_units(client_handle, UNIT_KELVIN);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_IS_TRUE(UNIT_KELVIN == weather_client_get_units(client_handle));
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        weather_client_destroy(client_handle);
+    }
+
+    CTEST_FUNCTION(weather_client_set_units_celsius_succeed)
+    {
+        // arrange
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
+        umock_c_reset_all_calls();
+
+        // act
+        int result = weather_client_set_units(client_handle, UNIT_CELSIUS);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_IS_TRUE(UNIT_CELSIUS == weather_client_get_units(client_handle));
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        weather_client_destroy(client_handle);
+    }
+
+    CTEST_FUNCTION(weather_client_get_units_handle_NULL_succeed)
+    {
+        // arrange
+
+        // act
+        TEMPERATURE_UNITS result = weather_client_get_units(NULL);
+
+        // assert
+        CTEST_ASSERT_IS_TRUE(UNIT_FAHRENHEIGHT == result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    CTEST_FUNCTION(weather_client_get_units_succeed)
+    {
+        // arrange
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
+        umock_c_reset_all_calls();
+
+        // act
+        TEMPERATURE_UNITS result = weather_client_get_units(client_handle);
+
+        // assert
+        CTEST_ASSERT_IS_TRUE(UNIT_FAHRENHEIGHT == result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        weather_client_destroy(client_handle);
+    }
+
     CTEST_FUNCTION(weather_client_get_by_coordinate_handle_null_fail)
     {
         // arrange
@@ -516,7 +597,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     CTEST_FUNCTION(weather_client_get_by_coordinate_location_NULL_fail)
     {
         // arrange
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_KELVIN);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         // act
@@ -535,7 +616,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
 
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         // act
@@ -554,7 +635,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
 
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         setup_open_connection_mocks();
@@ -575,7 +656,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
 
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         int result = weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         umock_c_reset_all_calls();
 
@@ -595,7 +676,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
 
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         CTEST_ASSERT_ARE_EQUAL(int, 0, umock_c_negative_tests_init());
@@ -645,7 +726,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     CTEST_FUNCTION(weather_client_get_by_zipcode_zero_fail)
     {
         // arrange
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         // act
@@ -663,7 +744,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
 
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         // act
@@ -681,7 +762,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
 
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         setup_open_connection_mocks();
@@ -702,7 +783,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
 
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         int result = weather_client_get_by_zipcode(client_handle, TEST_ZIPCODE, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         weather_client_process(client_handle);
@@ -733,7 +814,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
 
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         int result = weather_client_get_by_zipcode(client_handle, TEST_ZIPCODE, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         umock_c_reset_all_calls();
 
@@ -751,7 +832,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     CTEST_FUNCTION(weather_client_get_by_zipcode_fail)
     {
         // arrange
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         CTEST_ASSERT_ARE_EQUAL(int, 0, umock_c_negative_tests_init());
@@ -788,7 +869,8 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
 
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
+        weather_client_set_units(client_handle, UNIT_CELSIUS);
         umock_c_reset_all_calls();
 
         const char* TEST_ZIP_CODE_PATH = "/data/2.5/weather?zip=98077,us&units=metric&appid=test_key";
@@ -827,7 +909,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     CTEST_FUNCTION(weather_client_get_by_city_name_NULL_fail)
     {
         // arrange
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         // act
@@ -844,7 +926,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     CTEST_FUNCTION(weather_client_get_by_city_callback_NULL_fail)
     {
         // arrange
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         // act
@@ -862,7 +944,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
 
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         STRICT_EXPECTED_CALL(clone_string(IGNORED_ARG, IGNORED_ARG));
@@ -883,7 +965,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
 
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         int result = weather_client_get_by_city(client_handle, TEST_CITY_NAME, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         umock_c_reset_all_calls();
 
@@ -901,7 +983,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     CTEST_FUNCTION(weather_client_get_by_city_fail)
     {
         // arrange
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         CTEST_ASSERT_ARE_EQUAL(int, 0, umock_c_negative_tests_init());
@@ -949,7 +1031,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         // act
@@ -966,7 +1048,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         umock_c_reset_all_calls();
@@ -987,7 +1069,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         umock_c_reset_all_calls();
 
@@ -1005,7 +1087,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         umock_c_reset_all_calls();
 
@@ -1026,7 +1108,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         umock_c_reset_all_calls();
 
@@ -1044,7 +1126,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         umock_c_reset_all_calls();
@@ -1066,7 +1148,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         umock_c_reset_all_calls();
@@ -1085,7 +1167,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         umock_c_reset_all_calls();
 
         int negativeTestsInitResult = umock_c_negative_tests_init();
@@ -1125,7 +1207,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         weather_client_get_by_city(client_handle, TEST_CITY_NAME, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         weather_client_process(client_handle);
@@ -1152,7 +1234,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         weather_client_process(client_handle);
@@ -1160,8 +1242,8 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
 
         // act
         STRICT_EXPECTED_CALL(malloc(IGNORED_ARG));
-
         setup_weather_desc();
+        STRICT_EXPECTED_CALL(http_client_process_item(IGNORED_ARG));
 
         size_t len = strlen(TEST_ACTUAL_WEATHER);
         g_on_request_callback(g_on_request_context, HTTP_CLIENT_OK, TEST_ACTUAL_WEATHER, len, 200, TEST_HTTP_HEADER);
@@ -1171,6 +1253,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
         CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup
+        weather_client_close(client_handle);
         weather_client_destroy(client_handle);
     }
 
@@ -1178,7 +1261,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         weather_client_process(client_handle);
@@ -1201,7 +1284,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         weather_client_process(client_handle);
@@ -1225,7 +1308,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         weather_client_get_by_coordinate(client_handle, &location, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         weather_client_process(client_handle);
@@ -1248,7 +1331,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     {
         // arrange
         WEATHER_LOCATION location = { 1.0, 2.0 };
-        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY, UNIT_CELSIUS);
+        WEATHER_CLIENT_HANDLE client_handle = weather_client_create(TEST_WEATHER_API_KEY);
         weather_client_get_by_zipcode(client_handle, TEST_ZIPCODE, TEST_DEFAULT_TIMEOUT_VALUE, condition_callback, NULL);
         g_on_http_open_complete(g_on_http_open_complete_context, HTTP_CLIENT_OK);
         size_t len = strlen(TEST_ACTUAL_WEATHER);

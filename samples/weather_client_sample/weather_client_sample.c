@@ -31,8 +31,8 @@ int main(int argc, char* argv[])
     }
     else
     {
-        const char* zipcode = "98077";
-        WEATHER_CLIENT_HANDLE handle = weather_client_create(argv[1], UNIT_CELSIUS);
+        const char* zipcode[] = { "98077", "41018" };
+        WEATHER_CLIENT_HANDLE handle = weather_client_create(argv[1]);
         if (handle == NULL)
         {
             printf("Failure creating weather client\n");
@@ -41,7 +41,8 @@ int main(int argc, char* argv[])
         {
             for (size_t index = 0; index < 2; index++)
             {
-                if (weather_client_get_by_zipcode(handle, zipcode, WEATHER_TIMEOUT, weather_condition_result, &operation_complete) != 0)
+                operation_complete = false;
+                if (weather_client_get_by_zipcode(handle, zipcode[index], WEATHER_TIMEOUT, weather_condition_result, &operation_complete) != 0)
                 {
                     printf("Failure getting weather client by zipcode\n");
                 }
@@ -51,11 +52,10 @@ int main(int argc, char* argv[])
                     {
                         weather_client_process(handle);
                     } while (!operation_complete);
-
-                    weather_client_destroy(handle);
                 }
                 thread_mgr_sleep(5000);
             }
+            weather_client_destroy(handle);
         }
     }
     return 0;

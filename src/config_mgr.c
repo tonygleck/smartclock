@@ -28,8 +28,9 @@ static const char* ALARM_NODE_FREQUENCY = "frequency";
 static const char* ALARM_NODE_SOUND = "sound";
 static const char* ALARM_NODE_SNOOZE = "snooze";
 
-#define CLOCK_HOUR_12           0x00000001
+#define CLOCK_HOUR_24           0x00000001
 #define CLOCK_SHOW_SECONDS      0x00000002
+#define USE_CELSIUS             0x00000004
 #define DEFAULT_DIGIT_COLOR     0
 #define INVALID_DIGIT_COLOR     0xFFFFFFFF
 
@@ -149,8 +150,9 @@ CONFIG_MGR_HANDLE config_mgr_create(const char* config_path)
             if ((result->option = (uint32_t)json_object_get_number(result->json_object, OPTION_NODE)) == ((uint32_t)JSONError))
             {
                 log_warning("Failure retrieving option node");
-                result->option |= CLOCK_HOUR_12;
+                result->option = 0;
             }
+            // TODO: Digital Color defaults
             result->digit_color = INVALID_DIGIT_COLOR;
         }
     }
@@ -507,13 +509,13 @@ uint8_t config_mgr_format_hour(CONFIG_MGR_HANDLE handle, int hour)
     }
     else
     {
-        if (handle->option & CLOCK_HOUR_12)
+        if (handle->option & CLOCK_HOUR_24)
         {
-            result = hour > 12 ? hour - 12 : hour;
+            result = hour;
         }
         else
         {
-            result = hour;
+            result = hour > 12 ? hour - 12 : hour;
         }
     }
     return result;
@@ -530,6 +532,82 @@ bool config_mgr_show_seconds(CONFIG_MGR_HANDLE handle)
     else
     {
         result = (handle->option & CLOCK_SHOW_SECONDS);
+    }
+    return result;
+}
+
+int config_mgr_set_24h_clock(CONFIG_MGR_HANDLE handle, bool is_24h_clock)
+{
+    int result;
+    if (handle == NULL)
+    {
+        log_error("Invalid handle specified");
+        result = __LINE__;
+    }
+    else
+    {
+        if (is_24h_clock)
+        {
+            handle->option |= CLOCK_HOUR_24;
+        }
+        else
+        {
+            handle->option &= ~CLOCK_HOUR_24;
+        }
+        result = 0;
+    }
+    return result;
+}
+
+bool config_mgr_is_24h_clock(CONFIG_MGR_HANDLE handle)
+{
+    bool result;
+    if (handle == NULL)
+    {
+        log_error("Invalid handle specified");
+        result = false;
+    }
+    else
+    {
+        result = (handle->option & CLOCK_HOUR_24);
+    }
+    return result;
+}
+
+int config_mgr_set_celsius(CONFIG_MGR_HANDLE handle, bool is_celsius)
+{
+    int result;
+    if (handle == NULL)
+    {
+        log_error("Invalid handle specified");
+        result = __LINE__;
+    }
+    else
+    {
+        if (is_celsius)
+        {
+            handle->option |= USE_CELSIUS;
+        }
+        else
+        {
+            handle->option &= ~USE_CELSIUS;
+        }
+        result = 0;
+    }
+    return result;
+}
+
+bool config_mgr_is_celsius(CONFIG_MGR_HANDLE handle)
+{
+    bool result;
+    if (handle == NULL)
+    {
+        log_error("Invalid handle specified");
+        result = false;
+    }
+    else
+    {
+        result = (handle->option & USE_CELSIUS);
     }
     return result;
 }

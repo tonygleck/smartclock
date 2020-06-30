@@ -181,7 +181,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_object_get_array, NULL);
         REGISTER_GLOBAL_MOCK_RETURN(json_array_get_value, TEST_JSON_VALUE);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_array_get_value, NULL);
-        REGISTER_GLOBAL_MOCK_RETURN(json_object_get_number, 1);
+        REGISTER_GLOBAL_MOCK_RETURN(json_object_get_number, 0);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_object_get_number, JSONError);
         REGISTER_GLOBAL_MOCK_RETURN(json_serialize_to_file_pretty, JSONSuccess);
         REGISTER_GLOBAL_MOCK_FAIL_RETURN(json_serialize_to_file_pretty, JSONFailure);
@@ -1372,6 +1372,132 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
 
         // act
         bool result = config_mgr_is_demo_mode(handle);
+
+        // assert
+        CTEST_ASSERT_IS_FALSE(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_set_24h_clock_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        int result = config_mgr_set_24h_clock(NULL, true);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    CTEST_FUNCTION(config_mgr_set_24h_clock_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        // act
+        int result = config_mgr_set_24h_clock(handle, true);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_IS_TRUE(config_mgr_is_24h_clock(handle));
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_is_24h_clock_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        bool result = config_mgr_is_24h_clock(NULL);
+
+        // assert
+        CTEST_ASSERT_IS_FALSE(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    CTEST_FUNCTION(config_mgr_is_24h_clock_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        // act
+        bool result = config_mgr_is_24h_clock(handle);
+
+        // assert
+        CTEST_ASSERT_IS_FALSE(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_set_celsius_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        int result = config_mgr_set_celsius(NULL, true);
+
+        // assert
+        CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    CTEST_FUNCTION(config_mgr_set_celsius_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        // act
+        int result = config_mgr_set_celsius(handle, true);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(int, 0, result);
+        CTEST_ASSERT_IS_TRUE(config_mgr_is_celsius(handle));
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+        config_mgr_destroy(handle);
+    }
+
+    CTEST_FUNCTION(config_mgr_is_celsius_handle_NULL_fail)
+    {
+        // arrange
+
+        // act
+        bool result = config_mgr_is_celsius(NULL);
+
+        // assert
+        CTEST_ASSERT_IS_FALSE(result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    CTEST_FUNCTION(config_mgr_is_celsius_success)
+    {
+        // arrange
+        CONFIG_MGR_HANDLE handle = config_mgr_create(TEST_CONFIG_PATH);
+        umock_c_reset_all_calls();
+
+        // act
+        bool result = config_mgr_is_celsius(handle);
 
         // assert
         CTEST_ASSERT_IS_FALSE(result);

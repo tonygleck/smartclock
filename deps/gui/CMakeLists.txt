@@ -96,6 +96,7 @@ set(lv_widgets_src_files
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_spinbox.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_spinner.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_slider.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_switch.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_tabview.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_table.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_widgets/lv_tabview.c

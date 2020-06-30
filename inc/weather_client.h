@@ -55,15 +55,19 @@ typedef struct WEATHER_LOCATION_TAG
 
 typedef void(*WEATHER_CONDITIONS_CALLBACK)(void* user_ctx, WEATHER_OPERATION_RESULT result, const WEATHER_CONDITIONS* conditions);
 
-MOCKABLE_FUNCTION(, WEATHER_CLIENT_HANDLE, weather_client_create, const char*, api_key, TEMPERATURE_UNITS, units);
+MOCKABLE_FUNCTION(, WEATHER_CLIENT_HANDLE, weather_client_create, const char*, api_key);
 MOCKABLE_FUNCTION(, void, weather_client_destroy, WEATHER_CLIENT_HANDLE, handle);
 MOCKABLE_FUNCTION(, int, weather_client_close, WEATHER_CLIENT_HANDLE, handle);
+
+MOCKABLE_FUNCTION(, int, weather_client_set_units, WEATHER_CLIENT_HANDLE, handle, TEMPERATURE_UNITS, units);
+MOCKABLE_FUNCTION(, TEMPERATURE_UNITS, weather_client_get_units, WEATHER_CLIENT_HANDLE, handle);
 
 MOCKABLE_FUNCTION(, int, weather_client_get_by_coordinate, WEATHER_CLIENT_HANDLE, handle, const WEATHER_LOCATION*, location, size_t, timeout, WEATHER_CONDITIONS_CALLBACK, conditions_callback, void*, user_ctx);
 MOCKABLE_FUNCTION(, int, weather_client_get_by_zipcode, WEATHER_CLIENT_HANDLE, handle, const char*, zipcode, size_t, timeout, WEATHER_CONDITIONS_CALLBACK, conditions_callback, void*, user_ctx);
 MOCKABLE_FUNCTION(, int, weather_client_get_by_city, WEATHER_CLIENT_HANDLE, handle, const char*, city_name, size_t, timeout, WEATHER_CONDITIONS_CALLBACK, conditions_callback, void*, user_ctx);
 
 MOCKABLE_FUNCTION(, void, weather_client_process, WEATHER_CLIENT_HANDLE, handle);
+
 
 #ifdef __cplusplus
 }

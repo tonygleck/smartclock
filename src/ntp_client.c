@@ -354,6 +354,23 @@ static bool is_timed_out(NTP_CLIENT_INFO* ntp_client)
     return result;
 }
 
+static void ntp_result_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result, time_t current_time)
+{
+    SET_TIME_INFO* set_time_info = (SET_TIME_INFO*)user_ctx;
+    if (ntp_result == NTP_OP_RESULT_SUCCESS)
+    {
+        set_time_info->curr_time = current_time;
+        set_time_info->operation_complete = OPERATION_SUCCESSFUL;
+
+        log_debug("Time: %s\r\n", ctime((const time_t*)&current_time) );
+    }
+    else
+    {
+        set_time_info->operation_complete = OPERATION_FAILURE;
+        log_error("Failure retrieving NTP time %d\r\n", ntp_result);
+    }
+}
+
 NTP_CLIENT_HANDLE ntp_client_create(void)
 {
     NTP_CLIENT_INFO* result;
@@ -466,23 +483,6 @@ void ntp_client_process(NTP_CLIENT_HANDLE handle)
                 handle->ntp_callback(handle->user_ctx, handle->ntp_op_result, (time_t)0);
             }
         }
-    }
-}
-
-static void ntp_result_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result, time_t current_time)
-{
-    SET_TIME_INFO* set_time_info = (SET_TIME_INFO*)user_ctx;
-    if (ntp_result == NTP_OP_RESULT_SUCCESS)
-    {
-        set_time_info->curr_time = current_time;
-        set_time_info->operation_complete = OPERATION_SUCCESSFUL;
-
-        log_debug("Time: %s\r\n", ctime((const time_t*)&current_time) );
-    }
-    else
-    {
-        set_time_info->operation_complete = OPERATION_FAILURE;
-        log_error("Failure retrieving NTP time %d\r\n", ntp_result);
     }
 }
 
