@@ -69,6 +69,7 @@ typedef struct WEATHER_CLIENT_INFO_TAG
     WEATHER_CONDITIONS_CALLBACK conditions_callback;
     void* condition_ctx;
     WEATHER_OPERATION_RESULT op_result;
+    WEATHER_CONDITIONS weather_cond;
 
     const char* temp_units;
     WEATHER_CLIENT_STATE state;
@@ -475,7 +476,7 @@ static int open_connection(WEATHER_CLIENT_INFO* client_info)
     return result;
 }
 
-WEATHER_CLIENT_HANDLE weather_client_create(const char* api_key, TEMPERATURE_UNITS units)
+WEATHER_CLIENT_HANDLE weather_client_create(const char* api_key)
 {
     WEATHER_CLIENT_INFO* result;
     if (api_key == NULL)
@@ -507,7 +508,7 @@ WEATHER_CLIENT_HANDLE weather_client_create(const char* api_key, TEMPERATURE_UNI
         else
         {
             result->state = WEATHER_CLIENT_STATE_IDLE;
-            set_temp_units(result, units);
+            result->temp_units = TEMP_UNIT_FAHRENHEIT_VALUE;
         }
     }
     return result;
@@ -542,7 +543,44 @@ int weather_client_close(WEATHER_CLIENT_HANDLE handle)
     {
         close_http_connection(handle);
         handle->state = WEATHER_CLIENT_STATE_IDLE;
+        if (handle->weather_cond.description != NULL)
+        {
+            free((void*)handle->weather_cond.description);
+        }
         result = 0;
+    }
+    return result;
+}
+
+int weather_client_set_units(WEATHER_CLIENT_HANDLE handle, TEMPERATURE_UNITS units)
+{
+    int result;
+    if (handle == NULL)
+    {
+        log_error("Invalid parameter specified: handle: NULL");
+        result = __LINE__;
+    }
+    else
+    {
+        set_temp_units(handle, units);
+        result = 0;
+    }
+    return result;
+}
+
+TEMPERATURE_UNITS weather_client_get_units(WEATHER_CLIENT_HANDLE handle)
+{
+    TEMPERATURE_UNITS result = UNIT_FAHRENHEIGHT;
+    if (handle != NULL)
+    {
+        if (handle->temp_units == TEMP_UNIT_KELVIN_VALUE)
+        {
+            result = UNIT_KELVIN;
+        }
+        else if (handle->temp_units == TEMP_UNIT_CELSIUS_VALUE)
+        {
+            result = UNIT_CELSIUS;
+        }
     }
     return result;
 }
@@ -695,8 +733,8 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
                 break;
             case WEATHER_CLIENT_STATE_RECV:
             {
-                WEATHER_CONDITIONS weather_cond = {0};
-                if (parse_weather_data(handle, &weather_cond) != 0)
+                memset(&handle->weather_cond, 0, sizeof(WEATHER_CONDITIONS));
+                if (parse_weather_data(handle, &handle->weather_cond) != 0)
                 {
                     log_error("Failure parsing weather data");
                     handle->op_result = WEATHER_OP_RESULT_INVALID_DATA_ERR;
@@ -704,12 +742,7 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
                 }
                 else
                 {
-                    handle->conditions_callback(handle->condition_ctx, WEATHER_OP_RESULT_SUCCESS, &weather_cond);
-                    handle->state = WEATHER_CLIENT_STATE_CLOSE;
-
-                    // Clear the weather data info
-                    free((void*)weather_cond.description);
-
+                    handle->state = WEATHER_CLIENT_STATE_CALLBACK;
                 }
                 if (handle->weather_data != NULL)
                 {
@@ -720,14 +753,26 @@ void weather_client_process(WEATHER_CLIENT_HANDLE handle)
             }
             case WEATHER_CLIENT_STATE_ERROR:
             case WEATHER_CLIENT_STATE_CALLBACK:
-                handle->conditions_callback(handle->condition_ctx, handle->op_result, NULL);
+            {
+                WEATHER_CONDITIONS* condition = NULL;
+                if (WEATHER_CLIENT_STATE_CALLBACK == handle->state)
+                {
+                    condition = &handle->weather_cond;
+                }
+                handle->conditions_callback(handle->condition_ctx, handle->op_result, condition);
                 handle->state = WEATHER_CLIENT_STATE_IDLE;
                 if (handle->query_type == QUERY_TYPE_NAME || handle->query_type == QUERY_TYPE_ZIP_CODE)
                 {
                     free(handle->weather_query.value);
                     handle->weather_query.value = NULL;
                 }
-                // fall through
+                // Clear the weather data info
+                if (handle->weather_cond.description != NULL)
+                {
+                    free((void*)handle->weather_cond.description);
+                }
+            }
+            // fall through
             case WEATHER_CLIENT_STATE_CLOSE:
                 close_http_connection(handle);
                 break;

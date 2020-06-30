@@ -49,6 +49,10 @@ MOCKABLE_FUNCTION(, int, config_mgr_get_shade_times, CONFIG_MGR_HANDLE, handle, 
 MOCKABLE_FUNCTION(, int, config_mgr_set_shade_times, CONFIG_MGR_HANDLE, handle, const TIME_VALUE_STORAGE*, start_time, const TIME_VALUE_STORAGE*, end_time);
 
 MOCKABLE_FUNCTION(, bool, config_mgr_is_demo_mode, CONFIG_MGR_HANDLE, handle);
+MOCKABLE_FUNCTION(, bool, config_mgr_is_24h_clock, CONFIG_MGR_HANDLE, handle);
+MOCKABLE_FUNCTION(, int, config_mgr_set_24h_clock, CONFIG_MGR_HANDLE, handle, bool, is_24h_clock);
+MOCKABLE_FUNCTION(, bool, config_mgr_is_celsius, CONFIG_MGR_HANDLE, handle);
+MOCKABLE_FUNCTION(, int, config_mgr_set_celsius, CONFIG_MGR_HANDLE, handle, bool, is_celsius);
 
 MOCKABLE_FUNCTION(, int, config_mgr_load_alarm, CONFIG_MGR_HANDLE, handle, ON_ALARM_LOAD_CALLBACK, alarm_cb, void*, user_ctx);
 MOCKABLE_FUNCTION(, int, config_mgr_store_alarm, CONFIG_MGR_HANDLE, handle, const char*, name, const TIME_VALUE_STORAGE*, time_value, const char*, sound_file, uint32_t, frequency, uint8_t, snooze);

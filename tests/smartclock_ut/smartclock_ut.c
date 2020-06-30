@@ -154,7 +154,7 @@ static void my_ntp_client_destroy(NTP_CLIENT_HANDLE handle)
     my_mem_shim_free(handle);
 }
 
-static WEATHER_CLIENT_HANDLE my_weather_client_create(const char* api_key, TEMPERATURE_UNITS units)
+static WEATHER_CLIENT_HANDLE my_weather_client_create(const char* api_key)
 {
     return (WEATHER_CLIENT_HANDLE)my_mem_shim_malloc(1);
 }
@@ -266,7 +266,7 @@ CTEST_BEGIN_TEST_SUITE(smartclock_ut)
         STRICT_EXPECTED_CALL(sound_mgr_create());
         STRICT_EXPECTED_CALL(gui_mgr_create(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(ntp_client_create());
-        STRICT_EXPECTED_CALL(weather_client_create(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(weather_client_create(IGNORED_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_init(IGNORED_ARG)).CallCannotFail();
         STRICT_EXPECTED_CALL(alarm_timer_init(IGNORED_ARG)).CallCannotFail();
         STRICT_EXPECTED_CALL(alarm_timer_init(IGNORED_ARG)).CallCannotFail();
