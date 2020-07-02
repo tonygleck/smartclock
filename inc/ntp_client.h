@@ -1,7 +1,5 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-#ifndef NTP_CLIENT_H
-#define NTP_CLIENT_H
+#pragma once
 
 #include <time.h>
 
@@ -38,5 +36,3 @@ MOCKABLE_FUNCTION(, int, ntp_client_set_time, const char*, time_server, size_t, 
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-
-#endif // NTP_CLIENT_H
