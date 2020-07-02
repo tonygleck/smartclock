@@ -297,7 +297,7 @@ static int send_initial_ntp_packet(NTP_CLIENT_INFO* ntp_client)
 static int init_connect_to_server(NTP_CLIENT_INFO* ntp_client, const char* time_server)
 {
     int result;
-    SOCKETIO_CONFIG socket_config;
+    SOCKETIO_CONFIG socket_config = {0};
     socket_config.hostname = time_server;
     socket_config.port = NTP_PORT_NUM;
     socket_config.address_type = ADDRESS_TYPE_UDP;
@@ -444,7 +444,6 @@ void ntp_client_process(NTP_CLIENT_HANDLE handle)
             switch (handle->ntp_state)
             {
                 case NTP_CLIENT_STATE_CONNECTED:
-                    log_debug("NTP Client state connected");
                     // Send the NTP packet
                     if (send_initial_ntp_packet(handle) != 0)
                     {
