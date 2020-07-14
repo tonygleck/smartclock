@@ -42,7 +42,9 @@ typedef struct SMARTCLOCK_INFO_TAG
     uint8_t last_alarm_min;
     uint8_t last_weather_day;
 
+#ifdef USE_NTP_CLIENT
     NTP_CLIENT_HANDLE ntp_client;
+#endif
     OPERATION_STATE ntp_operation;
 
     ALARM_TIMER_INFO ntp_alarm;
@@ -196,16 +198,18 @@ static void check_weather_operation(SMARTCLOCK_INFO* clock_info, uint8_t curr_da
 
 static void check_ntp_operation(SMARTCLOCK_INFO* clock_info)
 {
+    (void)clock_info;
+#ifdef USE_NTP_CLIENT
     if (clock_info->ntp_operation == OPERATION_STATE_IN_PROCESS)
     {
-        //if (clock_info->is_demo_mode)
-        //{
-        //    ntp_result_callback(clock_info, NTP_OP_RESULT_SUCCESS, time(NULL));
-        //}
-        //else
-        //{
+        if (clock_info->is_demo_mode)
+        {
+            ntp_result_callback(clock_info, NTP_OP_RESULT_SUCCESS, time(NULL));
+        }
+        else
+        {
             ntp_client_process(clock_info->ntp_client);
-        //}
+        }
     }
     else if (clock_info->ntp_operation == OPERATION_STATE_ERROR)
     {
@@ -222,7 +226,7 @@ static void check_ntp_operation(SMARTCLOCK_INFO* clock_info)
             log_error("Ntp Address is not entered");
             clock_info->ntp_operation = OPERATION_STATE_ERROR;
         }
-        else if (/*!clock_info->is_demo_mode && */ntp_client_get_time(clock_info->ntp_client, ntp_address, OPERATION_TIMEOUT, ntp_result_callback, clock_info) != 0)
+        else if (!clock_info->is_demo_mode && ntp_client_get_time(clock_info->ntp_client, ntp_address, OPERATION_TIMEOUT, ntp_result_callback, clock_info) != 0)
         {
             clock_info->ntp_operation = OPERATION_STATE_ERROR;
             log_error("NTP get_time operation failure");
@@ -232,6 +236,7 @@ static void check_ntp_operation(SMARTCLOCK_INFO* clock_info)
             clock_info->ntp_operation = OPERATION_STATE_IN_PROCESS;
         }
     }
+#endif
 }
 
 static void configure_alarms(SMARTCLOCK_INFO* clock_info)
@@ -520,6 +525,7 @@ int initialize_data(SMARTCLOCK_INFO* clock_info)
         alarm_scheduler_destroy(clock_info->sched_mgr);
         result = __LINE__;
     }
+#ifdef USE_NTP_CLIENT
     else if ((clock_info->ntp_client = ntp_client_create()) == NULL)
     {
         log_error("Failure creating ntp client object");
@@ -529,10 +535,13 @@ int initialize_data(SMARTCLOCK_INFO* clock_info)
         gui_mgr_destroy(clock_info->gui_mgr);
         result = __LINE__;
     }
+#endif
     else if ((clock_info->weather_client = weather_client_create(clock_info->weather_appid)) == NULL)
     {
         log_error("Failure creating weather client object");
+#ifdef USE_NTP_CLIENT
         ntp_client_destroy(clock_info->ntp_client);
+#endif
         config_mgr_destroy(clock_info->config_mgr);
         sound_mgr_destroy(clock_info->sound_mgr);
         alarm_scheduler_destroy(clock_info->sched_mgr);
@@ -626,7 +635,9 @@ int run_application(int argc, char* argv[])
             result = 0;
         }
 
-        ntp_client_destroy(clock_info.ntp_client);
+#ifdef USE_NTP_CLIENT
+        ntp_client_destroy(clock_info->ntp_client);
+#endif
         gui_mgr_destroy(clock_info.gui_mgr);
         sound_mgr_destroy(clock_info.sound_mgr);
         alarm_scheduler_destroy(clock_info.sched_mgr);

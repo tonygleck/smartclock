@@ -18,6 +18,7 @@
 #include "config_mgr.h"
 #include "alarm_scheduler.h"
 #include "gui_mgr.h"
+#include "version.h"
 
 #define SHOW_SEC_VALUE          5
 #define SHOW_MIN_VALUE          8
@@ -618,6 +619,16 @@ static void alarm_dlg_btn_cb(lv_obj_t* close_btn, lv_event_t event)
     }
 }
 
+static void alarm_label_callback(lv_obj_t* alarm_dlg_obj, lv_event_t event)
+{
+    (void)alarm_dlg_obj;
+    printf("Alarm label pressed\n");
+    if (event == LV_EVENT_PRESSED)
+    {
+        GUI_MGR_INFO* gui_info = (GUI_MGR_INFO*)lv_obj_get_user_data(alarm_dlg_obj);
+    }
+}
+
 static void option_btn_callback(lv_obj_t* alarm_dlg_obj, lv_event_t event)
 {
     if (event == LV_EVENT_PRESSED)
@@ -901,8 +912,8 @@ static void create_option_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_obj_set_pos(gui_info->new_alarm_dlg.zipcode_text, ctrl_pos_left, TOP_MARGIN);
 
     lv_obj_t* hour_label = lv_label_create(parent, NULL);
-    lv_label_set_text(hour_label, "use 24h clock");
-    lv_obj_set_pos(hour_label, LEFT_MARGIN+300, TOP_MARGIN+50);
+    lv_label_set_text(hour_label, "24h clock");
+    lv_obj_set_pos(hour_label, LEFT_MARGIN+310, TOP_MARGIN+50);
 
     lv_obj_t* clock_24hour = lv_switch_create(parent, NULL);
     if (config_mgr_is_24h_clock(gui_info->config_mgr))
@@ -914,8 +925,8 @@ static void create_option_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_obj_set_user_data(clock_24hour, gui_info);
 
     lv_obj_t* temp_unit_label = lv_label_create(parent, NULL);
-    lv_label_set_text(temp_unit_label, "use fahrenheit");
-    lv_obj_set_pos(temp_unit_label, LEFT_MARGIN+300, TOP_MARGIN+100);
+    lv_label_set_text(temp_unit_label, "Fahrenheit");
+    lv_obj_set_pos(temp_unit_label, LEFT_MARGIN+310, TOP_MARGIN+100);
 
     lv_obj_t* fahrenheit = lv_switch_create(parent, NULL);
     if (config_mgr_is_celsius(gui_info->config_mgr))
@@ -931,6 +942,14 @@ static void create_option_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     // Set text area with keyboard
     lv_keyboard_set_textarea(num_keybrd, gui_info->new_alarm_dlg.zipcode_text);
     lv_keyboard_set_mode(num_keybrd, LV_KEYBOARD_MODE_NUM);
+    lv_obj_set_pos(num_keybrd, LEFT_MARGIN, TOP_MARGIN+130);
+
+    // Add a version tag
+    char version_text[64];
+    lv_obj_t* version_label = lv_label_create(parent, NULL);
+    sprintf(version_text, "version %s", version);
+    lv_label_set_text(version_label, version_text);
+    lv_obj_align(version_label, NULL, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
 
     /*struct tm shade_time = {0};
     shade_time.tm_hour = 22;
@@ -1166,6 +1185,8 @@ int gui_mgr_create_win(GUI_MGR_HANDLE handle)
 
         handle->alarm_label = lv_label_create(handle->win_bkgrd, NULL);
         lv_obj_set_pos(handle->alarm_label, x_pos, y_pos);
+        //lv_obj_set_event_cb(handle->alarm_dlg_label, alarm_label_callback);
+
        // lv_label_set_style(handle->alarm_label, LV_LABEL_STYLE_MAIN, &handle->main_win_style);
 
         y_pos += (VALUE_BUFFER_SIZE*8);
