@@ -265,7 +265,9 @@ CTEST_BEGIN_TEST_SUITE(smartclock_ut)
         STRICT_EXPECTED_CALL(alarm_scheduler_create());
         STRICT_EXPECTED_CALL(sound_mgr_create());
         STRICT_EXPECTED_CALL(gui_mgr_create(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+#ifdef USE_NTP_CLIENT
         STRICT_EXPECTED_CALL(ntp_client_create());
+#endif
         STRICT_EXPECTED_CALL(weather_client_create(IGNORED_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_init(IGNORED_ARG)).CallCannotFail();
         STRICT_EXPECTED_CALL(alarm_timer_init(IGNORED_ARG)).CallCannotFail();
@@ -274,7 +276,9 @@ CTEST_BEGIN_TEST_SUITE(smartclock_ut)
 
     static void setup_check_ntp_operation_mocks(void)
     {
+#ifdef USE_NTP_CLIENT
         STRICT_EXPECTED_CALL(alarm_timer_is_expired(IGNORED_ARG));
+#endif
     }
 
     static void setup_check_weather_operation_mocks(void)
@@ -302,7 +306,9 @@ CTEST_BEGIN_TEST_SUITE(smartclock_ut)
 
     static void setup_cleanup_mocks(void)
     {
+#ifdef USE_NTP_CLIENT
         STRICT_EXPECTED_CALL(ntp_client_destroy(IGNORED_ARG));
+#endif
         STRICT_EXPECTED_CALL(gui_mgr_destroy(IGNORED_ARG));
         STRICT_EXPECTED_CALL(sound_mgr_destroy(IGNORED_ARG));
         STRICT_EXPECTED_CALL(alarm_scheduler_destroy(IGNORED_ARG));
