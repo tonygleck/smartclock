@@ -269,9 +269,6 @@ int quit_filter(void * userdata, SDL_Event * event)
     else if(event->type == SDL_QUIT) {
         sdl_quit_qry = true;
     }
-
-
-
     return 1;
 }
 
@@ -287,7 +284,6 @@ static void monitor_sdl_clean_up(void)
     SDL_DestroyWindow(monitor2.window);
 
 #endif
-
     SDL_Quit();
 }
 
@@ -316,8 +312,7 @@ void monitor_sdl_refr_core(void)
 static void monitor_sdl_refr_core(void)
 #endif
 {
-
-    if(monitor.sdl_refr_qry != false) {
+    if (monitor.sdl_refr_qry != false) {
         monitor.sdl_refr_qry = false;
         window_update(&monitor);
     }
@@ -363,14 +358,18 @@ static void monitor_sdl_refr_core(void)
 
     /*Sleep some time*/
     SDL_Delay(SDL_REFR_PERIOD);
-
 }
 
 static void window_create(monitor_t * m)
 {
-    m->window = SDL_CreateWindow(WINDOWS_TITLE,
-                              SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-                              MONITOR_HOR_RES * MONITOR_ZOOM, MONITOR_VER_RES * MONITOR_ZOOM, 0);       /*last param. SDL_WINDOW_BORDERLESS to hide borders*/
+    uint32_t flags = 0;
+    #ifdef SMARTCLOCK_DEBUG
+        flags = 0;
+    #else
+        flags = SDL_WINDOW_FULLSCREEN|SDL_WINDOW_BORDERLESS;
+    #endif
+    m->window = SDL_CreateWindow(WINDOWS_TITLE, 0, 0,
+        MONITOR_HOR_RES * MONITOR_ZOOM, MONITOR_VER_RES * MONITOR_ZOOM, flags); /*last param. SDL_WINDOW_BORDERLESS to hide borders*/
 
 #if MONITOR_VIRTUAL_MACHINE || defined(MONITOR_EMSCRIPTEN)
     m->renderer = SDL_CreateRenderer(m->window, -1, SDL_RENDERER_SOFTWARE);
@@ -389,7 +388,6 @@ static void window_create(monitor_t * m)
 #endif
 
     m->sdl_refr_qry = true;
-
 }
 
 static void window_update(monitor_t * m)

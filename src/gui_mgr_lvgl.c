@@ -1083,6 +1083,7 @@ void gui_mgr_destroy(GUI_MGR_HANDLE handle)
 {
     if (handle != NULL)
     {
+        lv_deinit();
         free(handle);
     }
 }
