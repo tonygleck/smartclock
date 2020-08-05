@@ -1135,6 +1135,67 @@ CTEST_BEGIN_TEST_SUITE(alarm_scheduler_ut)
         alarm_scheduler_destroy(handle);
     }
 
+static const ALARM_INFO test_alarm_list1[] =
+{
+    { {4, 50, 0}, 21, 0, "text_alarm_1", ""}
+};
+
+static const struct
+{
+    struct tm curr_time;
+    bool should_be_null;
+    const char* success_text;
+    size_t alarm_cnt;
+    const ALARM_INFO* alarm_info_list;
+} test_alarm_value[] =
+{
+    {{0, 1, 6, 1, 0, 1900, 5, 0, 0}, false, "text_alarm_1", 1, test_alarm_list1}
+};
+
+    CTEST_FUNCTION(alarm_scheduler_get_next_alarm_array_success)
+    {
+        // arrange
+        size_t num_elements = sizeof(test_alarm_value)/sizeof(test_alarm_value[0]);
+        for (size_t index = 0; index < num_elements; index++)
+        {
+            SCHEDULER_HANDLE handle = alarm_scheduler_create();
+
+            size_t alarm_cnt = test_alarm_value[index].alarm_cnt;
+            for (size_t inner = 0; inner < alarm_cnt; inner++)
+            {
+                const ALARM_INFO alarm_info = test_alarm_value[index].alarm_info_list[inner];
+                (void)alarm_scheduler_add_alarm_info(handle, &alarm_info);
+            }
+            umock_c_reset_all_calls();
+
+            struct tm time_value = test_alarm_value[index].curr_time;
+            STRICT_EXPECTED_CALL(get_time_value()).SetReturn(&time_value);
+            STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(alarm_cnt);
+            for (size_t inner = 0; inner < alarm_cnt; inner++)
+            {
+               STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+            }
+
+            // act
+            const ALARM_INFO* alarm_info = alarm_scheduler_get_next_alarm(handle);
+
+            // assert
+            if (test_alarm_value[index].should_be_null)
+            {
+                CTEST_ASSERT_IS_NULL(alarm_info, "Alarm Info should be NULL test %d/%d", (int)index, (int)num_elements);
+            }
+            else
+            {
+                CTEST_ASSERT_IS_NOT_NULL(alarm_info, "Alarm Info should not be NULL test %d/%d", (int)index, (int)num_elements);
+                CTEST_ASSERT_ARE_EQUAL(char_ptr, test_alarm_value[index].success_text, alarm_info->alarm_text, "success text invalid test %d/%d", (int)index, (int)num_elements);
+            }
+            CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+            // cleanup
+            alarm_scheduler_destroy(handle);
+        }
+    }
+
     CTEST_FUNCTION(alarm_scheduler_get_next_alarm_cmp_min_success)
     {
         // arrange
@@ -1352,6 +1413,35 @@ CTEST_BEGIN_TEST_SUITE(alarm_scheduler_ut)
 
         // assert
         CTEST_ASSERT_ARE_EQUAL(int, 4, result);
+        CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
+
+        // cleanup
+    }
+
+    CTEST_FUNCTION(alarm_scheduler_get_next_day_4_success)
+    {
+        // arrange
+        struct tm test_tm = {0};
+        ALARM_INFO alarm_info1 = {0};
+
+        set_tm_struct(&test_tm);
+        test_tm.tm_hour = 5;
+        test_tm.tm_min = 50;
+        test_tm.tm_wday = 5;
+
+        setup_alarm_time_info(&alarm_info1, &test_tm);
+        alarm_info1.trigger_days = 21;
+        alarm_info1.trigger_time.hour = 4;
+        alarm_info1.trigger_time.min = 50;
+        alarm_info1.alarm_text = (char*)TEST_ALARM_1_TEXT;
+
+        STRICT_EXPECTED_CALL(get_time_value()).SetReturn(&test_tm);
+
+        // act
+        int result = alarm_scheduler_get_next_day(&alarm_info1);
+
+        // assert
+        CTEST_ASSERT_ARE_EQUAL(int, 1, result);
         CTEST_ASSERT_ARE_EQUAL(char_ptr, umock_c_get_expected_calls(), umock_c_get_actual_calls());
 
         // cleanup

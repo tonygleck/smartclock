@@ -38,6 +38,7 @@
 #define TRIGGER_DAY_BTN_COUNT   8
 #define INVALID_MIN_VALUE       70
 
+static const char* ALARM_LABEL_NOT_SET = "Alarm set: --";
 static const char* g_alarm_buttons[] = {"Snooze", "Dismiss", ""};
 
 static lv_color_t g_image_colors[] =
@@ -1101,7 +1102,7 @@ int gui_mgr_create_win(GUI_MGR_HANDLE handle)
     }
     else
     {
-        int16_t x_pos = 0;
+        int16_t x_pos = TOP_MARGIN;
         int16_t y_pos = TOP_MARGIN;
 
         // Create the style for the main window
@@ -1145,7 +1146,7 @@ int gui_mgr_create_win(GUI_MGR_HANDLE handle)
         x_pos += CLOCK_IMG_WIDTH + VALUE_BUFFER_SIZE;
 
         // For Forcast move it a little more on the x
-        int16_t temp_x_pos = x_pos + VALUE_BUFFER_SIZE;
+        int16_t temp_x_pos = x_pos + (VALUE_BUFFER_SIZE*2);
         handle->forcast_date_label = lv_label_create(handle->win_bkgrd, NULL);
         lv_obj_set_pos(handle->forcast_date_label, temp_x_pos, y_pos);
         lv_label_set_text(handle->forcast_date_label, "");
@@ -1170,7 +1171,7 @@ int gui_mgr_create_win(GUI_MGR_HANDLE handle)
 
         handle->forcast_temp_label = lv_label_create(handle->win_bkgrd, NULL);
         lv_obj_set_pos(handle->forcast_temp_label, temp_x_pos, y_pos);
-        lv_label_set_text(handle->forcast_temp_label, "0 f/0 f");
+        lv_label_set_text(handle->forcast_temp_label, "-- / --");
         //lv_label_set_style(handle->forcast_temp_label, LV_LABEL_STYLE_MAIN, &handle->main_win_style);
 
         // Reset
@@ -1304,11 +1305,11 @@ void gui_mgr_set_forcast(GUI_MGR_HANDLE handle, FORCAST_TIME timeframe, const WE
 
         lv_label_set_text(handle->forcast_desc_label, weather_cond->description);
 
-        char unit = config_mgr_is_celsius(handle->config_mgr) ? 'c' : 'f';
-        sprintf(forcast_line, "%.0f %c", weather_cond->temperature, unit);
+        //char unit = config_mgr_is_celsius(handle->config_mgr) ? 'c' : 'f';
+        sprintf(forcast_line, "%.0f", weather_cond->temperature);
         lv_label_set_text(handle->curr_temp_label, forcast_line);
 
-        sprintf(forcast_line, "Hi: %.0f %c/Lo: %.0f %c", weather_cond->hi_temp, unit, weather_cond->lo_temp, unit);
+        sprintf(forcast_line, "Hi: %.0f / Lo: %.0f", weather_cond->hi_temp, weather_cond->lo_temp);
         lv_label_set_text(handle->forcast_temp_label, forcast_line);
 
         if (weather_cond->weather_icon[0] == '0')
@@ -1375,8 +1376,12 @@ void gui_mgr_set_next_alarm(GUI_MGR_HANDLE handle, const ALARM_INFO* next_alarm)
         }
         else
         {
-            lv_label_set_text(handle->alarm_label, "");
+            lv_label_set_text(handle->alarm_label, ALARM_LABEL_NOT_SET);
         }
+    }
+    else
+    {
+        lv_label_set_text(handle->alarm_label, ALARM_LABEL_NOT_SET);
     }
 }
 
