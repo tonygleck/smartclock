@@ -5,7 +5,6 @@ cmake_minimum_required(VERSION 3.5)
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 
 set(lv_core_src_files
-    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_core/lv_debug.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_core/lv_disp.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_core/lv_group.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_core/lv_indev.c
@@ -56,6 +55,7 @@ set(lv_misc_src_files
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_bidi.c
     #${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_circ.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_color.c
+    ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_debug.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_fs.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_gc.c
     ${CMAKE_CURRENT_LIST_DIR}/lvgl/src/lv_misc/lv_ll.c

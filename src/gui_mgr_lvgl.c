@@ -196,7 +196,9 @@ static void setup_win_style(GUI_MGR_INFO* gui_info)
     lv_style_set_pad_top(&style_btn, LV_STATE_DEFAULT, LV_VER_RES / 40);
     lv_style_set_pad_bottom(&style_btn, LV_STATE_DEFAULT, LV_VER_RES / 40);*/
 
+    lv_style_set_bg_color(&gui_info->main_win_style, LV_STATE_DEFAULT, bg_color);
     lv_style_set_bg_color(&gui_info->main_win_style, LV_STYLE_BG_COLOR, bg_color);
+    lv_style_set_bg_color(&gui_info->main_win_style, LV_STYLE_BORDER_COLOR, bg_color);
     lv_style_set_border_color(&gui_info->main_win_style, LV_STYLE_BORDER_COLOR, bg_color);
     //lv_style_set_text_color(&gui_info->main_win_style, LV_STYLE_TEXT_COLOR, LV_COLOR_BLACK);
 }
@@ -1111,12 +1113,16 @@ int gui_mgr_create_win(GUI_MGR_HANDLE handle)
 
         lv_obj_t* current_scr = lv_disp_get_scr_act(NULL);
 
+        lv_disp_set_bg_color(lv_disp_get_default(), LV_COLOR_BLACK);
+
         handle->win_bkgrd = lv_obj_create(current_scr, NULL);
         lv_obj_add_style(handle->win_bkgrd, LV_OBJ_PART_MAIN , &handle->main_win_style);
         lv_obj_set_pos(handle->win_bkgrd, 0, 0);
         lv_obj_set_size(handle->win_bkgrd, LV_HOR_RES, LV_VER_RES);
+        //lv_obj_set_style_local_bg_color(handle->win_bkgrd, )
 
         lv_color_t color = lv_obj_get_style_bg_color(handle->win_bkgrd, LV_OBJ_PART_MAIN);
+
         //lv_obj_set_opa_scale_enable(win_bkgrd, true); // Enable opacity scaling for the animation */
 
         // Create an image object
