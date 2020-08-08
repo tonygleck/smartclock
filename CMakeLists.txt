@@ -120,7 +120,10 @@ if (${smartclock_gui})
         ${PROJECT_SOURCE_DIR}/media/img/light_rain_img.c
         ${PROJECT_SOURCE_DIR}/media/img/partly_sunny_img.c
         ${PROJECT_SOURCE_DIR}/media/img/rain_showers_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/snow_img.c
         ${PROJECT_SOURCE_DIR}/media/img/sunny_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/thunder_img.c
+        ${PROJECT_SOURCE_DIR}/media/img/windy_img.c
     )
 else()
     set(smartclock_src_files

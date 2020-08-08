@@ -297,7 +297,7 @@ CTEST_BEGIN_TEST_SUITE(weather_client_ut)
     static void setup_open_connection_mocks(void)
     {
         STRICT_EXPECTED_CALL(http_client_create());
-        STRICT_EXPECTED_CALL(http_client_set_trace(IGNORED_ARG, true)).CallCannotFail();
+        STRICT_EXPECTED_CALL(http_client_set_trace(IGNORED_ARG, false)).CallCannotFail();
         STRICT_EXPECTED_CALL(http_client_open(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_ARG, TEST_DEFAULT_TIMEOUT_VALUE));
         //STRICT_EXPECTED_CALL(clone_string(IGNORED_ARG, IGNORED_ARG));

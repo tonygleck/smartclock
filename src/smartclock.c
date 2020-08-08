@@ -148,7 +148,7 @@ static void check_weather_operation(SMARTCLOCK_INFO* clock_info, uint8_t curr_da
             WEATHER_CONDITIONS cond = {0};
             cond.forcast_date = get_time_value();
             cond.temperature = -11;
-            cond.lo_temp = -1;
+            cond.lo_temp = -10;
             cond.hi_temp = 100;
             cond.description = "Partly Sunny";
             cond.weather_icon[0] = '0';
@@ -394,12 +394,6 @@ static void check_alarm_operation(SMARTCLOCK_INFO* clock_info, const struct tm* 
             stop_alarm_sound(clock_info);
             clock_info->alarm_op_state = ALARM_STATE_STOPPED;
         }
-        //else
-        //{
-        //    gui_mgr_set_next_alarm(clock_info->gui_mgr, alarm_scheduler_get_next_alarm(clock_info->sched_mgr));
-        //    stop_alarm_sound(clock_info);
-        //    clock_info->alarm_op_state = ALARM_STATE_STOPPED;
-        //}
     }
 }
 
