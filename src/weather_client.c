@@ -65,6 +65,7 @@ typedef struct WEATHER_CLIENT_INFO_TAG
     size_t timeout_sec;
 
     bool is_open;
+    bool enable_trace;
 
     WEATHER_CONDITIONS_CALLBACK conditions_callback;
     void* condition_ctx;
@@ -451,7 +452,7 @@ static int open_connection(WEATHER_CLIENT_INFO* client_info)
     }
     else
     {
-        (void)http_client_set_trace(client_info->http_handle, true);
+        (void)http_client_set_trace(client_info->http_handle, client_info->enable_trace);
 
         if (http_client_open(client_info->http_handle, &http_address, on_http_connected, client_info, on_http_error, client_info) != 0)
         {

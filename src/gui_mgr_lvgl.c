@@ -28,8 +28,10 @@
 #define LEFT_MARGIN             20
 #define VALUE_BUFFER_SIZE       10
 
-#define CLOCK_IMG_WIDTH         128
-#define CLOCK_IMG_HEIGHT        256
+#define CLOCK_IMG_WIDTH         160 //128
+#define CLOCK_IMG_HEIGHT        320 //256
+#define CLOCK_NUM_SPACE         25
+
 #define ELLIPSE_IMG_WIDTH       27
 #define FORCAST_IMG_DIMENSIONS  65
 #define DEFAULT_SNOOZE_TIME     10
@@ -38,7 +40,9 @@
 #define TRIGGER_DAY_BTN_COUNT   8
 #define INVALID_MIN_VALUE       70
 
-static const char* ALARM_LABEL_NOT_SET = "Alarm set: --";
+static const char* ALARM_LABEL_NOT_SET = "Alarm set:";
+static const char* OPTION_BUTTON_LABEL = "Settings";
+
 static const char* g_alarm_buttons[] = {"Snooze", "Dismiss", ""};
 
 static lv_color_t g_image_colors[] =
@@ -67,11 +71,15 @@ LV_IMG_DECLARE(blank_img)
 
 LV_IMG_DECLARE(alarm_img)
 
+// Forcast icons
 LV_IMG_DECLARE(cloudy_img)
 LV_IMG_DECLARE(light_rain_img)
 LV_IMG_DECLARE(partly_sunny_img)
 LV_IMG_DECLARE(rain_showers_img)
+LV_IMG_DECLARE(snow_img)
 LV_IMG_DECLARE(sunny_img)
+LV_IMG_DECLARE(thunder_img)
+LV_IMG_DECLARE(windy_img)
 
 typedef enum CLOCK_FACE_THEME_TAG
 {
@@ -201,6 +209,8 @@ static void setup_win_style(GUI_MGR_INFO* gui_info)
     lv_style_set_bg_color(&gui_info->main_win_style, LV_STYLE_BORDER_COLOR, bg_color);
     lv_style_set_border_color(&gui_info->main_win_style, LV_STYLE_BORDER_COLOR, bg_color);
     //lv_style_set_text_color(&gui_info->main_win_style, LV_STYLE_TEXT_COLOR, LV_COLOR_BLACK);
+
+    //lv_style_set_text_font(&gui_info->main_win_style, LV_STATE_DEFAULT, &lv_font_montserrat_20);
 }
 
 static void set_image_color(GUI_MGR_INFO* gui_info)
@@ -1119,46 +1129,41 @@ int gui_mgr_create_win(GUI_MGR_HANDLE handle)
         lv_obj_add_style(handle->win_bkgrd, LV_OBJ_PART_MAIN , &handle->main_win_style);
         lv_obj_set_pos(handle->win_bkgrd, 0, 0);
         lv_obj_set_size(handle->win_bkgrd, LV_HOR_RES, LV_VER_RES);
-        //lv_obj_set_style_local_bg_color(handle->win_bkgrd, )
-
-        lv_color_t color = lv_obj_get_style_bg_color(handle->win_bkgrd, LV_OBJ_PART_MAIN);
-
-        //lv_obj_set_opa_scale_enable(win_bkgrd, true); // Enable opacity scaling for the animation */
 
         // Create an image object
         handle->image_items[IMAGE_HOUR_1] = lv_img_create(handle->win_bkgrd, NULL);
         lv_img_set_src(handle->image_items[IMAGE_HOUR_1], &zero_img);
         lv_obj_set_pos(handle->image_items[IMAGE_HOUR_1], x_pos, y_pos);
-        x_pos += CLOCK_IMG_WIDTH + VALUE_BUFFER_SIZE;
+        x_pos += CLOCK_IMG_WIDTH + CLOCK_NUM_SPACE;
 
         handle->image_items[IMAGE_HOUR_2] = lv_img_create(handle->win_bkgrd, NULL); // Crate an image object
         lv_img_set_src(handle->image_items[IMAGE_HOUR_2], &two_img);
         lv_obj_set_pos(handle->image_items[IMAGE_HOUR_2], x_pos, y_pos);      // Set the positions
-        x_pos += CLOCK_IMG_WIDTH + VALUE_BUFFER_SIZE;
+        x_pos += CLOCK_IMG_WIDTH + CLOCK_NUM_SPACE;
 
         handle->image_items[IMAGE_ELLIPSIS] = lv_img_create(handle->win_bkgrd, NULL); // Crate an image object
         lv_img_set_src(handle->image_items[IMAGE_ELLIPSIS], &ellipse_img);
         lv_obj_set_pos(handle->image_items[IMAGE_ELLIPSIS], x_pos, y_pos);      // Set the positions
-        x_pos += ELLIPSE_IMG_WIDTH + VALUE_BUFFER_SIZE;
+        x_pos += ELLIPSE_IMG_WIDTH + CLOCK_NUM_SPACE;
 
         int16_t min_x_pos = x_pos;
         handle->image_items[IMAGE_MIN_1] = lv_img_create(handle->win_bkgrd, NULL);  // Crate an image object
         lv_img_set_src(handle->image_items[IMAGE_MIN_1], &three_img);
         lv_obj_set_pos(handle->image_items[IMAGE_MIN_1], x_pos, y_pos);      // Set the positions
-        x_pos += CLOCK_IMG_WIDTH + VALUE_BUFFER_SIZE;
+        x_pos += CLOCK_IMG_WIDTH + CLOCK_NUM_SPACE;
 
         handle->image_items[IMAGE_MIN_2] = lv_img_create(handle->win_bkgrd, NULL); // Crate an image object
         lv_img_set_src(handle->image_items[IMAGE_MIN_2], &four_img);  /*Set the created file as image (a red flower)*/
         lv_obj_set_pos(handle->image_items[IMAGE_MIN_2], x_pos, y_pos);      // Set the positions
-        x_pos += CLOCK_IMG_WIDTH + VALUE_BUFFER_SIZE;
+        x_pos += CLOCK_IMG_WIDTH;
 
         // For Forcast move it a little more on the x
         int16_t temp_x_pos = x_pos + (VALUE_BUFFER_SIZE*2);
+        y_pos += VALUE_BUFFER_SIZE*2;
         handle->forcast_date_label = lv_label_create(handle->win_bkgrd, NULL);
         lv_obj_set_pos(handle->forcast_date_label, temp_x_pos, y_pos);
         lv_label_set_text(handle->forcast_date_label, "");
-        //lv_label_set_style(handle->forcast_date_label, LV_LABEL_STYLE_MAIN, &handle->main_win_style);
-        y_pos += (VALUE_BUFFER_SIZE*4);
+        y_pos += (VALUE_BUFFER_SIZE*6);
 
         handle->image_items[IMAGE_FORCAST] = lv_img_create(handle->win_bkgrd, NULL);
         lv_img_set_src(handle->image_items[IMAGE_FORCAST], &sunny_img);
@@ -1167,35 +1172,29 @@ int gui_mgr_create_win(GUI_MGR_HANDLE handle)
         handle->curr_temp_label = lv_label_create(handle->win_bkgrd, NULL);
         lv_obj_set_pos(handle->curr_temp_label, temp_x_pos + FORCAST_IMG_DIMENSIONS + (VALUE_BUFFER_SIZE*2), y_pos + (FORCAST_IMG_DIMENSIONS/2) - VALUE_BUFFER_SIZE);
         lv_label_set_text(handle->curr_temp_label, "00");
-        //lv_label_set_style(handle->curr_temp_label, LV_LABEL_STYLE_MAIN, &handle->main_win_style);
         y_pos += FORCAST_IMG_DIMENSIONS + (VALUE_BUFFER_SIZE*2);
 
         handle->forcast_desc_label = lv_label_create(handle->win_bkgrd, NULL);
         lv_obj_set_pos(handle->forcast_desc_label, temp_x_pos, y_pos);
         lv_label_set_text(handle->forcast_desc_label, "");
-        //lv_label_set_style(handle->forcast_desc_label, LV_LABEL_STYLE_MAIN, &handle->main_win_style);
         y_pos += VALUE_BUFFER_SIZE*4;
 
         handle->forcast_temp_label = lv_label_create(handle->win_bkgrd, NULL);
         lv_obj_set_pos(handle->forcast_temp_label, temp_x_pos, y_pos);
         lv_label_set_text(handle->forcast_temp_label, "-- / --");
-        //lv_label_set_style(handle->forcast_temp_label, LV_LABEL_STYLE_MAIN, &handle->main_win_style);
 
         // Reset
-        y_pos = CLOCK_IMG_HEIGHT + (VALUE_BUFFER_SIZE*3);
+        y_pos = CLOCK_IMG_HEIGHT + (VALUE_BUFFER_SIZE*6);
         x_pos = LEFT_MARGIN*2;
 
-        // Create a label and set new text
+        // Date and Alarm line
         handle->date_label = lv_label_create(handle->win_bkgrd, NULL);
         lv_obj_set_pos(handle->date_label, x_pos, y_pos);
-        //lv_label_set_style(handle->date_label, LV_LABEL_STYLE_MAIN, &handle->main_win_style);
         x_pos += min_x_pos;
 
         handle->alarm_label = lv_label_create(handle->win_bkgrd, NULL);
         lv_obj_set_pos(handle->alarm_label, x_pos, y_pos);
         //lv_obj_set_event_cb(handle->alarm_dlg_label, alarm_label_callback);
-
-       // lv_label_set_style(handle->alarm_label, LV_LABEL_STYLE_MAIN, &handle->main_win_style);
 
         y_pos += (VALUE_BUFFER_SIZE*8);
         x_pos = LEFT_MARGIN*2;
@@ -1205,7 +1204,7 @@ int gui_mgr_create_win(GUI_MGR_HANDLE handle)
         lv_obj_add_style(handle->alarm_dlg_label, LV_BTN_PART_MAIN, &handle->main_win_style);
         lv_obj_set_width(handle->alarm_dlg_label, 200);
         lv_obj_t* label = lv_label_create(handle->alarm_dlg_label, NULL);
-        lv_label_set_text(label, "Options");
+        lv_label_set_text(label, OPTION_BUTTON_LABEL);
         lv_obj_set_event_cb(handle->alarm_dlg_label, option_btn_callback);
         lv_obj_set_user_data(handle->alarm_dlg_label, handle);
 
@@ -1352,21 +1351,25 @@ void gui_mgr_set_forcast(GUI_MGR_HANDLE handle, FORCAST_TIME timeframe, const WE
             else if (weather_cond->weather_icon[1] == '1')
             {
                 // Thunderstorm
+                lv_img_set_src(handle->image_items[IMAGE_FORCAST], &thunder_img);
             }
             else if (weather_cond->weather_icon[1] == '3')
             {
                 // snow
+                lv_img_set_src(handle->image_items[IMAGE_FORCAST], &snow_img);
             }
         }
         else if (weather_cond->weather_icon[0] == '5')
         {
             // mist
+            lv_img_set_src(handle->image_items[IMAGE_FORCAST], &windy_img);
         }
     }
 }
 
 void gui_mgr_set_next_alarm(GUI_MGR_HANDLE handle, const ALARM_INFO* next_alarm)
 {
+    char alarm_line[128];
     if (handle == NULL)
     {
         log_error("Invalid variable specified handle: %p", handle);
@@ -1374,21 +1377,22 @@ void gui_mgr_set_next_alarm(GUI_MGR_HANDLE handle, const ALARM_INFO* next_alarm)
     // If we have a next alarm
     else if (next_alarm != NULL)
     {
-        char alarm_line[128];
         int trigger_day;
         if ((trigger_day = alarm_scheduler_get_next_day(next_alarm)) >= 0)
         {
-            sprintf(alarm_line, "Alarm set: %s %d:%02d %s", get_day_name(trigger_day, DAY_NAME_ABBREV), config_mgr_format_hour(handle->config_mgr, next_alarm->trigger_time.hour), next_alarm->trigger_time.min, alarm_scheduler_is_morning(&next_alarm->trigger_time) ? "am" : "pm");
+            sprintf(alarm_line, "%s %s %d:%02d %s", ALARM_LABEL_NOT_SET, get_day_name(trigger_day, DAY_NAME_ABBREV), config_mgr_format_hour(handle->config_mgr, next_alarm->trigger_time.hour), next_alarm->trigger_time.min, alarm_scheduler_is_morning(&next_alarm->trigger_time) ? "am" : "pm");
             lv_label_set_text(handle->alarm_label, alarm_line);
         }
         else
         {
-            lv_label_set_text(handle->alarm_label, ALARM_LABEL_NOT_SET);
+            sprintf(alarm_line, "%s --", ALARM_LABEL_NOT_SET);
+            lv_label_set_text(handle->alarm_label, alarm_line);
         }
     }
     else
     {
-        lv_label_set_text(handle->alarm_label, ALARM_LABEL_NOT_SET);
+            sprintf(alarm_line, "%s --", ALARM_LABEL_NOT_SET);
+            lv_label_set_text(handle->alarm_label, alarm_line);
     }
 }
 
