@@ -197,20 +197,11 @@ static void setup_win_style(GUI_MGR_INFO* gui_info)
 
     lv_style_set_radius(&gui_info->main_win_style, LV_STATE_DEFAULT, 10);
     lv_style_set_bg_opa(&gui_info->main_win_style, LV_STATE_DEFAULT, LV_OPA_COVER);
-    /*lv_style_set_bg_color(&style_btn, LV_STATE_DEFAULT, LV_DEMO_PRINTER_BLUE);
-    lv_style_set_bg_color(&style_btn, LV_STATE_PRESSED, lv_color_darken(LV_DEMO_PRINTER_BLUE, LV_OPA_20));
-    lv_style_set_text_color(&style_btn, LV_STATE_DEFAULT, LV_DEMO_PRINTER_WHITE);
-    lv_style_set_value_color(&style_btn, LV_STATE_DEFAULT, LV_DEMO_PRINTER_WHITE);
-    lv_style_set_pad_top(&style_btn, LV_STATE_DEFAULT, LV_VER_RES / 40);
-    lv_style_set_pad_bottom(&style_btn, LV_STATE_DEFAULT, LV_VER_RES / 40);*/
 
     lv_style_set_bg_color(&gui_info->main_win_style, LV_STATE_DEFAULT, bg_color);
     lv_style_set_bg_color(&gui_info->main_win_style, LV_STYLE_BG_COLOR, bg_color);
     lv_style_set_bg_color(&gui_info->main_win_style, LV_STYLE_BORDER_COLOR, bg_color);
     lv_style_set_border_color(&gui_info->main_win_style, LV_STYLE_BORDER_COLOR, bg_color);
-    //lv_style_set_text_color(&gui_info->main_win_style, LV_STYLE_TEXT_COLOR, LV_COLOR_BLACK);
-
-    //lv_style_set_text_font(&gui_info->main_win_style, LV_STATE_DEFAULT, &lv_font_montserrat_20);
 }
 
 static void set_image_color(GUI_MGR_INFO* gui_info)
@@ -340,9 +331,9 @@ static void create_time_roller(lv_obj_t* parent, lv_coord_t* x_pos, lv_coord_t* 
                     "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12", LV_ROLLER_MODE_INIFINITE);
     lv_obj_set_pos(time_ctrl->hour_roller, *x_pos, *y_pos);
     lv_obj_set_width(time_ctrl->hour_roller, 20);
-    lv_roller_set_selected(time_ctrl->hour_roller, curr_time->tm_hour > 12 ? curr_time->tm_hour - 11 : curr_time->tm_hour - 1, LV_ANIM_OFF);
+    lv_roller_set_selected(time_ctrl->hour_roller, curr_time->tm_hour > 12 ? curr_time->tm_hour - 13 : curr_time->tm_hour - 1, LV_ANIM_OFF);
     lv_coord_t actual_width = lv_obj_get_width(time_ctrl->hour_roller);
-    x_pos += actual_width + 5;
+    //x_pos += actual_width + VALUE_BUFFER_SIZE;
 
     time_ctrl->min_roller = lv_roller_create(parent, NULL);
     lv_roller_set_options(time_ctrl->min_roller,
@@ -354,14 +345,14 @@ static void create_time_roller(lv_obj_t* parent, lv_coord_t* x_pos, lv_coord_t* 
                     "51\n52\n53\n54\n55\n56\n57\n58\n59", LV_ROLLER_MODE_INIFINITE);
     lv_roller_set_selected(time_ctrl->min_roller, curr_time->tm_min, LV_ANIM_OFF);
     lv_obj_set_width(time_ctrl->min_roller, 20);
-    lv_obj_align(time_ctrl->min_roller, time_ctrl->hour_roller, LV_ALIGN_IN_TOP_RIGHT, 75, 0);
+    lv_obj_align(time_ctrl->min_roller, time_ctrl->hour_roller, LV_ALIGN_IN_TOP_RIGHT, 85, 0);
 
     time_ctrl->period_roller = lv_roller_create(parent, NULL);
     lv_roller_set_options(time_ctrl->period_roller,
                     "am\npm", LV_ROLLER_MODE_NORMAL);
     lv_obj_set_width(time_ctrl->period_roller, 20);
     lv_roller_set_selected(time_ctrl->period_roller, curr_time->tm_hour > 12 ? 1 : 0, LV_ANIM_OFF);
-    lv_obj_align(time_ctrl->period_roller, time_ctrl->min_roller, LV_ALIGN_IN_TOP_RIGHT, 85, 0);
+    lv_obj_align(time_ctrl->period_roller, time_ctrl->min_roller, LV_ALIGN_IN_TOP_RIGHT, 95, 0);
 
     lv_coord_t coord = lv_obj_get_width(time_ctrl->period_roller);
     *x_pos += lv_obj_get_x(time_ctrl->period_roller)+coord;
@@ -375,6 +366,10 @@ static void add_item_to_table(lv_obj_t* table, uint16_t row, const char* alarm_t
 
     uint16_t row_cnt = lv_table_get_row_cnt(table);
     lv_table_set_row_cnt(table, row_cnt + 1);
+
+    lv_table_set_cell_align(table, row, 0, LV_LABEL_ALIGN_CENTER);
+    lv_table_set_cell_align(table, row, 1, LV_LABEL_ALIGN_CENTER);
+    lv_table_set_cell_align(table, row, 2, LV_LABEL_ALIGN_CENTER);
 
     lv_table_set_cell_value(table, row, 0, alarm_text);
     sprintf(table_value, "%02d:%02d %s", trigger_time->hour > 12 ? trigger_time->hour - 12 : trigger_time->hour,
@@ -411,7 +406,6 @@ static void add_item_to_table(lv_obj_t* table, uint16_t row, const char* alarm_t
         }
         lv_table_set_cell_value(table, row, 2, table_value);
     }
-
 }
 
 static void clear_new_alarm_tab(GUI_MGR_INFO* gui_info)
@@ -678,7 +672,7 @@ static void alarm_tbl_event_cb(lv_obj_t* table_obj, lv_event_t event)
                         DayOfTheWeek dow = get_trigger_day_value(index);
                         lv_checkbox_set_checked(gui_info->new_alarm_dlg.alert_day_cb[index], alarm_info->trigger_days & dow);
                     }
-                    lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.hour_roller, alarm_info->trigger_time.hour > 12 ? alarm_info->trigger_time.hour - 11 : alarm_info->trigger_time.hour - 1, LV_ANIM_OFF);
+                    lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.hour_roller, alarm_info->trigger_time.hour > 12 ? alarm_info->trigger_time.hour - 13 : alarm_info->trigger_time.hour - 1, LV_ANIM_OFF);
                     lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.min_roller, alarm_info->trigger_time.min, LV_ANIM_OFF);
                     lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.period_roller, alarm_info->trigger_time.hour > 12 ? 1 : 0, LV_ANIM_OFF);
 
@@ -809,7 +803,7 @@ static void create_alarm_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
             add_item_to_table(gui_info->new_alarm_dlg.table, index+1, alarm_info->alarm_text, &alarm_info->trigger_time, alarm_info->trigger_days);
         }
     }
-    lv_table_set_cell_type(gui_info->new_alarm_dlg.table, 1, 1, 3);
+    //lv_table_set_cell_type(gui_info->new_alarm_dlg.table, 1, 1, 3);
 }
 
 static void create_new_alarm_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
@@ -819,23 +813,24 @@ static void create_new_alarm_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
 
     gui_info->new_alarm_dlg.parent = parent;
 
-    lv_coord_t left = 5;
-    lv_coord_t top = 5;
+    lv_coord_t left = LEFT_MARGIN;
+    lv_coord_t top = TOP_MARGIN;
     struct tm* curr_time = get_time_value();
     create_time_roller(parent, &left, &top, &gui_info->new_alarm_dlg.alarm_time, curr_time);
     left += 10;
     top += 10;
 
+    // Buttons
     lv_obj_t* save_btn = lv_btn_create(parent, NULL);
-    lv_obj_set_width(save_btn, 120);
-    lv_obj_align(save_btn, NULL, LV_ALIGN_IN_TOP_RIGHT, -20, 20);
+    lv_obj_set_width(save_btn, 200);
+    lv_obj_align(save_btn, NULL, LV_ALIGN_IN_TOP_RIGHT, -20, TOP_MARGIN);
     lv_obj_t* label = lv_label_create(save_btn, NULL);
     lv_label_set_text(label, LV_SYMBOL_SAVE " Save");
     lv_obj_set_event_cb(save_btn, save_alarm_tab_cb);
     lv_obj_set_user_data(save_btn, gui_info);
 
     gui_info->new_alarm_dlg.delete_btn = lv_btn_create(parent, NULL);
-    lv_obj_set_width(gui_info->new_alarm_dlg.delete_btn, 120);
+    lv_obj_set_width(gui_info->new_alarm_dlg.delete_btn, 200);
     lv_obj_align(gui_info->new_alarm_dlg.delete_btn, save_btn, LV_ALIGN_IN_BOTTOM_MID, 0, 50);
     lv_obj_t* delete_label = lv_label_create(gui_info->new_alarm_dlg.delete_btn, NULL);
     lv_label_set_text(delete_label, LV_SYMBOL_TRASH " Delete");
@@ -843,6 +838,7 @@ static void create_new_alarm_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_obj_set_user_data(gui_info->new_alarm_dlg.delete_btn, gui_info);
     lv_obj_set_hidden(gui_info->new_alarm_dlg.delete_btn, true);
 
+    // Text Area
     gui_info->new_alarm_dlg.alarm_text = lv_textarea_create(parent, NULL);
     lv_textarea_set_one_line(gui_info->new_alarm_dlg.alarm_text, true);
     lv_textarea_set_placeholder_text(gui_info->new_alarm_dlg.alarm_text, "Enter Alarm Text");
@@ -852,16 +848,16 @@ static void create_new_alarm_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_obj_set_event_cb(gui_info->new_alarm_dlg.alarm_text, alarm_text_cb);
     lv_obj_set_user_data(gui_info->new_alarm_dlg.alarm_text, gui_info);
     lv_obj_set_width(gui_info->new_alarm_dlg.alarm_text, 300);
-    lv_obj_set_pos(gui_info->new_alarm_dlg.alarm_text, 250, 20);
+    lv_obj_set_pos(gui_info->new_alarm_dlg.alarm_text, 290, TOP_MARGIN);
 
     // Create a container
     lv_obj_t* cont = lv_cont_create(parent, NULL);
-    lv_obj_set_pos(cont, 20, top);
-    lv_obj_set_size(cont, 450, 110);
+    lv_obj_set_pos(cont, LEFT_MARGIN, top);
+    lv_obj_set_size(cont, 470, 110);
 
     // Days of the Week;
-    size_t offset = 5;
-    size_t ck_width = 100;
+    size_t offset = 8;
+    size_t ck_width = 110;
     size_t ck_height_pos = 0;
     size_t multiplier = 0;
     for (size_t index = 0; index < TRIGGER_DAY_BTN_COUNT; index++, multiplier++)
@@ -912,11 +908,13 @@ static void create_option_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_img_set_src(img1, &alarm_img);
     lv_obj_align(img1, digit_color, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
 
+    const uint16_t label_left = LEFT_MARGIN+440;
+    const uint16_t ctrl_pos_left = LEFT_MARGIN+630;
+
     lv_obj_t* zip_label = lv_label_create(parent, NULL);
     lv_label_set_text(zip_label, "Zip Code");
-    lv_obj_set_pos(zip_label, LEFT_MARGIN+340, TOP_MARGIN+5);
+    lv_obj_set_pos(zip_label, label_left, TOP_MARGIN+5);
 
-    const uint16_t ctrl_pos_left = LEFT_MARGIN+490;
 
     const char* zipcode = config_mgr_get_zipcode(gui_info->config_mgr);
     gui_info->new_alarm_dlg.zipcode_text = lv_textarea_create(parent, NULL);
@@ -926,7 +924,7 @@ static void create_option_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
 
     lv_obj_t* hour_label = lv_label_create(parent, NULL);
     lv_label_set_text(hour_label, "24h clock");
-    lv_obj_set_pos(hour_label, LEFT_MARGIN+310, TOP_MARGIN+50);
+    lv_obj_set_pos(hour_label, label_left, TOP_MARGIN+50);
 
     lv_obj_t* clock_24hour = lv_switch_create(parent, NULL);
     if (config_mgr_is_24h_clock(gui_info->config_mgr))
@@ -939,7 +937,7 @@ static void create_option_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
 
     lv_obj_t* temp_unit_label = lv_label_create(parent, NULL);
     lv_label_set_text(temp_unit_label, "Fahrenheit");
-    lv_obj_set_pos(temp_unit_label, LEFT_MARGIN+310, TOP_MARGIN+100);
+    lv_obj_set_pos(temp_unit_label, label_left, TOP_MARGIN+100);
 
     lv_obj_t* fahrenheit = lv_switch_create(parent, NULL);
     if (config_mgr_is_celsius(gui_info->config_mgr))
@@ -950,27 +948,28 @@ static void create_option_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_obj_set_event_cb(fahrenheit, temp_unit_cb);
     lv_obj_set_user_data(fahrenheit, gui_info);
 
+    /*struct tm shade_time = {0};
+    shade_time.tm_hour = 22;
+    shade_time.tm_min = 30;
+    create_time_roller(parent, label_left, TOP_MARGIN+150, &gui_info->new_alarm_dlg.start_shade, &shade_time);
+    shade_time.tm_hour = 7;
+    shade_time.tm_min = 00;
+    create_time_roller(parent, label_left, TOP_MARGIN+200, &gui_info->new_alarm_dlg.end_shade, &shade_time);*/
+
     lv_obj_t* num_keybrd = lv_keyboard_create(parent, NULL);
     lv_keyboard_set_cursor_manage(num_keybrd, true);
     // Set text area with keyboard
     lv_keyboard_set_textarea(num_keybrd, gui_info->new_alarm_dlg.zipcode_text);
     lv_keyboard_set_mode(num_keybrd, LV_KEYBOARD_MODE_NUM);
-    lv_obj_set_pos(num_keybrd, LEFT_MARGIN, TOP_MARGIN+130);
+    lv_obj_set_pos(num_keybrd, LEFT_MARGIN-10, TOP_MARGIN+150);
 
     // Add a version tag
     char version_text[64];
     lv_obj_t* version_label = lv_label_create(parent, NULL);
     sprintf(version_text, "version %s", version);
     lv_label_set_text(version_label, version_text);
-    lv_obj_align(version_label, NULL, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
-
-    /*struct tm shade_time = {0};
-    shade_time.tm_hour = 22;
-    shade_time.tm_min = 30;
-    create_time_roller(parent, LEFT_MARGIN+600, TOP_MARGIN, &gui_info->new_alarm_dlg.start_shade, &shade_time);
-    shade_time.tm_hour = 7;
-    shade_time.tm_min = 00;
-    create_time_roller(parent, LEFT_MARGIN+600, TOP_MARGIN+150, &gui_info->new_alarm_dlg.end_shade, &shade_time);*/
+    lv_obj_set_pos(version_label, LEFT_MARGIN, TOP_MARGIN+360);
+    //lv_obj_align(version_label, NULL, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
 }
 
 static int tick_thread(void * data)
