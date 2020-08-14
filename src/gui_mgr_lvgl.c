@@ -324,6 +324,13 @@ static const char* get_month_name(int month)
     return result;
 }
 
+static void set_time_roller(TIME_CONTROL* alarm_time, uint8_t hour, uint8_t minute)
+{
+    lv_roller_set_selected(alarm_time->hour_roller, hour > 12 ? hour - 13 : hour - 1, LV_ANIM_OFF);
+    lv_roller_set_selected(alarm_time->min_roller, minute, LV_ANIM_OFF);
+    lv_roller_set_selected(alarm_time->period_roller, hour > 12 ? 1 : 0, LV_ANIM_OFF);
+}
+
 static void create_time_roller(lv_obj_t* parent, lv_coord_t* x_pos, lv_coord_t* y_pos, TIME_CONTROL* time_ctrl, const struct tm* curr_time)
 {
     time_ctrl->hour_roller = lv_roller_create(parent, NULL);
@@ -331,7 +338,6 @@ static void create_time_roller(lv_obj_t* parent, lv_coord_t* x_pos, lv_coord_t* 
                     "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12", LV_ROLLER_MODE_INIFINITE);
     lv_obj_set_pos(time_ctrl->hour_roller, *x_pos, *y_pos);
     lv_obj_set_width(time_ctrl->hour_roller, 20);
-    lv_roller_set_selected(time_ctrl->hour_roller, curr_time->tm_hour > 12 ? curr_time->tm_hour - 13 : curr_time->tm_hour - 1, LV_ANIM_OFF);
     lv_coord_t actual_width = lv_obj_get_width(time_ctrl->hour_roller);
     //x_pos += actual_width + VALUE_BUFFER_SIZE;
 
@@ -343,7 +349,6 @@ static void create_time_roller(lv_obj_t* parent, lv_coord_t* x_pos, lv_coord_t* 
                     "31\n32\n33\n34\n35\n36\n37\n38\n39\n40\n"
                     "41\n42\n43\n44\n45\n46\n47\n48\n49\n50\n"
                     "51\n52\n53\n54\n55\n56\n57\n58\n59", LV_ROLLER_MODE_INIFINITE);
-    lv_roller_set_selected(time_ctrl->min_roller, curr_time->tm_min, LV_ANIM_OFF);
     lv_obj_set_width(time_ctrl->min_roller, 20);
     lv_obj_align(time_ctrl->min_roller, time_ctrl->hour_roller, LV_ALIGN_IN_TOP_RIGHT, 85, 0);
 
@@ -351,13 +356,14 @@ static void create_time_roller(lv_obj_t* parent, lv_coord_t* x_pos, lv_coord_t* 
     lv_roller_set_options(time_ctrl->period_roller,
                     "am\npm", LV_ROLLER_MODE_NORMAL);
     lv_obj_set_width(time_ctrl->period_roller, 20);
-    lv_roller_set_selected(time_ctrl->period_roller, curr_time->tm_hour > 12 ? 1 : 0, LV_ANIM_OFF);
     lv_obj_align(time_ctrl->period_roller, time_ctrl->min_roller, LV_ALIGN_IN_TOP_RIGHT, 95, 0);
 
     lv_coord_t coord = lv_obj_get_width(time_ctrl->period_roller);
     *x_pos += lv_obj_get_x(time_ctrl->period_roller)+coord;
     coord = lv_obj_get_height(time_ctrl->period_roller);
     *y_pos += lv_obj_get_y(time_ctrl->period_roller)+coord;
+
+    set_time_roller(time_ctrl, curr_time->tm_hour, curr_time->tm_min);
 }
 
 static void add_item_to_table(lv_obj_t* table, uint16_t row, const char* alarm_text, const TIME_INFO* trigger_time, uint32_t trigger_days)
@@ -416,11 +422,7 @@ static void clear_new_alarm_tab(GUI_MGR_INFO* gui_info)
         lv_checkbox_set_checked(gui_info->new_alarm_dlg.alert_day_cb[index], false);
     }
     struct tm* curr_time = get_time_value();
-    lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.hour_roller, curr_time->tm_hour > 12 ? curr_time->tm_hour - 11 : curr_time->tm_hour - 1, LV_ANIM_OFF);
-    lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.min_roller, curr_time->tm_min, LV_ANIM_OFF);
-    lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.period_roller, curr_time->tm_hour > 12 ? 1 : 0, LV_ANIM_OFF);
-
-    gui_info->new_alarm_dlg.is_dirty = false;
+    set_time_roller(&gui_info->new_alarm_dlg.alarm_time, curr_time->tm_hour, curr_time->tm_min);
 
     gui_info->new_alarm_dlg.edit_index = -1;
     lv_obj_set_hidden(gui_info->new_alarm_dlg.delete_btn, true);
@@ -444,6 +446,7 @@ static void delete_alarm_cb(lv_obj_t* delete_btn, lv_event_t event)
                 {
                     // Clear the items
                     clear_new_alarm_tab(gui_info);
+                    gui_info->new_alarm_dlg.is_dirty = true;
                 }
             }
         }
@@ -524,11 +527,12 @@ static void save_alarm_tab_cb(lv_obj_t* save_btn, lv_event_t event)
             else
             {
                 uint16_t row_cnt = lv_table_get_row_cnt(gui_info->new_alarm_dlg.table);
-                lv_table_set_row_cnt(gui_info->new_alarm_dlg.table, row_cnt+1);
-                add_item_to_table(gui_info->new_alarm_dlg.table, row_cnt+1, alarm_text_value, &alarm_time, trigger_days);
+                lv_table_set_row_cnt(gui_info->new_alarm_dlg.table, row_cnt);
+                add_item_to_table(gui_info->new_alarm_dlg.table, row_cnt-1, alarm_text_value, &alarm_time, trigger_days);
 
                 // Clear the items
                 clear_new_alarm_tab(gui_info);
+                gui_info->new_alarm_dlg.is_dirty = true;
             }
         }
         else
@@ -672,9 +676,7 @@ static void alarm_tbl_event_cb(lv_obj_t* table_obj, lv_event_t event)
                         DayOfTheWeek dow = get_trigger_day_value(index);
                         lv_checkbox_set_checked(gui_info->new_alarm_dlg.alert_day_cb[index], alarm_info->trigger_days & dow);
                     }
-                    lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.hour_roller, alarm_info->trigger_time.hour > 12 ? alarm_info->trigger_time.hour - 13 : alarm_info->trigger_time.hour - 1, LV_ANIM_OFF);
-                    lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.min_roller, alarm_info->trigger_time.min, LV_ANIM_OFF);
-                    lv_roller_set_selected(gui_info->new_alarm_dlg.alarm_time.period_roller, alarm_info->trigger_time.hour > 12 ? 1 : 0, LV_ANIM_OFF);
+                    set_time_roller(&gui_info->new_alarm_dlg.alarm_time, alarm_info->trigger_time.hour, alarm_info->trigger_time.min);
 
                     lv_tabview_set_tab_act(gui_info->new_alarm_dlg.tab_view, 1, LV_ANIM_ON);
 
@@ -1470,6 +1472,7 @@ void gui_mgr_process_items(GUI_MGR_HANDLE handle)
             option_info.dlg_state = OPTION_DLG_CLOSED;
             option_info.is_dirty = handle->new_alarm_dlg.is_dirty;
             handle->notify_cb(handle->user_ctx, NOTIFICATION_OPTION_DLG, &option_info);
+            handle->new_alarm_dlg.is_dirty = false;
             handle->window_mode = WINDOW_MODE_CLOCK;
         }
     }
