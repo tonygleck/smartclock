@@ -366,7 +366,7 @@ static void window_create(monitor_t * m)
     #ifdef SMARTCLOCK_DEBUG
         flags = 0;
     #else
-        flags = SDL_WINDOW_FULLSCREEN|SDL_WINDOW_BORDERLESS;
+        flags = SDL_WINDOW_MAXIMIZED|SDL_WINDOW_BORDERLESS;//SDL_WINDOW_FULLSCREEN|SDL_WINDOW_BORDERLESS;
     #endif
     m->window = SDL_CreateWindow(WINDOWS_TITLE, 0, 0,
         MONITOR_HOR_RES * MONITOR_ZOOM, MONITOR_VER_RES * MONITOR_ZOOM, flags); /*last param. SDL_WINDOW_BORDERLESS to hide borders*/

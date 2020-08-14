@@ -62,3 +62,17 @@ https://www.geeks3d.com/hacklab/20160108/how-to-disable-the-blank-screen-on-rasp
 
 may 23 - 93,464 bytes
 Jun 15 - 93,504 bytes
+
+### Auto starting application on RPI
+
+Eddit the following file:
+
+```Shell
+sudo nano /etc/xdg/lxsession/LXDE-pi/autostart
+```
+
+Add the following line to the file
+
+```Shell
+@/home/pi/smartclock/development/repo/smartclock/cmake/smartclock
+```

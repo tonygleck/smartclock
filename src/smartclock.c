@@ -297,7 +297,7 @@ static void gui_notification_cb(void* user_ctx, GUI_NOTIFICATION_TYPE type, void
         {
             ALARM_STATE_RESULT* alarm_result = (ALARM_STATE_RESULT*)res_value;
 
-            //sound_mgr_stop(clock_info->sound_mgr);
+            sound_mgr_stop(clock_info->sound_mgr);
             if (*alarm_result == ALARM_STATE_STOPPED)
             {
                 clock_info->alarm_op_state = ALARM_STATE_STOPPED;
