@@ -1484,7 +1484,7 @@ void gui_mgr_show_alarm_dlg(GUI_MGR_HANDLE handle, SCHEDULER_HANDLE sched_handle
     {
         handle->window_mode = WINDOW_MODE_OPTIONS;
         // Show the dialog
-        lv_obj_t* parent = handle->win_bkgrd;//lv_obj_get_parent(alarm_dlg_obj);
+        lv_obj_t* parent = handle->win_bkgrd;
 
         memset(&handle->new_alarm_dlg, 0, sizeof(handle->new_alarm_dlg));
         handle->new_alarm_dlg.sched_handle = sched_handle;

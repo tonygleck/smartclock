@@ -100,7 +100,12 @@ static int get_next_trigger_day(const struct tm* current_tm, uint32_t trigger_da
             {
                 // If the current hour is greater than the trigger hour
                 // then it's too late
-                if ((trigger_time->hour > current_tm->tm_hour) || (trigger_time->min > current_tm->tm_min))
+                if (trigger_time->hour > current_tm->tm_hour)
+                {
+                    result = target_day;
+                    break;
+                }
+                else if ((trigger_time->hour == current_tm->tm_hour) && (trigger_time->min > current_tm->tm_min))
                 {
                     result = target_day;
                     break;
