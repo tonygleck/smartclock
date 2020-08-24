@@ -611,6 +611,41 @@ CTEST_BEGIN_TEST_SUITE(alarm_scheduler_ut)
         alarm_scheduler_destroy(handle);
     }
 
+    CTEST_FUNCTION(alarm_scheduler_is_triggered_wrong_day_success)
+    {
+        // arrange
+        ALARM_INFO alarm_info1 = {0};
+        ALARM_INFO alarm_info2 = {0};
+
+        struct tm test_tm = {0};
+        set_tm_struct(&test_tm);
+        test_tm.tm_hour = 4;
+        test_tm.tm_min = 50;
+        test_tm.tm_wday = 6;
+
+        SCHEDULER_HANDLE handle = alarm_scheduler_create();
+        setup_alarm_time_info(&alarm_info1, &test_tm);
+        alarm_info1.trigger_days = Monday|Wednesday|Friday;
+        alarm_info1.trigger_time.hour = 4;
+        alarm_info1.trigger_time.min = 50;
+        alarm_info1.alarm_text = (char*)TEST_ALARM_1_TEXT;;
+        (void)alarm_scheduler_add_alarm_info(handle, &alarm_info1);
+        umock_c_reset_all_calls();
+
+        STRICT_EXPECTED_CALL(item_list_item_count(IGNORED_ARG)).SetReturn(1);
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(item_list_get_item(IGNORED_ARG, IGNORED_ARG));
+
+        // act
+        const ALARM_INFO* alarm_info = alarm_scheduler_is_triggered(handle, &test_tm);
+
+        // assert
+        CTEST_ASSERT_IS_NULL(alarm_info);
+
+        // cleanup
+        alarm_scheduler_destroy(handle);
+    }
+
     CTEST_FUNCTION(alarm_scheduler_is_triggered_alert_3_success)
     {
         // arrange
