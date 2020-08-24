@@ -247,7 +247,7 @@ static void calculate_snooze_time(const TIME_INFO* time_info, uint8_t snooze_min
 static bool is_alarm_triggered(const ALARM_INFO* alarm_info, const struct tm* curr_time)
 {
     bool result = false;
-    if (alarm_info->trigger_days != NoDay || alarm_info->trigger_days & get_current_day(curr_time))
+    if (alarm_info->trigger_days != NoDay && alarm_info->trigger_days & get_current_day(curr_time))
     {
         if (alarm_info->trigger_time.hour == curr_time->tm_hour ||
             alarm_info->trigger_time.hour == curr_time->tm_hour - 1)
