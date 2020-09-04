@@ -27,6 +27,7 @@ static const char* ALARM_NODE_TIME = "time";
 static const char* ALARM_NODE_FREQUENCY = "frequency";
 static const char* ALARM_NODE_SOUND = "sound";
 static const char* ALARM_NODE_SNOOZE = "snooze";
+static const char* ALARM_NODE_ID = "id";
 
 #define CLOCK_HOUR_24           0x00000001
 #define CLOCK_SHOW_SECONDS      0x00000002
@@ -186,6 +187,7 @@ bool config_mgr_save(CONFIG_MGR_HANDLE handle)
         }
         else
         {
+            log_debug("Configuration file saved");
             result = true;
         }
     }
@@ -407,6 +409,7 @@ int config_mgr_load_alarm(CONFIG_MGR_HANDLE handle, ON_ALARM_LOAD_CALLBACK alarm
                     }
                     else
                     {
+                        config_alarm.id = (uint8_t)json_object_get_number(alarm_item, "id");
                         config_alarm.snooze = (uint8_t)json_object_get_number(alarm_item, "snooze");
                         config_alarm.frequency = (uint32_t)json_object_get_number(alarm_item, "frequency");
                         if (alarm_cb(user_ctx, &config_alarm) != 0)
@@ -422,7 +425,7 @@ int config_mgr_load_alarm(CONFIG_MGR_HANDLE handle, ON_ALARM_LOAD_CALLBACK alarm
     return result;
 }
 
-int config_mgr_store_alarm(CONFIG_MGR_HANDLE handle, const char* name, const TIME_VALUE_STORAGE* time_value, const char* sound_file, uint32_t frequency, uint8_t snooze)
+int config_mgr_store_alarm(CONFIG_MGR_HANDLE handle, const char* name, const TIME_VALUE_STORAGE* time_value, const char* sound_file, uint32_t frequency, uint8_t snooze, uint8_t id)
 {
     int result;
     if (handle == NULL)
@@ -481,6 +484,11 @@ int config_mgr_store_alarm(CONFIG_MGR_HANDLE handle, const char* name, const TIM
                 result = __LINE__;
             }
             else if (json_object_set_number(alarm_object, ALARM_NODE_SNOOZE, snooze) != JSONSuccess)
+            {
+                log_error("Failure constructing alarm snooze");
+                result = __LINE__;
+            }
+            else if (json_object_set_number(alarm_object, ALARM_NODE_ID, id) != JSONSuccess)
             {
                 log_error("Failure constructing alarm snooze");
                 result = __LINE__;

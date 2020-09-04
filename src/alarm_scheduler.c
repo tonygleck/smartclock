@@ -15,6 +15,7 @@
 #include "time_mgr.h"
 
 #define INVALID_TRIGGERED_DATE      400
+#define SNOOZE_ID                   10
 
 typedef enum ALARM_TYPE_TAG
 {
@@ -34,6 +35,7 @@ typedef struct ALARM_STORAGE_ITEM_TAG
 typedef struct ALARM_SCHEDULER_TAG
 {
     ITEM_LIST_HANDLE sched_list;
+    uint8_t alarm_next_id;
 } ALARM_SCHEDULER;
 
 static void destroy_schedule_list_cb(void* user_ctx, void* item)
@@ -261,7 +263,7 @@ static bool is_alarm_triggered(const ALARM_INFO* alarm_info, const struct tm* cu
     return result;
 }
 
-static int store_time_object(ALARM_SCHEDULER* scheduler, ALARM_TYPE type, const char* alarm_text, const TIME_INFO* time_info, uint32_t trigger_days, const char* sound_file, uint8_t snooze_min)
+static int store_time_object(ALARM_SCHEDULER* scheduler, ALARM_TYPE type, const char* alarm_text, const TIME_INFO* time_info, uint32_t trigger_days, const char* sound_file, uint8_t snooze_min, uint8_t* id)
 {
     int result;
     ALARM_STORAGE_ITEM* tm_info;
@@ -281,6 +283,19 @@ static int store_time_object(ALARM_SCHEDULER* scheduler, ALARM_TYPE type, const 
         tm_info->type = type;
         tm_info->triggered_date = INVALID_TRIGGERED_DATE;
         tm_info->alarm_info.trigger_days = trigger_days;
+        if (*id != SNOOZE_ID && *id < MIN_ID_VALUE)
+        {
+            *id = scheduler->alarm_next_id++;
+        }
+        else
+        {
+            if (*id > scheduler->alarm_next_id)
+            {
+                scheduler->alarm_next_id = (*id)+1;
+            }
+        }
+
+        tm_info->alarm_info.alarm_id = *id;
         memcpy(&tm_info->alarm_info.trigger_time, time_info, sizeof(TIME_INFO) );
         tm_info->alarm_info.snooze_min = snooze_min;
         if (alarm_text != NULL && clone_string(&tm_info->alarm_info.alarm_text, alarm_text) != 0)
@@ -347,6 +362,10 @@ SCHEDULER_HANDLE alarm_scheduler_create(void)
             free(result);
             result = NULL;
         }
+        else
+        {
+            result->alarm_next_id = MIN_ID_VALUE;
+        }
     }
     return result;
 }
@@ -394,7 +413,7 @@ const ALARM_INFO* alarm_scheduler_is_triggered(SCHEDULER_HANDLE handle, const st
     return result;
 }
 
-int alarm_scheduler_add_alarm_info(SCHEDULER_HANDLE handle, const ALARM_INFO* alarm_info)
+int alarm_scheduler_add_alarm_info(SCHEDULER_HANDLE handle, ALARM_INFO* alarm_info)
 {
     int result;
     if (handle == NULL || alarm_info == NULL)
@@ -409,11 +428,11 @@ int alarm_scheduler_add_alarm_info(SCHEDULER_HANDLE handle, const ALARM_INFO* al
         {
             type = ALARM_TYPE_INACTIVE;
         }
-        else if (alarm_info->trigger_days == NoDay)
+        else if (alarm_info->trigger_days == OneTime)
         {
             type = ALARM_TYPE_ONE_TIME;
         }
-        if (store_time_object(handle, type, alarm_info->alarm_text, &alarm_info->trigger_time, alarm_info->trigger_days, alarm_info->sound_file, alarm_info->snooze_min) != 0)
+        if (store_time_object(handle, type, alarm_info->alarm_text, &alarm_info->trigger_time, alarm_info->trigger_days, alarm_info->sound_file, alarm_info->snooze_min, &alarm_info->alarm_id) != 0)
         {
             log_error("Invalid time value specified");
             result = __LINE__;
@@ -426,7 +445,7 @@ int alarm_scheduler_add_alarm_info(SCHEDULER_HANDLE handle, const ALARM_INFO* al
     return result;
 }
 
-int alarm_scheduler_add_alarm(SCHEDULER_HANDLE handle, const char* alarm_text, const TIME_INFO* time_info, uint32_t trigger_days, const char* sound_file, uint8_t snooze_min)
+int alarm_scheduler_add_alarm(SCHEDULER_HANDLE handle, const char* alarm_text, const TIME_INFO* time_info, uint32_t trigger_days, const char* sound_file, uint8_t snooze_min, uint8_t* alarm_id)
 {
     int result;
     if (handle == NULL || time_info == NULL)
@@ -445,14 +464,53 @@ int alarm_scheduler_add_alarm(SCHEDULER_HANDLE handle, const char* alarm_text, c
         {
             type = ALARM_TYPE_ONE_TIME;
         }
-        if (store_time_object(handle, type, alarm_text, time_info, trigger_days, sound_file, snooze_min) != 0)
+
+        uint8_t id;
+        if (store_time_object(handle, type, alarm_text, time_info, trigger_days, sound_file, snooze_min, &id) != 0)
         {
             log_error("Invalid time value specified");
             result = __LINE__;
         }
         else
         {
+            if (alarm_id != NULL)
+            {
+                *alarm_id = id;
+            }
             result = 0;
+        }
+    }
+    return result;
+}
+
+int alarm_scheduler_delete_alarm(SCHEDULER_HANDLE handle, uint8_t alarm_id)
+{
+    int result;
+    if (handle == NULL)
+    {
+        log_error("Invalid argument handle:%p", handle);
+        result = __LINE__;
+    }
+    else
+    {
+        result = 0;
+        size_t alarm_cnt = item_list_item_count(handle->sched_list);
+        for (size_t index = 0; index < alarm_cnt; index++)
+        {
+            const ALARM_STORAGE_ITEM* item = item_list_get_item(handle->sched_list, index);
+            if (item != NULL && item->alarm_info.alarm_id == alarm_id)
+            {
+                if (item_list_remove_item(handle->sched_list, index) != 0)
+                {
+                    log_error("Failure removing item id %d", (int)alarm_id);
+                    result = __LINE__;
+                }
+                else
+                {
+                    result = 0;
+                }
+                break;
+            }
         }
     }
     return result;
@@ -577,6 +635,31 @@ const ALARM_INFO* alarm_scheduler_get_alarm(SCHEDULER_HANDLE handle, size_t inde
     return result;
 }
 
+const ALARM_INFO* alarm_scheduler_get_alarm_by_id(SCHEDULER_HANDLE handle, size_t id)
+{
+    const ALARM_INFO* result;
+    if (handle == NULL)
+    {
+        log_error("Invalid argument handle is NULL");
+        result = NULL;
+    }
+    else
+    {
+        result = NULL;
+        size_t alarm_cnt = item_list_item_count(handle->sched_list);
+        for (size_t index = 0; index < alarm_cnt; index++)
+        {
+            const ALARM_STORAGE_ITEM* item = item_list_get_item(handle->sched_list, index);
+            if (item != NULL && item->alarm_info.alarm_id == id)
+            {
+                result = &item->alarm_info;
+                break;
+            }
+        }
+    }
+    return result;
+}
+
 int alarm_scheduler_snooze_alarm(SCHEDULER_HANDLE handle, const ALARM_INFO* alarm_info)
 {
     int result;
@@ -590,7 +673,8 @@ int alarm_scheduler_snooze_alarm(SCHEDULER_HANDLE handle, const ALARM_INFO* alar
         // Calculate snooze time
         TIME_INFO snooze;
         calculate_snooze_time(&alarm_info->trigger_time, alarm_info->snooze_min, &snooze);
-        if (store_time_object(handle, ALARM_TYPE_SNOOZE, alarm_info->alarm_text, &snooze, Everyday, alarm_info->sound_file, alarm_info->snooze_min) != 0)
+        uint8_t id = SNOOZE_ID;
+        if (store_time_object(handle, ALARM_TYPE_SNOOZE, alarm_info->alarm_text, &snooze, Everyday, alarm_info->sound_file, alarm_info->snooze_min, &id) != 0)
         {
             log_error("Failure snoozing time object");
             result = __LINE__;

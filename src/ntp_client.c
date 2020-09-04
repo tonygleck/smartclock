@@ -297,11 +297,17 @@ static int send_initial_ntp_packet(NTP_CLIENT_INFO* ntp_client)
 static int init_connect_to_server(NTP_CLIENT_INFO* ntp_client, const char* time_server)
 {
     int result;
+    PATCHCORD_CALLBACK_INFO patch_info;
+    patch_info.on_bytes_received = on_socket_bytes_received;
+    patch_info.on_client_close = on_connection_closed;
+    patch_info.on_io_error = on_socket_error;
+    patch_info.on_bytes_received_ctx = patch_info.on_close_ctx = patch_info.on_io_error_ctx = ntp_client;
+
     SOCKETIO_CONFIG socket_config = {0};
     socket_config.hostname = time_server;
     socket_config.port = NTP_PORT_NUM;
     socket_config.address_type = ADDRESS_TYPE_UDP;
-    if ((ntp_client->socket_impl = cord_socket_create(&socket_config, on_socket_bytes_received, ntp_client, on_socket_error, ntp_client)) == NULL)
+    if ((ntp_client->socket_impl = cord_socket_create(&socket_config, &patch_info)) == NULL)
     {
         log_error("Error connecting to NTP server %s:%d", time_server, NTP_PORT_NUM);
         result = MU_FAILURE;

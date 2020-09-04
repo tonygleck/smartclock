@@ -408,11 +408,17 @@ static int load_alarms_cb(void* context, const CONFIG_ALARM_INFO* cfg_alarm)
     }
     else
     {
-        TIME_INFO time_info;
-        time_info.hour = cfg_alarm->time_value.hours;
-        time_info.min = cfg_alarm->time_value.minutes;
-        time_info.sec = cfg_alarm->time_value.seconds;
-        if (alarm_scheduler_add_alarm(sched_mgr, cfg_alarm->name, &time_info, cfg_alarm->frequency, cfg_alarm->sound_file, cfg_alarm->snooze) != 0)
+        ALARM_INFO alarm_info;
+        alarm_info.alarm_text = (char*)cfg_alarm->name;
+        alarm_info.sound_file = (char*)cfg_alarm->sound_file;
+        alarm_info.trigger_time.hour = cfg_alarm->time_value.hours;
+        alarm_info.trigger_time.min = cfg_alarm->time_value.minutes;
+        alarm_info.trigger_time.sec = cfg_alarm->time_value.seconds;
+        alarm_info.snooze_min = cfg_alarm->snooze;
+        alarm_info.trigger_days = cfg_alarm->frequency;
+        alarm_info.alarm_id = cfg_alarm->id;
+
+        if (alarm_scheduler_add_alarm_info(sched_mgr, &alarm_info) != 0)
         {
             log_error("Failure adding alarm %s", cfg_alarm->name);
             result = __LINE__;

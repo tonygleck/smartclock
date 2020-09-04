@@ -50,20 +50,25 @@ typedef struct ALARM_INFO_TAG
     uint8_t snooze_min;
     char* alarm_text;
     char* sound_file;
+    uint8_t alarm_id;
 } ALARM_INFO;
+
+#define MIN_ID_VALUE                100
 
 typedef struct ALARM_SCHEDULER_TAG* SCHEDULER_HANDLE;
 
 MOCKABLE_FUNCTION(, SCHEDULER_HANDLE, alarm_scheduler_create);
 MOCKABLE_FUNCTION(, void, alarm_scheduler_destroy, SCHEDULER_HANDLE, handle);
 
-MOCKABLE_FUNCTION(, int, alarm_scheduler_add_alarm, SCHEDULER_HANDLE, handle, const char*, alarm_text, const TIME_INFO*, time, uint32_t, trigger_days, const char*, sound_file, uint8_t, snooze_min);
-MOCKABLE_FUNCTION(, int, alarm_scheduler_add_alarm_info, SCHEDULER_HANDLE, handle, const ALARM_INFO*, alarm_info);
+MOCKABLE_FUNCTION(, int, alarm_scheduler_add_alarm, SCHEDULER_HANDLE, handle, const char*, alarm_text, const TIME_INFO*, time, uint32_t, trigger_days, const char*, sound_file, uint8_t, snooze_min, uint8_t*, alarm_id);
+MOCKABLE_FUNCTION(, int, alarm_scheduler_add_alarm_info, SCHEDULER_HANDLE, handle, ALARM_INFO*, alarm_info);
 MOCKABLE_FUNCTION(, int, alarm_scheduler_remove_alarm, SCHEDULER_HANDLE, handle, size_t, alarm_index);
+MOCKABLE_FUNCTION(, int, alarm_scheduler_delete_alarm, SCHEDULER_HANDLE, handle, uint8_t, alarm_id);
 
 
 MOCKABLE_FUNCTION(, size_t, alarm_scheduler_get_alarm_count, SCHEDULER_HANDLE, handle);
 MOCKABLE_FUNCTION(, const ALARM_INFO*, alarm_scheduler_get_alarm, SCHEDULER_HANDLE, handle, size_t, index);
+MOCKABLE_FUNCTION(, const ALARM_INFO*, alarm_scheduler_get_alarm_by_id, SCHEDULER_HANDLE, handle, size_t, id);
 
 MOCKABLE_FUNCTION(, const ALARM_INFO*, alarm_scheduler_get_next_alarm, SCHEDULER_HANDLE, handle);
 MOCKABLE_FUNCTION(, const ALARM_INFO*, alarm_scheduler_is_triggered, SCHEDULER_HANDLE, handle, const struct tm*, curr_time);
