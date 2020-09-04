@@ -115,13 +115,13 @@ static int my_socket_close(CORD_HANDLE socket_io, ON_IO_CLOSE_COMPLETE on_io_clo
     return 0;
 }
 
-static CORD_HANDLE my_socket_create(const void* create_parameters, ON_BYTES_RECEIVED on_bytes_received, void* on_bytes_received_context, ON_IO_ERROR on_io_error, void* on_io_error_context)
+static CORD_HANDLE my_socket_create(const void* create_parameters, const PATCHCORD_CALLBACK_INFO* client_cb)
 {
     (void)create_parameters;
-    g_on_bytes_received = on_bytes_received;
-    g_on_bytes_received_context = on_bytes_received_context;
-    g_on_io_error = on_io_error;
-    g_on_io_error_context = on_io_error_context;
+    g_on_bytes_received = client_cb->on_bytes_received;
+    g_on_bytes_received_context = client_cb->on_bytes_received_ctx;
+    g_on_io_error = client_cb->on_io_error;
+    g_on_io_error_context = client_cb->on_io_error_ctx;
     return my_mem_shim_malloc(1);
 }
 
@@ -166,7 +166,7 @@ static void my_ntp_time_callback(void* user_ctx, NTP_OPERATION_RESULT ntp_result
 
 static void setup_ntp_client_get_time_mocks(NTP_CLIENT_HANDLE handle, size_t ntp_timeout)
 {
-    STRICT_EXPECTED_CALL(cord_socket_create(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+    STRICT_EXPECTED_CALL(cord_socket_create(IGNORED_ARG, IGNORED_ARG));
     STRICT_EXPECTED_CALL(cord_socket_open(IGNORED_ARG, IGNORED_ARG, handle));
     STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_ARG, ntp_timeout));
 }
@@ -543,7 +543,7 @@ CTEST_BEGIN_TEST_SUITE(ntp_client_ut)
         // arrange
         STRICT_EXPECTED_CALL(malloc(IGNORED_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_init(IGNORED_ARG));
-        STRICT_EXPECTED_CALL(cord_socket_create(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(cord_socket_create(IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(cord_socket_open(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(alarm_timer_start(IGNORED_ARG, ntp_timeout));
         STRICT_EXPECTED_CALL(cord_socket_process_item(IGNORED_ARG));

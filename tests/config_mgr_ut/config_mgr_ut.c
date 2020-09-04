@@ -107,6 +107,7 @@ static const char* TEST_DEMO_MODE = "demo_mode";
 
 static const char* TEST_ALARM_NAME = "alarm text 1";
 static uint8_t TEST_SNOOZE_MIN = 15;
+static uint8_t TEST_ALARM_ID = 234;
 static const char* TEST_ALARM_SOUND = "alarm_sound1.mp3";
 static uint8_t TEST_ALARM_FREQUENCY = 127;
 static TIME_VALUE_STORAGE TEST_ALARM_ARRAY = { 12, 30, 0 };
@@ -237,6 +238,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "name"));
         STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "sound"));
         STRICT_EXPECTED_CALL(json_object_get_string(IGNORED_ARG, "time")).SetReturn(TEST_VALID_TIME_VAL);
+        STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "id")).CallCannotFail();
         STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "snooze")).CallCannotFail();
         STRICT_EXPECTED_CALL(json_object_get_number(IGNORED_ARG, "frequency")).CallCannotFail();
         //STRICT_EXPECTED_CALL(test_alarm_load_cb(IGNORED_ARG, IGNORED_ARG));
@@ -251,6 +253,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         STRICT_EXPECTED_CALL(json_object_set_string(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(json_object_set_number(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(json_object_set_string(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
+        STRICT_EXPECTED_CALL(json_object_set_number(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(json_object_set_number(IGNORED_ARG, IGNORED_ARG, IGNORED_ARG));
         STRICT_EXPECTED_CALL(json_array_append_value(IGNORED_ARG, IGNORED_ARG));
     }
@@ -503,7 +506,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         // arrange
 
         // act
-        int result = config_mgr_store_alarm(NULL, TEST_ALARM_NAME, &TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN);
+        int result = config_mgr_store_alarm(NULL, TEST_ALARM_NAME, &TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN, TEST_ALARM_ID);
 
         // assert
         CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
@@ -521,7 +524,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         setup_config_mgr_store_alarm_mocks();
 
         // act
-        int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, &TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN);
+        int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, &TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN, TEST_ALARM_ID);
 
         // assert
         CTEST_ASSERT_ARE_EQUAL(int, 0, result);
@@ -538,7 +541,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
         umock_c_reset_all_calls();
 
         // act
-        int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, &TEST_INVALID_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN);
+        int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, &TEST_INVALID_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN, TEST_ALARM_ID);
 
         // assert
         CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);
@@ -570,7 +573,7 @@ CTEST_BEGIN_TEST_SUITE(config_mgr_ut)
                 umock_c_negative_tests_fail_call(index);
 
                 // act
-                int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, &TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN);
+                int result = config_mgr_store_alarm(handle, TEST_ALARM_NAME, &TEST_ALARM_ARRAY, TEST_ALARM_SOUND, TEST_ALARM_FREQUENCY, TEST_SNOOZE_MIN, TEST_ALARM_ID);
 
                 // assert
                 CTEST_ASSERT_ARE_NOT_EQUAL(int, 0, result);

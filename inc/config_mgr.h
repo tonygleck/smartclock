@@ -29,6 +29,7 @@ typedef struct CONFIG_ALARM_INFO_TAG
     const char* sound_file;
     uint32_t frequency;
     uint8_t snooze;
+    uint8_t id;
 } CONFIG_ALARM_INFO;
 
 typedef struct CONFIG_MGR_INFO_TAG* CONFIG_MGR_HANDLE;
@@ -55,7 +56,7 @@ MOCKABLE_FUNCTION(, bool, config_mgr_is_celsius, CONFIG_MGR_HANDLE, handle);
 MOCKABLE_FUNCTION(, int, config_mgr_set_celsius, CONFIG_MGR_HANDLE, handle, bool, is_celsius);
 
 MOCKABLE_FUNCTION(, int, config_mgr_load_alarm, CONFIG_MGR_HANDLE, handle, ON_ALARM_LOAD_CALLBACK, alarm_cb, void*, user_ctx);
-MOCKABLE_FUNCTION(, int, config_mgr_store_alarm, CONFIG_MGR_HANDLE, handle, const char*, name, const TIME_VALUE_STORAGE*, time_value, const char*, sound_file, uint32_t, frequency, uint8_t, snooze);
+MOCKABLE_FUNCTION(, int, config_mgr_store_alarm, CONFIG_MGR_HANDLE, handle, const char*, name, const TIME_VALUE_STORAGE*, time_value, const char*, sound_file, uint32_t, frequency, uint8_t, snooze, uint8_t, id);
 
 MOCKABLE_FUNCTION(, uint8_t, config_mgr_format_hour, CONFIG_MGR_HANDLE, handle, int, hour);
 MOCKABLE_FUNCTION(, bool, config_mgr_show_seconds, CONFIG_MGR_HANDLE, handle);

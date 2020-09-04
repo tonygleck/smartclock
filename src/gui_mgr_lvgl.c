@@ -124,7 +124,7 @@ typedef struct TIME_CONTROL_TAG
 
 typedef struct NEW_ALARM_DLG_TAG
 {
-    int edit_index;
+    int edit_id;
     SCHEDULER_HANDLE sched_handle;
     TIME_CONTROL alarm_time;
     TIME_CONTROL start_shade;
@@ -424,8 +424,27 @@ static void clear_new_alarm_tab(GUI_MGR_INFO* gui_info)
     struct tm* curr_time = get_time_value();
     set_time_roller(&gui_info->new_alarm_dlg.alarm_time, curr_time->tm_hour, curr_time->tm_min);
 
-    gui_info->new_alarm_dlg.edit_index = -1;
+    gui_info->new_alarm_dlg.edit_id = 0;
     lv_obj_set_hidden(gui_info->new_alarm_dlg.delete_btn, true);
+}
+
+static void fill_alarm_list(NEW_ALARM_DLG* new_alarm_dlg)
+{
+    size_t alarm_count = alarm_scheduler_get_alarm_count(new_alarm_dlg->sched_handle);
+    lv_table_set_row_cnt(new_alarm_dlg->table, alarm_count + 1);
+
+    lv_table_set_cell_value(new_alarm_dlg->table, 0, 0, "Alarm Name");
+    lv_table_set_cell_value(new_alarm_dlg->table, 0, 1, "Time");
+    lv_table_set_cell_value(new_alarm_dlg->table, 0, 2, "Days");
+
+    for (size_t index = 0; index < alarm_count; index++)
+    {
+        const ALARM_INFO* alarm_info = alarm_scheduler_get_alarm(new_alarm_dlg->sched_handle, index);
+        if (alarm_info != NULL)
+        {
+            add_item_to_table(new_alarm_dlg->table, index+1, alarm_info->alarm_text, &alarm_info->trigger_time, alarm_info->trigger_days);
+        }
+    }
 }
 
 // Callbacks
@@ -436,9 +455,9 @@ static void delete_alarm_cb(lv_obj_t* delete_btn, lv_event_t event)
         GUI_MGR_INFO* gui_info = (GUI_MGR_INFO*)lv_obj_get_user_data(delete_btn);
         if (gui_info != NULL)
         {
-            if (gui_info->new_alarm_dlg.edit_index-1 >= 0)
+            if (gui_info->new_alarm_dlg.edit_id >= MIN_ID_VALUE)
             {
-                if (alarm_scheduler_remove_alarm(gui_info->new_alarm_dlg.sched_handle, gui_info->new_alarm_dlg.edit_index-1) != 0)
+                if (alarm_scheduler_delete_alarm(gui_info->new_alarm_dlg.sched_handle, gui_info->new_alarm_dlg.edit_id) != 0)
                 {
                     log_error("Failure attempting to delete alarm");
                 }
@@ -446,6 +465,13 @@ static void delete_alarm_cb(lv_obj_t* delete_btn, lv_event_t event)
                 {
                     // Clear the items
                     clear_new_alarm_tab(gui_info);
+
+                    fill_alarm_list(&gui_info->new_alarm_dlg);
+                    //uint16_t row_cnt = lv_table_get_row_cnt(gui_info->new_alarm_dlg.table);
+                    //lv_table_set_row_cnt(gui_info->new_alarm_dlg.table, row_cnt);
+
+                    //lv_table_set_row_cnt(gui_info->, row_cnt + 1);
+
                     gui_info->new_alarm_dlg.is_dirty = true;
                 }
             }
@@ -515,12 +541,13 @@ static void save_alarm_tab_cb(lv_obj_t* save_btn, lv_event_t event)
                 alarm_text_value = "New alarm text";
             }
 
+            uint8_t alarm_id;
             if (alarm_scheduler_add_alarm(gui_info->new_alarm_dlg.sched_handle, alarm_text_value,
-                &alarm_time, trigger_days, ringtone, DEFAULT_SNOOZE_TIME) != 0)
+                &alarm_time, trigger_days, ringtone, DEFAULT_SNOOZE_TIME, &alarm_id) != 0)
             {
                 log_error("Failure saving alarm");
             }
-            else if (config_mgr_store_alarm(gui_info->config_mgr, alarm_text_value, &tm_value, ringtone, trigger_days, DEFAULT_SNOOZE_TIME) != 0)
+            else if (config_mgr_store_alarm(gui_info->config_mgr, alarm_text_value, &tm_value, ringtone, trigger_days, DEFAULT_SNOOZE_TIME, alarm_id) != 0)
             {
                 log_error("Failure saving alarm to config");
             }
@@ -664,8 +691,9 @@ static void alarm_tbl_event_cb(lv_obj_t* table_obj, lv_event_t event)
 
                 if (row > 0 && row <= alarm_count)
                 {
-                    gui_info->new_alarm_dlg.edit_index = row-1;
-                    const ALARM_INFO* alarm_info = alarm_scheduler_get_alarm(gui_info->new_alarm_dlg.sched_handle, gui_info->new_alarm_dlg.edit_index);
+                    const ALARM_INFO* alarm_info = alarm_scheduler_get_alarm(gui_info->new_alarm_dlg.sched_handle, row-1);
+
+                    gui_info->new_alarm_dlg.edit_id = alarm_info->alarm_id;
                     // load the new alarm tab with info
                     lv_textarea_set_text(gui_info->new_alarm_dlg.alarm_text, alarm_info->alarm_text);
                     lv_obj_set_hidden(gui_info->new_alarm_dlg.ta_keybrd, true);
@@ -749,7 +777,7 @@ static void alarm_text_cb(lv_obj_t* txt_area, lv_event_t event)
 
 static void create_alarm_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
 {
-    size_t alarm_count = alarm_scheduler_get_alarm_count(gui_info->new_alarm_dlg.sched_handle);
+    //size_t alarm_count = alarm_scheduler_get_alarm_count(gui_info->new_alarm_dlg.sched_handle);
 
     // Create a normal cell style
     //static lv_style_t style_cell1;
@@ -772,7 +800,6 @@ static void create_alarm_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_obj_set_event_cb(gui_info->new_alarm_dlg.table, alarm_tbl_event_cb);
     lv_obj_set_user_data(gui_info->new_alarm_dlg.table, gui_info);
     lv_table_set_col_cnt(gui_info->new_alarm_dlg.table, 3);
-    lv_table_set_row_cnt(gui_info->new_alarm_dlg.table, alarm_count + 1);
     lv_obj_set_pos(gui_info->new_alarm_dlg.table, 5, 5);
     //lv_obj_align(gui_info->new_alarm_dlg.table, NULL, LV_ALIGN_CENTER, 0, 0);
     lv_coord_t tbl_width = lv_obj_get_width(gui_info->new_alarm_dlg.table);
@@ -792,10 +819,12 @@ static void create_alarm_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
     lv_table_set_cell_type(gui_info->new_alarm_dlg.table, 0, 1, 2);
     lv_table_set_cell_type(gui_info->new_alarm_dlg.table, 0, 2, 2);
 
+    fill_alarm_list(&gui_info->new_alarm_dlg);
     // Fill the header column
-    lv_table_set_cell_value(gui_info->new_alarm_dlg.table, 0, 0, "Alarm Name");
+    /*lv_table_set_cell_value(gui_info->new_alarm_dlg.table, 0, 0, "Alarm Name");
     lv_table_set_cell_value(gui_info->new_alarm_dlg.table, 0, 1, "Time");
     lv_table_set_cell_value(gui_info->new_alarm_dlg.table, 0, 2, "Days");
+
 
     for (size_t index = 0; index < alarm_count; index++)
     {
@@ -804,7 +833,7 @@ static void create_alarm_tab(GUI_MGR_INFO* gui_info, lv_obj_t* parent)
         {
             add_item_to_table(gui_info->new_alarm_dlg.table, index+1, alarm_info->alarm_text, &alarm_info->trigger_time, alarm_info->trigger_days);
         }
-    }
+    }*/
     //lv_table_set_cell_type(gui_info->new_alarm_dlg.table, 1, 1, 3);
 }
 
@@ -1078,7 +1107,7 @@ GUI_MGR_HANDLE gui_mgr_create(CONFIG_MGR_HANDLE config_mgr, GUI_MGR_NOTIFICATION
     else
     {
         memset(result, 0, sizeof(GUI_MGR_INFO));
-        result->new_alarm_dlg.edit_index = -1;
+        result->new_alarm_dlg.edit_id = 0;
 
         lv_init();
         hal_init();
