@@ -283,9 +283,13 @@ static int store_time_object(ALARM_SCHEDULER* scheduler, ALARM_TYPE type, const 
         tm_info->type = type;
         tm_info->triggered_date = INVALID_TRIGGERED_DATE;
         tm_info->alarm_info.trigger_days = trigger_days;
-        if (*id != SNOOZE_ID && *id < MIN_ID_VALUE)
+        if (id == NULL)
         {
-            *id = scheduler->alarm_next_id++;
+            tm_info->alarm_info.alarm_id = scheduler->alarm_next_id++;
+        }
+        else if (*id != SNOOZE_ID && *id < MIN_ID_VALUE)
+        {
+            tm_info->alarm_info.alarm_id = *id = scheduler->alarm_next_id++;
         }
         else
         {
@@ -293,9 +297,8 @@ static int store_time_object(ALARM_SCHEDULER* scheduler, ALARM_TYPE type, const 
             {
                 scheduler->alarm_next_id = (*id)+1;
             }
+            tm_info->alarm_info.alarm_id = *id;
         }
-
-        tm_info->alarm_info.alarm_id = *id;
         memcpy(&tm_info->alarm_info.trigger_time, time_info, sizeof(TIME_INFO) );
         tm_info->alarm_info.snooze_min = snooze_min;
         if (alarm_text != NULL && clone_string(&tm_info->alarm_info.alarm_text, alarm_text) != 0)
@@ -465,7 +468,7 @@ int alarm_scheduler_add_alarm(SCHEDULER_HANDLE handle, const char* alarm_text, c
             type = ALARM_TYPE_ONE_TIME;
         }
 
-        uint8_t id;
+        uint8_t id = 0;
         if (store_time_object(handle, type, alarm_text, time_info, trigger_days, sound_file, snooze_min, &id) != 0)
         {
             log_error("Invalid time value specified");

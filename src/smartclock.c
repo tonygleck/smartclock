@@ -377,6 +377,11 @@ static void check_alarm_operation(SMARTCLOCK_INFO* clock_info, const struct tm* 
             // Trigger Alarm to fire
             gui_mgr_set_alarm_triggered(clock_info->gui_mgr, triggered);
 
+            if (clock_info->shades_down)
+            {
+                // Turn shades on
+            }
+
             play_alarm_sound(clock_info, triggered);
 
             clock_info->alarm_op_state = ALARM_STATE_TRIGGERED;
