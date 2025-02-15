@@ -247,18 +247,38 @@ static void configure_alarms(SMARTCLOCK_INFO* clock_info)
     // Check
 }
 
-static void adjust_shades(SMARTCLOCK_INFO* clock_info, const struct tm* curr_time)
+static void adjust_shade(SMARTCLOCK_INFO* clock_info, bool shade_down)
+{
+    if (shade_down)
+    {
+        if (!clock_info->shades_down)
+        {
+            log_debug("Pulling shades down");
+        }
+        clock_info->shades_down = true;
+    }
+    else
+    {
+        if (clock_info->shades_down)
+        {
+            log_debug("Pulling shades up");
+        }
+        clock_info->shades_down = false;
+    }
+}
+
+static void check_shade_value(SMARTCLOCK_INFO* clock_info, const struct tm* curr_time)
 {
     if ((clock_info->shade_start.hours < INVALID_HOUR_VALUE && clock_info->shade_start.hours < INVALID_HOUR_VALUE) || clock_info->alarm_op_state == ALARM_STATE_TRIGGERED)
     {
-        // Check shade
+        // Check to see if the alarm is triggered
         if (clock_info->alarm_op_state == ALARM_STATE_TRIGGERED)
         {
-            if (clock_info->shades_down)
-            {
-                log_debug("Turning shades on");
-                clock_info->shades_down = false;
-            }
+            adjust_shade(clock_info, false);
+            // if (clock_info->shades_down)
+            // {
+            //     clock_info->shades_down = false;
+            // }
         }
         else
         {
@@ -266,18 +286,16 @@ static void adjust_shades(SMARTCLOCK_INFO* clock_info, const struct tm* curr_tim
             {
                 if (curr_time->tm_hour == clock_info->shade_start.hours && curr_time->tm_min == clock_info->shade_start.minutes)
                 {
-                    // TODO: Turn up the shades
-                    log_debug("Turning shades on");
-                    clock_info->shades_down = false;
+                    adjust_shade(clock_info, false);
                 }
             }
             else
             {
                 if (curr_time->tm_hour == clock_info->shade_end.hours && curr_time->tm_min == clock_info->shade_end.minutes)
                 {
-                    // TODO: Turn down the shades
-                    log_debug("Turning shades off");
-                    clock_info->shades_down = true;
+                    adjust_shade(clock_info, true);
+                    //log_debug("Turning shades off");
+                    //clock_info->shades_down = true;
                 }
             }
         }
@@ -630,7 +648,7 @@ int run_application(int argc, char* argv[])
                 check_alarm_operation(&clock_info, curr_time);
 
                 // Check the shades
-                adjust_shades(&clock_info, curr_time);
+                check_shade_value(&clock_info, curr_time);
 
                 gui_mgr_set_time_item(clock_info.gui_mgr, curr_time);
                 gui_mgr_process_items(clock_info.gui_mgr);
